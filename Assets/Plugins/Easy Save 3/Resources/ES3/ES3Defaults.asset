@@ -31,18 +31,18 @@ MonoBehaviour:
     assemblyNames:
     - Assembly-CSharp-firstpass
     - Zenject
-    - PPv2URPConverters
-    - UniTask
     - Zenject-IntegrationTests
+    - UniTask
+    - ToonyColorsPro.Editor
+    - PPv2URPConverters
     - ToonyColorsPro.Runtime
     - UniTask.Linq
-    - ToonyColorsPro.Editor
     - Zenject-TestFramework
     - UniTask.TextMeshPro
-    - UniTask.Editor
-    - Sirenix.OdinInspector.Modules.UnityMathematics
     - UniTask.Addressables
+    - UniTask.Editor
     - UniTask.DOTween
+    - Sirenix.OdinInspector.Modules.UnityMathematics
     showAdvancedSettings: 0
   addMgrToSceneAutomatically: 0
   autoUpdateReferences: 1
