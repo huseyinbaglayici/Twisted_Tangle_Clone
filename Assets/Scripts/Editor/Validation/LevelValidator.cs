@@ -61,8 +61,8 @@ namespace TwistedTangle.Editor.Validation
             }
 
             // --- structural errors -------------------------------------------------------------
-            if (level.LevelId < 0)
-                report.Errors.Add("Level Id is not set (must be >= 0).");
+            if (level.LevelId < 1)
+                report.Errors.Add("Level Id must be >= 1 (0 is reserved for \"no level\").");
             if (level.GridWidth <= 0 || level.GridHeight <= 0)
                 report.Errors.Add($"Grid size is invalid ({level.GridWidth}x{level.GridHeight}).");
 

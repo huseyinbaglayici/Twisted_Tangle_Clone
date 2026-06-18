@@ -30,7 +30,7 @@ namespace TwistedTangle.Editor
 
         // --- model ---
         private LevelDataSO _level;
-        private int _currentLevelId = -1;
+        private int _currentLevelId = 0;
         private bool _isEditMode;
         private int _nextRopeId;
 
@@ -191,7 +191,7 @@ namespace TwistedTangle.Editor
             var s = MakeSection("Level (save / load / delete by id)");
             var row = MakeRow();
 
-            _levelIdField = CompactIntField("Level Id", 0);
+            _levelIdField = CompactIntField("Level Id", 1);
             row.Add(_levelIdField);
             row.Add(MakeButton("Load", () => LoadLevel(_levelIdField.value), "tt-btn--primary"));
             row.Add(MakeButton("Save", SaveCurrentLevel, "tt-btn--save"));
@@ -502,7 +502,7 @@ namespace TwistedTangle.Editor
             _level.GridHeight = h;
 
             _isEditMode = false;
-            _currentLevelId = -1;
+            _currentLevelId = 0;
             _nextRopeId = 0;
             _selectedRopeId = -1;
             _previewRope = null;
@@ -672,7 +672,7 @@ namespace TwistedTangle.Editor
             {
                 _level = null;
                 _isEditMode = false;
-                _currentLevelId = -1;
+                _currentLevelId = 0;
                 RefreshAll();
             }
         }

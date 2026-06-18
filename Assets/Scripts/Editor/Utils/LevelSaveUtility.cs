@@ -22,9 +22,9 @@ namespace TwistedTangle.Editor.Utils
         public static LevelDataSO SaveLevel(LevelDataSO working, string folder)
         {
             if (working == null) return null;
-            if (working.LevelId < 0)
+            if (working.LevelId < 1)
             {
-                Debug.LogError("[LevelSaveUtility] Cannot save: Level Id must be >= 0.");
+                Debug.LogError("[LevelSaveUtility] Cannot save: Level Id must be >= 1 (0 is reserved).");
                 return null;
             }
 
