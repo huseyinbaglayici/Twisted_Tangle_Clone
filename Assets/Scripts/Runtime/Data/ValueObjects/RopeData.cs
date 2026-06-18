@@ -24,24 +24,26 @@ namespace TwistedTangle.Runtime.Data.ValueObjects
 
     /// <summary>
     /// A colored rope authored as an ordered path through peg cells. First/last waypoints are the
-    /// endpoints; the ones in between are pegs the rope wraps around. <see cref="Layer"/> is the
-    /// default over/under order at crossings (higher = on top); per-crossing exceptions live in
+    /// endpoints (pin A / pin B); the ones in between are pegs the rope wraps around. <see cref="Tint"/>
+    /// is a free color picked from a palette — at load time the material factory turns it into the
+    /// rope's material and the materials of its two endpoint pins. <see cref="Layer"/> is the default
+    /// over/under order at crossings (higher = on top); per-crossing exceptions live in
     /// <see cref="LevelDataSO.CrossingOverrides"/>.
     /// </summary>
     [Serializable]
     public class RopeData
     {
         public int RopeId;
-        public EntityColor Color = EntityColor.Default;
+        public Color Tint = Color.white;
         public int Layer;
         public List<RopeWaypoint> Path = new();
 
         public RopeData() { }
 
-        public RopeData(int ropeId, EntityColor color, int layer)
+        public RopeData(int ropeId, Color tint, int layer)
         {
             RopeId = ropeId;
-            Color = color;
+            Tint = tint;
             Layer = layer;
         }
     }

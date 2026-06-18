@@ -86,7 +86,7 @@ namespace TwistedTangle.Editor.Utils
 
         private static RopeData CloneRope(RopeData src)
         {
-            var clone = new RopeData(src.RopeId, src.Color, src.Layer)
+            var clone = new RopeData(src.RopeId, src.Tint, src.Layer)
             {
                 Path = new List<RopeWaypoint>(src.Path) // RopeWaypoint is a value type
             };

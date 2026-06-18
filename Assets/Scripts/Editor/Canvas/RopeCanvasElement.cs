@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using TwistedTangle.Runtime.Data.ScriptableObjects;
 using TwistedTangle.Runtime.Data.ValueObjects;
-using TwistedTangle.Runtime.Geometry;
+using TwistedTangle.Editor.Geometry;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -148,11 +148,15 @@ namespace TwistedTangle.Editor.Canvas
         {
             if (Level == null) return;
             float r = CellSize * 0.30f;
+            var endpointColors = BuildEndpointColors();
 
             foreach (var peg in Level.Pegs)
             {
                 Vector2 c = ToPx(CrossingSolver.Center(peg.Coordinates));
-                Color fill = PegColorResolver?.Invoke(peg.TypeId) ?? new Color(0.8f, 0.8f, 0.8f);
+                // Endpoint pins (pin A / pin B) take their rope's color; other pegs use their type color.
+                Color fill = endpointColors.TryGetValue(peg.Coordinates, out var ropeColor)
+                    ? ropeColor
+                    : PegColorResolver?.Invoke(peg.TypeId) ?? new Color(0.8f, 0.8f, 0.8f);
 
                 p.fillColor = fill;
                 p.BeginPath();
@@ -185,13 +189,31 @@ namespace TwistedTangle.Editor.Canvas
             {
                 var rope = Level.Ropes[i];
                 if (rope.Path.Count < 2) continue;
-                StrokeRope(p, rope, i, gaps, EntityColorResolved(rope), RopeWidth);
+                StrokeRope(p, rope, i, gaps, rope.Tint, RopeWidth);
                 DrawEndpoints(p, rope);
             }
         }
 
-        private static Color EntityColorResolved(RopeData rope) =>
-            Runtime.Data.Enums.EntityColors.Resolve(rope.Color);
+        /// <summary>Color each rope endpoint (pin A / pin B) gets, including the in-progress rope.</summary>
+        private Dictionary<Vector2Int, Color> BuildEndpointColors()
+        {
+            var map = new Dictionary<Vector2Int, Color>();
+            if (Level != null)
+                foreach (var rope in Level.Ropes)
+                {
+                    if (rope.Path == null || rope.Path.Count < 1) continue;
+                    map[rope.Path[0].PegCoord] = rope.Tint;
+                    map[rope.Path[^1].PegCoord] = rope.Tint;
+                }
+
+            if (PreviewRope is { Path: { Count: >= 1 } })
+            {
+                map[PreviewRope.Path[0].PegCoord] = PreviewRope.Tint;
+                map[PreviewRope.Path[^1].PegCoord] = PreviewRope.Tint;
+            }
+
+            return map;
+        }
 
         /// <summary>For each segment of each rope, the parametric t-positions where it goes UNDER.</summary>
         private Dictionary<(int rope, int seg), List<float>> BuildGapMap()
@@ -268,7 +290,7 @@ namespace TwistedTangle.Editor.Canvas
         private void DrawEndpoints(Painter2D p, RopeData rope)
         {
             if (rope.Path.Count < 1) return;
-            Color color = EntityColorResolved(rope);
+            Color color = rope.Tint;
             float r = RopeWidth * 0.9f;
 
             DrawDot(p, ToPx(CrossingSolver.Center(rope.Path[0].PegCoord)), r, color);
@@ -278,7 +300,7 @@ namespace TwistedTangle.Editor.Canvas
         private void DrawPreview(Painter2D p)
         {
             if (PreviewRope == null || PreviewRope.Path.Count == 0) return;
-            Color color = EntityColorResolved(PreviewRope);
+            Color color = PreviewRope.Tint;
             color.a = 0.6f;
 
             p.lineWidth = RopeWidth;

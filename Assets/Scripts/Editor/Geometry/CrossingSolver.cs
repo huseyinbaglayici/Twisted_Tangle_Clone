@@ -2,13 +2,13 @@ using System.Collections.Generic;
 using TwistedTangle.Runtime.Data.ValueObjects;
 using UnityEngine;
 
-namespace TwistedTangle.Runtime.Geometry
+namespace TwistedTangle.Editor.Geometry
 {
     /// <summary>
     /// A point where two rope segments cross. Coordinates are in grid cell-center space (peg at
-    /// (x,y) maps to (x+0.5, y+0.5)), so crossings are resolution-independent and identical in the
-    /// editor and at runtime. <see cref="SegA"/>/<see cref="SegB"/> are segment indices within each
-    /// rope (segment i spans path waypoints i..i+1).
+    /// (x,y) maps to (x+0.5, y+0.5)), so crossings are resolution-independent. <see cref="SegA"/>/
+    /// <see cref="SegB"/> are segment indices within each rope (segment i spans path waypoints i..i+1).
+    /// This is editor/tool-only geometry; runtime stays pure data.
     /// </summary>
     public struct RopeCrossing
     {

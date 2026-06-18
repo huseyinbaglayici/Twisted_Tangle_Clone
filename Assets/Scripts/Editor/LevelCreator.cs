@@ -3,10 +3,9 @@ using System.Linq;
 using TwistedTangle.Editor.Canvas;
 using TwistedTangle.Editor.Utils;
 using TwistedTangle.Editor.Validation;
-using TwistedTangle.Runtime.Data.Enums;
 using TwistedTangle.Runtime.Data.ScriptableObjects;
 using TwistedTangle.Runtime.Data.ValueObjects;
-using TwistedTangle.Runtime.Geometry;
+using TwistedTangle.Editor.Geometry;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -14,10 +13,10 @@ using UnityEngine.UIElements;
 namespace TwistedTangle.Editor
 {
     /// <summary>
-    /// Twisted Tangle visual level editor. A designer places pegs on a grid, draws colored ropes
-    /// between them, controls which rope sits on top at each crossing, and saves/loads/deletes levels
-    /// by id — all without touching code. Peg types are data-driven (PegDefinitionSO assets), so a new
-    /// peg kind appears in the palette automatically.
+    /// Twisted Tangle visual level editor. A designer places pegs on a grid, draws ropes between them,
+    /// picks each rope's color from a palette, controls which rope sits on top at each crossing, and
+    /// saves/loads/deletes levels by id — all without touching code. Peg types and palette colors are
+    /// data-driven (PegDefinitionSO / ColorPaletteSO assets), so new content appears automatically.
     /// </summary>
     public class LevelCreator : EditorWindow
     {
@@ -25,6 +24,7 @@ namespace TwistedTangle.Editor
 
         private const string LevelsPath = "Assets/Resources/Data/Levels";
         private const string PegsPath = "Assets/Resources/Data/Pegs";
+        private const string PalettesPath = "Assets/Resources/Data/Palettes";
         private const string UssPath = "Assets/Scripts/Editor/LevelCreator.uss";
         private const float FlipPickRadiusCells = 0.35f;
 
@@ -37,13 +37,14 @@ namespace TwistedTangle.Editor
         // --- tool state ---
         private Tool _tool = Tool.Peg;
         private PegDefinitionSO _selectedPeg;
-        private EntityColor _ropeColor = EntityColor.Red;
+        private Color _ropeColor = new(0.90f, 0.20f, 0.20f);
         private RopeData _previewRope;
         private int _selectedRopeId = -1;
 
-        // --- peg definitions (data-driven) ---
+        // --- data-driven content ---
         private readonly List<PegDefinitionSO> _pegDefs = new();
         private readonly Dictionary<string, PegDefinitionSO> _pegLookup = new();
+        private readonly List<(string name, Color color)> _swatches = new();
 
         // --- ui ---
         private IntegerField _levelIdField, _widthField, _heightField;
@@ -68,6 +69,7 @@ namespace TwistedTangle.Editor
             if (uss != null) root.styleSheets.Add(uss);
 
             RefreshPegDefinitions();
+            RefreshPalettes();
 
             root.Add(MakeTitle("Twisted Tangle — Level Creator"));
             root.Add(BuildLevelIoSection());
@@ -81,7 +83,7 @@ namespace TwistedTangle.Editor
             RefreshAll();
         }
 
-        #region Peg definition discovery (data-driven)
+        #region Data-driven discovery
 
         private void RefreshPegDefinitions()
         {
@@ -90,8 +92,7 @@ namespace TwistedTangle.Editor
 
             foreach (var guid in AssetDatabase.FindAssets($"t:{nameof(PegDefinitionSO)}"))
             {
-                var path = AssetDatabase.GUIDToAssetPath(guid);
-                var def = AssetDatabase.LoadAssetAtPath<PegDefinitionSO>(path);
+                var def = AssetDatabase.LoadAssetAtPath<PegDefinitionSO>(AssetDatabase.GUIDToAssetPath(guid));
                 if (def == null) continue;
                 _pegDefs.Add(def);
                 _pegLookup[def.TypeId] = def;
@@ -99,6 +100,17 @@ namespace TwistedTangle.Editor
 
             if (_selectedPeg == null || !_pegDefs.Contains(_selectedPeg))
                 _selectedPeg = _pegDefs.FirstOrDefault();
+        }
+
+        private void RefreshPalettes()
+        {
+            _swatches.Clear();
+            foreach (var guid in AssetDatabase.FindAssets($"t:{nameof(ColorPaletteSO)}"))
+            {
+                var pal = AssetDatabase.LoadAssetAtPath<ColorPaletteSO>(AssetDatabase.GUIDToAssetPath(guid));
+                if (pal == null) continue;
+                foreach (var e in pal.Entries) _swatches.Add((e.Name, e.Color));
+            }
         }
 
         private Color ResolvePegColor(string typeId) =>
@@ -131,6 +143,45 @@ namespace TwistedTangle.Editor
             AssetDatabase.CreateAsset(so, path);
         }
 
+        /// <summary>Bootstraps a starter color palette so swatches exist out of the box.</summary>
+        private void CreateDefaultPalette()
+        {
+            EnsureFolder(PalettesPath);
+            string path = $"{PalettesPath}/DefaultPalette.asset";
+            if (AssetDatabase.LoadAssetAtPath<ColorPaletteSO>(path) == null)
+            {
+                (string name, Color color)[] colors =
+                {
+                    ("Red", new Color(0.90f, 0.20f, 0.20f)),
+                    ("Orange", new Color(1f, 0.55f, 0f)),
+                    ("Yellow", new Color(0.95f, 0.85f, 0.10f)),
+                    ("Green", new Color(0.30f, 0.75f, 0.35f)),
+                    ("Blue", new Color(0.20f, 0.55f, 0.95f)),
+                    ("Purple", new Color(0.55f, 0.25f, 0.80f)),
+                    ("Pink", new Color(0.95f, 0.40f, 0.70f)),
+                    ("White", Color.white)
+                };
+
+                var pal = CreateInstance<ColorPaletteSO>();
+                var so = new SerializedObject(pal);
+                var arr = so.FindProperty("entries");
+                arr.arraySize = colors.Length;
+                for (int i = 0; i < colors.Length; i++)
+                {
+                    var el = arr.GetArrayElementAtIndex(i);
+                    el.FindPropertyRelative("Name").stringValue = colors[i].name;
+                    el.FindPropertyRelative("Color").colorValue = colors[i].color;
+                }
+                so.ApplyModifiedPropertiesWithoutUndo();
+                AssetDatabase.CreateAsset(pal, path);
+                AssetDatabase.SaveAssets();
+                AssetDatabase.Refresh();
+            }
+
+            RefreshPalettes();
+            RebuildPalette();
+        }
+
         #endregion
 
         #region UI: static sections
@@ -140,10 +191,8 @@ namespace TwistedTangle.Editor
             var s = MakeSection("Level (save / load / delete by id)");
             var row = MakeRow();
 
-            _levelIdField = new IntegerField("Level Id") { value = 0 };
-            _levelIdField.style.minWidth = 120;
+            _levelIdField = CompactIntField("Level Id", 0);
             row.Add(_levelIdField);
-
             row.Add(MakeButton("Load", () => LoadLevel(_levelIdField.value), "tt-btn--primary"));
             row.Add(MakeButton("Save", SaveCurrentLevel, "tt-btn--save"));
             row.Add(MakeButton("Delete", () => DeleteLevel(_levelIdField.value), "tt-btn--danger"));
@@ -156,10 +205,8 @@ namespace TwistedTangle.Editor
             var s = MakeSection("Grid");
             var row = MakeRow();
 
-            _widthField = new IntegerField("Width") { value = 6 };
-            _heightField = new IntegerField("Height") { value = 6 };
-            _widthField.style.minWidth = 90;
-            _heightField.style.minWidth = 90;
+            _widthField = CompactIntField("Width", 6);
+            _heightField = CompactIntField("Height", 6);
             row.Add(_widthField);
             row.Add(_heightField);
             row.Add(MakeButton("Generate Grid", GenerateGrid, "tt-btn--primary"));
@@ -240,6 +287,7 @@ namespace TwistedTangle.Editor
         {
             _paletteContainer.Clear();
 
+            // --- peg type buttons (data-driven) ---
             if (_pegDefs.Count == 0)
             {
                 _paletteContainer.Add(new HelpBox(
@@ -247,37 +295,69 @@ namespace TwistedTangle.Editor
                     "Peg Definition) — they appear here automatically — or click below.",
                     HelpBoxMessageType.Info));
                 _paletteContainer.Add(MakeButton("Create Default Peg Types", CreateDefaultPegTypes, "tt-btn--primary"));
-                return;
             }
-
-            var pegRow = MakeRow();
-            pegRow.AddToClassList("tt-row--wrap");
-            foreach (var def in _pegDefs)
+            else
             {
-                var btn = new Button(() => { _selectedPeg = def; SetTool(Tool.Peg); RebuildPalette(); })
+                var pegRow = MakeRow();
+                pegRow.AddToClassList("tt-row--wrap");
+                foreach (var def in _pegDefs)
                 {
-                    text = def.DisplayName
-                };
-                btn.AddToClassList("tt-tool");
-                if (def == _selectedPeg) btn.AddToClassList("tt-tool--active");
-                btn.style.borderLeftWidth = 6;
-                btn.style.borderLeftColor = def.EditorColor;
-                pegRow.Add(btn);
+                    var btn = new Button(() => { _selectedPeg = def; SetTool(Tool.Peg); RebuildPalette(); })
+                    {
+                        text = def.DisplayName
+                    };
+                    btn.AddToClassList("tt-tool");
+                    if (def == _selectedPeg) btn.AddToClassList("tt-tool--active");
+                    btn.style.borderLeftWidth = 6;
+                    btn.style.borderLeftColor = def.EditorColor;
+                    pegRow.Add(btn);
+                }
+                _paletteContainer.Add(pegRow);
             }
-            _paletteContainer.Add(pegRow);
 
+            // --- rope color: free picker + palette swatches ---
             var colorRow = MakeRow();
-            var colorField = new EnumField("Rope color", _ropeColor) { style = { minWidth = 200 } };
+            colorRow.AddToClassList("tt-row--wrap");
+            var colorField = new UnityEditor.UIElements.ColorField("Rope color") { value = _ropeColor };
+            colorField.style.minWidth = 170;
             colorField.RegisterValueChangedCallback(e =>
             {
-                _ropeColor = (EntityColor)e.newValue;
-                if (_previewRope != null) _previewRope.Color = _ropeColor;
+                _ropeColor = e.newValue;
+                if (_previewRope != null) _previewRope.Tint = _ropeColor;
                 RefreshCanvas();
             });
             colorRow.Add(colorField);
-            colorRow.Add(MakeButton("Finish Rope", FinishRope, "tt-btn--save"));
-            colorRow.Add(MakeButton("Cancel Rope", CancelRope, "tt-btn--danger"));
             _paletteContainer.Add(colorRow);
+
+            if (_swatches.Count > 0)
+            {
+                var swRow = MakeRow();
+                swRow.AddToClassList("tt-row--wrap");
+                foreach (var (name, color) in _swatches)
+                {
+                    var b = new Button(() =>
+                    {
+                        _ropeColor = color;
+                        colorField.value = color;
+                        if (_previewRope != null) _previewRope.Tint = color;
+                        RefreshCanvas();
+                    }) { tooltip = name };
+                    b.AddToClassList("tt-swatch");
+                    b.style.backgroundColor = color;
+                    swRow.Add(b);
+                }
+                _paletteContainer.Add(swRow);
+            }
+            else
+            {
+                _paletteContainer.Add(MakeButton("Create Default Palette", CreateDefaultPalette, "tt-btn--primary"));
+            }
+
+            // --- rope authoring actions ---
+            var actionRow = MakeRow();
+            actionRow.Add(MakeButton("Finish Rope", FinishRope, "tt-btn--save"));
+            actionRow.Add(MakeButton("Cancel Rope", CancelRope, "tt-btn--danger"));
+            _paletteContainer.Add(actionRow);
         }
 
         private void RebuildRopeList()
@@ -296,7 +376,7 @@ namespace TwistedTangle.Editor
 
                 var swatch = new VisualElement();
                 swatch.AddToClassList("tt-peg-swatch");
-                swatch.style.backgroundColor = EntityColors.Resolve(rope.Color);
+                swatch.style.backgroundColor = rope.Tint;
                 row.Add(swatch);
 
                 var label = new Label($"Rope {rope.RopeId}  ·  L{rope.Layer}  ·  {rope.Path.Count} pts")
@@ -670,6 +750,13 @@ namespace TwistedTangle.Editor
             b.AddToClassList("tt-btn");
             if (!string.IsNullOrEmpty(ussClass)) b.AddToClassList(ussClass);
             return b;
+        }
+
+        private static IntegerField CompactIntField(string label, int value)
+        {
+            var f = new IntegerField(label) { value = value };
+            f.AddToClassList("tt-num");
+            return f;
         }
 
         private static void EnsureFolder(string folder)

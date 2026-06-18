@@ -1,8 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using TwistedTangle.Runtime.Data.ScriptableObjects;
-using TwistedTangle.Runtime.Data.ValueObjects;
-using TwistedTangle.Runtime.Geometry;
+using TwistedTangle.Editor.Geometry;
 using UnityEngine;
 
 namespace TwistedTangle.Editor.Validation
@@ -143,7 +142,7 @@ namespace TwistedTangle.Editor.Validation
 
             int colorCount = level.Ropes
                 .Where(r => r is { Path: { Count: >= 2 } })
-                .Select(r => r.Color)
+                .Select(r => r.Tint)
                 .Distinct()
                 .Count();
 

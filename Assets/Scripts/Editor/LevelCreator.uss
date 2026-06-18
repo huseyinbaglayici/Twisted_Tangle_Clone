@@ -93,6 +93,34 @@
     border-color: rgba(0, 0, 0, 0.5);
 }
 
+/* Clickable rope-color palette swatch */
+.tt-swatch {
+    width: 26px;
+    height: 22px;
+    margin-right: 4px;
+    margin-top: 2px;
+    border-radius: 3px;
+    border-width: 1px;
+    border-color: rgba(0, 0, 0, 0.5);
+}
+
+/* Compact numeric field so Width/Height/Id pack tightly without a big gap */
+.tt-num {
+    flex-grow: 0;
+    margin-right: 10px;
+}
+
+.tt-num .unity-base-field__label {
+    min-width: 0;
+    width: 58px;
+    margin-right: 2px;
+}
+
+.tt-num .unity-base-field__input {
+    min-width: 0;
+    width: 56px;
+}
+
 .tt-canvas-scroll {
     flex-grow: 1;
     margin-top: 6px;
