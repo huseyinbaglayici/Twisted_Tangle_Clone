@@ -1,0 +1,129 @@
+/* Twisted Tangle — Level Creator styling.
+   Colors are intentionally muted/dark to match Unity's editor and keep ropes/pegs readable. */
+
+.tt-root {
+    flex-grow: 1;
+}
+
+.tt-title {
+    font-size: 20px;
+    -unity-font-style: bold;
+    color: #FF9F00;
+    margin-top: 10px;
+    margin-bottom: 6px;
+    margin-left: 4px;
+}
+
+.tt-section {
+    margin-bottom: 8px;
+    padding: 6px;
+    border-radius: 4px;
+    background-color: rgba(255, 255, 255, 0.03);
+    border-left-width: 2px;
+    border-left-color: rgba(255, 159, 0, 0.5);
+}
+
+.tt-section__header {
+    -unity-font-style: bold;
+    margin-bottom: 4px;
+    color: #CFCFCF;
+}
+
+.tt-row {
+    flex-direction: row;
+    align-items: center;
+}
+
+.tt-row--wrap {
+    flex-wrap: wrap;
+}
+
+.tt-spacer {
+    flex-grow: 1;
+}
+
+.tt-btn {
+    height: 26px;
+    border-radius: 4px;
+    -unity-font-style: bold;
+    margin-right: 4px;
+    margin-top: 2px;
+}
+
+.tt-btn--primary {
+    background-color: #00C2FF;
+    color: #FFFFFF;
+}
+
+.tt-btn--save {
+    height: 36px;
+    background-color: #39B33F;
+    color: #FFFFFF;
+}
+
+.tt-btn--danger {
+    background-color: #E55353;
+    color: #FFFFFF;
+}
+
+/* Tool / palette toggle buttons */
+.tt-tool {
+    height: 30px;
+    min-width: 64px;
+    margin-right: 4px;
+    margin-top: 2px;
+    border-radius: 4px;
+    border-width: 1px;
+    border-color: rgba(255, 255, 255, 0.15);
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.tt-tool--active {
+    border-color: #FF9F00;
+    border-width: 2px;
+    background-color: rgba(255, 159, 0, 0.15);
+}
+
+.tt-peg-swatch {
+    width: 14px;
+    height: 14px;
+    border-radius: 7px;
+    margin-right: 6px;
+    border-width: 1px;
+    border-color: rgba(0, 0, 0, 0.5);
+}
+
+.tt-canvas-scroll {
+    flex-grow: 1;
+    margin-top: 6px;
+    border-top-width: 1px;
+    border-top-color: rgba(255, 255, 255, 0.1);
+    background-color: #1E1E1E;
+}
+
+.tt-canvas {
+    align-self: center;
+    margin: 12px;
+}
+
+.tt-validation__ok {
+    color: #6FCF6F;
+    -unity-font-style: bold;
+}
+
+.tt-validation__error {
+    color: #E55353;
+}
+
+.tt-validation__warn {
+    color: #E0B341;
+}
+
+.tt-metric {
+    color: #BFBFBF;
+    margin-right: 12px;
+}
+
+.tt-difficulty--Easy { color: #6FCF6F; -unity-font-style: bold; }
+.tt-difficulty--Medium { color: #E0B341; -unity-font-style: bold; }
+.tt-difficulty--Hard { color: #E55353; -unity-font-style: bold; }
