@@ -17,10 +17,19 @@ namespace TwistedTangle.Runtime.Data.ScriptableObjects
         {
             public string Name;
             public Color Color;
+
+            [Tooltip("Pre-generated material for this color (a variant of the template). Filled in by " +
+                     "the 'Generate Material Variants' button. The game reads this — no runtime material creation.")]
+            public Material Variant;
         }
+
+        [Tooltip("The ToonyColorsPro (or any) material used as the parent/template. Generated entries " +
+                 "become variants of this, overriding only the color, so the look stays in one place.")]
+        [SerializeField] private Material variantTemplate;
 
         [SerializeField] private List<Entry> entries = new();
 
+        public Material VariantTemplate => variantTemplate;
         public IReadOnlyList<Entry> Entries => entries;
     }
 }
