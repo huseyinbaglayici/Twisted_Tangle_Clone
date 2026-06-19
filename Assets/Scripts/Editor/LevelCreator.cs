@@ -14,17 +14,17 @@ using UnityEngine.UIElements;
 namespace TwistedTangle.Editor
 {
     /// <summary>
-    /// Twisted Tangle visual level editor. A designer places pegs on a grid, draws ropes between them,
-    /// picks each rope's color from a palette, controls which rope sits on top at each crossing, and
-    /// saves/loads/deletes levels by id — all without touching code. Peg types and palette colors are
-    /// data-driven (PegDefinitionSO / ColorPaletteSO assets), so new content appears automatically.
+    /// Twisted Tangle visual level editor. A designer places entities on a grid, draws ropes between
+    /// them, picks each rope's color from a palette, controls which rope sits on top at each crossing,
+    /// and saves/loads/deletes levels by id — all without touching code. Entity types and palette colors
+    /// are data-driven (EntityDefinitionSO / ColorPaletteSO assets), so new content appears automatically.
     /// </summary>
     public class LevelCreator : EditorWindow
     {
-        private enum Tool { Peg, Rope, Erase, Flip }
+        private enum Tool { Entity, Rope, Erase, Flip }
 
         private const string LevelsPath = "Assets/Resources/Data/Levels";
-        private const string PegsPath = "Assets/Resources/Data/Pegs";
+        private const string EntitiesPath = "Assets/Resources/Data/Entities";
         private const string PalettesPath = "Assets/Resources/Data/Palettes";
         private const string UssPath = "Assets/Scripts/Editor/LevelCreator.uss";
         private const float FlipPickRadiusCells = 0.35f;
@@ -36,15 +36,15 @@ namespace TwistedTangle.Editor
         private int _nextRopeId;
 
         // --- tool state ---
-        private Tool _tool = Tool.Peg;
-        private PegDefinitionSO _selectedPeg;
+        private Tool _tool = Tool.Entity;
+        private EntityDefinitionSO _selectedEntity;
         private Color _ropeColor = new(0.90f, 0.20f, 0.20f);
         private RopeData _previewRope;
         private int _selectedRopeId = -1;
 
         // --- data-driven content ---
-        private readonly List<PegDefinitionSO> _pegDefs = new();
-        private readonly Dictionary<string, PegDefinitionSO> _pegLookup = new();
+        private readonly List<EntityDefinitionSO> _entityDefs = new();
+        private readonly Dictionary<string, EntityDefinitionSO> _entityLookup = new();
         private readonly List<(string name, Color color)> _swatches = new();
 
         // --- ui ---
@@ -53,11 +53,16 @@ namespace TwistedTangle.Editor
         private VisualElement _paletteContainer, _toolsContainer, _ropeListContainer, _validationContainer;
         private readonly Dictionary<Tool, Button> _toolButtons = new();
 
+        // --- new-entity-type creator form ---
+        private TextField _newEntityId, _newEntityName;
+        private UnityEditor.UIElements.ColorField _newEntityColor;
+        private UnityEditor.UIElements.ObjectField _newEntityPrefab;
+
         // --- keyboard shortcuts ---
         private readonly Dictionary<string, System.Action> _commands = new();
         private static readonly Dictionary<Tool, string> ToolCommandIds = new()
         {
-            { Tool.Peg, LevelEditorCommands.ToolPeg },
+            { Tool.Entity, LevelEditorCommands.ToolPeg },
             { Tool.Rope, LevelEditorCommands.ToolRope },
             { Tool.Erase, LevelEditorCommands.ToolErase },
             { Tool.Flip, LevelEditorCommands.ToolFlip },
@@ -79,7 +84,7 @@ namespace TwistedTangle.Editor
             var uss = AssetDatabase.LoadAssetAtPath<StyleSheet>(UssPath);
             if (uss != null) root.styleSheets.Add(uss);
 
-            RefreshPegDefinitions();
+            RefreshEntityDefinitions();
             RefreshPalettes();
 
             // Single outer scroll so the whole window scrolls when it's short — not just the grid.
@@ -91,6 +96,7 @@ namespace TwistedTangle.Editor
             scroll.Add(BuildGridSection());
             scroll.Add(BuildToolsSection());
             scroll.Add(BuildPaletteSection());
+            scroll.Add(BuildEntityCreatorSection());
             scroll.Add(BuildRopeListSection());
             scroll.Add(BuildValidationSection());
             scroll.Add(BuildCanvasSection());
@@ -111,21 +117,21 @@ namespace TwistedTangle.Editor
 
         #region Data-driven discovery
 
-        private void RefreshPegDefinitions()
+        private void RefreshEntityDefinitions()
         {
-            _pegDefs.Clear();
-            _pegLookup.Clear();
+            _entityDefs.Clear();
+            _entityLookup.Clear();
 
-            foreach (var guid in AssetDatabase.FindAssets($"t:{nameof(PegDefinitionSO)}"))
+            foreach (var guid in AssetDatabase.FindAssets($"t:{nameof(EntityDefinitionSO)}"))
             {
-                var def = AssetDatabase.LoadAssetAtPath<PegDefinitionSO>(AssetDatabase.GUIDToAssetPath(guid));
+                var def = AssetDatabase.LoadAssetAtPath<EntityDefinitionSO>(AssetDatabase.GUIDToAssetPath(guid));
                 if (def == null) continue;
-                _pegDefs.Add(def);
-                _pegLookup[def.TypeId] = def;
+                _entityDefs.Add(def);
+                _entityLookup[def.TypeId] = def;
             }
 
-            if (_selectedPeg == null || !_pegDefs.Contains(_selectedPeg))
-                _selectedPeg = _pegDefs.FirstOrDefault();
+            if (_selectedEntity == null || !_entityDefs.Contains(_selectedEntity))
+                _selectedEntity = _entityDefs.FirstOrDefault();
         }
 
         private void RefreshPalettes()
@@ -139,34 +145,82 @@ namespace TwistedTangle.Editor
             }
         }
 
-        private Color ResolvePegColor(string typeId) =>
-            _pegLookup.TryGetValue(typeId, out var def) ? def.EditorColor : new Color(0.5f, 0.5f, 0.5f);
+        private Color ResolveEntityColor(string typeId) =>
+            _entityLookup.TryGetValue(typeId, out var def) ? def.EditorColor : new Color(0.5f, 0.5f, 0.5f);
 
-        /// <summary>Bootstraps a few example peg types so an empty project is usable immediately.</summary>
-        private void CreateDefaultPegTypes()
+        /// <summary>Bootstraps a few example entity types so an empty project is usable immediately.</summary>
+        private void CreateDefaultEntityTypes()
         {
-            EnsureFolder(PegsPath);
-            CreatePegAsset("standard", "Standard", new Color(0.85f, 0.85f, 0.85f));
-            CreatePegAsset("locked", "Locked", new Color(0.45f, 0.45f, 0.5f));
-            CreatePegAsset("nailed", "Nailed", new Color(1f, 0.6f, 0.1f));
+            EnsureFolder(EntitiesPath);
+            CreateEntityAsset("standard", "Standard", new Color(0.85f, 0.85f, 0.85f), null, EntitiesPath);
+            CreateEntityAsset("locked", "Locked", new Color(0.45f, 0.45f, 0.5f), null, EntitiesPath);
+            CreateEntityAsset("nailed", "Nailed", new Color(1f, 0.6f, 0.1f), null, EntitiesPath);
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
-            RefreshPegDefinitions();
+            RefreshEntityDefinitions();
             RebuildPalette();
         }
 
-        private static void CreatePegAsset(string typeId, string displayName, Color color)
+        /// <summary>Creates one EntityDefinitionSO asset. Returns null if an asset already exists at the path.</summary>
+        private static EntityDefinitionSO CreateEntityAsset(string typeId, string displayName, Color color,
+            GameObject prefab, string folder)
         {
-            string path = $"{PegsPath}/Peg_{displayName}.asset";
-            if (AssetDatabase.LoadAssetAtPath<PegDefinitionSO>(path) != null) return;
+            string path = $"{folder}/Entity_{displayName}.asset";
+            if (AssetDatabase.LoadAssetAtPath<EntityDefinitionSO>(path) != null) return null;
 
-            var so = CreateInstance<PegDefinitionSO>();
+            var so = CreateInstance<EntityDefinitionSO>();
             var sObj = new SerializedObject(so);
             sObj.FindProperty("typeId").stringValue = typeId;
             sObj.FindProperty("displayName").stringValue = displayName;
             sObj.FindProperty("editorColor").colorValue = color;
+            if (prefab != null) sObj.FindProperty("prefab").objectReferenceValue = prefab;
             sObj.ApplyModifiedPropertiesWithoutUndo();
             AssetDatabase.CreateAsset(so, path);
+            return so;
+        }
+
+        /// <summary>Creates a new entity type from the inline form, then selects it for painting.</summary>
+        private void CreateEntityTypeFromForm()
+        {
+            string id = _newEntityId.value?.Trim();
+            if (string.IsNullOrEmpty(id))
+            {
+                EditorUtility.DisplayDialog("New entity type", "Type id is required.", "OK");
+                return;
+            }
+
+            RefreshEntityDefinitions();
+            if (_entityLookup.ContainsKey(id))
+            {
+                EditorUtility.DisplayDialog("New entity type",
+                    $"An entity type with id '{id}' already exists.", "OK");
+                return;
+            }
+
+            string displayName = _newEntityName.value?.Trim();
+            if (string.IsNullOrEmpty(displayName)) displayName = id;
+
+            EnsureFolder(EntitiesPath);
+            var so = CreateEntityAsset(id, displayName, _newEntityColor.value,
+                _newEntityPrefab.value as GameObject, EntitiesPath);
+            if (so == null)
+            {
+                EditorUtility.DisplayDialog("New entity type",
+                    $"An asset already exists at {EntitiesPath}/Entity_{displayName}.asset.", "OK");
+                return;
+            }
+
+            AssetDatabase.SaveAssets();
+            AssetDatabase.Refresh();
+            RefreshEntityDefinitions();
+            _selectedEntity = so;
+            SetTool(Tool.Entity);
+
+            _newEntityId.value = string.Empty;
+            _newEntityName.value = string.Empty;
+            _newEntityPrefab.value = null;
+
+            RebuildPalette();
         }
 
         /// <summary>Bootstraps a starter color palette so swatches exist out of the box.</summary>
@@ -248,9 +302,9 @@ namespace TwistedTangle.Editor
             _toolsContainer = MakeRow();
             _toolsContainer.AddToClassList("tt-row--wrap");
 
-            AddToolButton(Tool.Peg, "Peg");
+            AddToolButton(Tool.Entity, "Entity");
             AddToolButton(Tool.Rope, "Rope");
-            AddToolButton(Tool.Erase, "Erase Peg");
+            AddToolButton(Tool.Erase, "Erase");
             AddToolButton(Tool.Flip, "Flip Crossing");
 
             s.Add(_toolsContainer);
@@ -267,9 +321,45 @@ namespace TwistedTangle.Editor
 
         private VisualElement BuildPaletteSection()
         {
-            var s = MakeSection("Brush — peg types & rope color");
+            var s = MakeSection("Brush — entity types & rope color");
             _paletteContainer = new VisualElement();
             s.Add(_paletteContainer);
+            return s;
+        }
+
+        private VisualElement BuildEntityCreatorSection()
+        {
+            var s = MakeSection("New entity type");
+
+            // Built once and kept outside RebuildPalette so in-progress form input isn't wiped on refresh.
+            var foldout = new Foldout { text = "Create a new entity type", value = false };
+
+            _newEntityId = new TextField("Type id")
+            {
+                tooltip = "Stable id stored in saved levels (e.g. \"lock\"). Must be unique and not change later."
+            };
+            _newEntityName = new TextField("Display name");
+            _newEntityColor = new UnityEditor.UIElements.ColorField("Editor color")
+            {
+                value = new Color(0.85f, 0.85f, 0.85f)
+            };
+            _newEntityPrefab = new UnityEditor.UIElements.ObjectField("Prefab")
+            {
+                objectType = typeof(GameObject),
+                allowSceneObjects = false,
+                tooltip = "Prefab the runtime loader instantiates for this entity. Optional for the editor."
+            };
+
+            foldout.Add(_newEntityId);
+            foldout.Add(_newEntityName);
+            foldout.Add(_newEntityColor);
+            foldout.Add(_newEntityPrefab);
+
+            var row = MakeRow();
+            row.Add(MakeButton("Create Entity Type", CreateEntityTypeFromForm, "tt-btn--save"));
+            foldout.Add(row);
+
+            s.Add(foldout);
             return s;
         }
 
@@ -298,7 +388,7 @@ namespace TwistedTangle.Editor
             var host = new VisualElement();
             host.AddToClassList("tt-canvas-host");
 
-            _canvas = new RopeCanvasElement { PegColorResolver = ResolvePegColor };
+            _canvas = new RopeCanvasElement { PegColorResolver = ResolveEntityColor };
             _canvas.AddToClassList("tt-canvas");
             _canvas.CellClicked = OnCanvasCellClicked;
             _canvas.CellDragged = OnCanvasCellDragged;
@@ -316,32 +406,33 @@ namespace TwistedTangle.Editor
         {
             _paletteContainer.Clear();
 
-            // --- peg type buttons (data-driven) ---
-            if (_pegDefs.Count == 0)
+            // --- entity type buttons (data-driven) ---
+            if (_entityDefs.Count == 0)
             {
                 _paletteContainer.Add(new HelpBox(
-                    "No PegDefinitionSO assets found. Create peg types (Assets ▸ Create ▸ TwistedTangle ▸ " +
-                    "Peg Definition) — they appear here automatically — or click below.",
+                    "No EntityDefinitionSO assets found. Add one with “New entity type” above, create them " +
+                    "(Assets ▸ Create ▸ TwistedTangle ▸ Entity Definition) — they appear here automatically — " +
+                    "or click below.",
                     HelpBoxMessageType.Info));
-                _paletteContainer.Add(MakeButton("Create Default Peg Types", CreateDefaultPegTypes, "tt-btn--primary"));
+                _paletteContainer.Add(MakeButton("Create Default Entity Types", CreateDefaultEntityTypes, "tt-btn--primary"));
             }
             else
             {
-                var pegRow = MakeRow();
-                pegRow.AddToClassList("tt-row--wrap");
-                foreach (var def in _pegDefs)
+                var entityRow = MakeRow();
+                entityRow.AddToClassList("tt-row--wrap");
+                foreach (var def in _entityDefs)
                 {
-                    var btn = new Button(() => { _selectedPeg = def; SetTool(Tool.Peg); RebuildPalette(); })
+                    var btn = new Button(() => { _selectedEntity = def; SetTool(Tool.Entity); RebuildPalette(); })
                     {
                         text = def.DisplayName
                     };
                     btn.AddToClassList("tt-tool");
-                    if (def == _selectedPeg) btn.AddToClassList("tt-tool--active");
+                    if (def == _selectedEntity) btn.AddToClassList("tt-tool--active");
                     btn.style.borderLeftWidth = 6;
                     btn.style.borderLeftColor = def.EditorColor;
-                    pegRow.Add(btn);
+                    entityRow.Add(btn);
                 }
-                _paletteContainer.Add(pegRow);
+                _paletteContainer.Add(entityRow);
             }
 
             // --- rope color: free picker + palette swatches ---
@@ -394,7 +485,7 @@ namespace TwistedTangle.Editor
             _ropeListContainer.Clear();
             if (_level == null || _level.Ropes.Count == 0)
             {
-                _ropeListContainer.Add(new Label("No ropes yet. Pick the Rope tool and click pegs in order."));
+                _ropeListContainer.Add(new Label("No ropes yet. Pick the Rope tool and click entities in order."));
                 return;
             }
 
@@ -433,7 +524,7 @@ namespace TwistedTangle.Editor
                 return;
             }
 
-            var report = LevelValidator.Validate(_level, _pegLookup.Keys);
+            var report = LevelValidator.Validate(_level, _entityLookup.Keys);
 
             var status = new Label(report.IsValid ? "✓ Level is valid" : $"✗ {report.Errors.Count} error(s)");
             status.AddToClassList(report.IsValid ? "tt-validation__ok" : "tt-validation__error");
@@ -455,7 +546,7 @@ namespace TwistedTangle.Editor
             var m = report.Metrics;
             var metricsRow = MakeRow();
             metricsRow.AddToClassList("tt-row--wrap");
-            AddMetric(metricsRow, $"Pegs: {m.PegCount}");
+            AddMetric(metricsRow, $"Entities: {m.PegCount}");
             AddMetric(metricsRow, $"Ropes: {m.RopeCount}");
             AddMetric(metricsRow, $"Crossings: {m.CrossingCount}");
             AddMetric(metricsRow, $"Colors: {m.ColorCount}");
@@ -487,12 +578,12 @@ namespace TwistedTangle.Editor
 
             switch (_tool)
             {
-                case Tool.Peg:
-                    if (button == 1) RemovePeg(coord);
-                    else PlacePeg(coord);
+                case Tool.Entity:
+                    if (button == 1) RemoveEntity(coord);
+                    else PlaceEntity(coord);
                     break;
                 case Tool.Erase:
-                    RemovePeg(coord);
+                    RemoveEntity(coord);
                     break;
                 case Tool.Rope:
                     if (button == 1) FinishRope();
@@ -504,15 +595,15 @@ namespace TwistedTangle.Editor
             }
 
             RefreshCanvas();
-            if (_tool != Tool.Peg && _tool != Tool.Erase) RefreshPanels();
+            if (_tool != Tool.Entity && _tool != Tool.Erase) RefreshPanels();
         }
 
         private void OnCanvasCellDragged(int x, int y)
         {
             if (_level == null) return;
             var coord = new Vector2Int(x, y);
-            if (_tool == Tool.Peg) PlacePeg(coord);
-            else if (_tool == Tool.Erase) RemovePeg(coord);
+            if (_tool == Tool.Entity) PlaceEntity(coord);
+            else if (_tool == Tool.Erase) RemoveEntity(coord);
             else return;
             RefreshCanvas();
         }
@@ -541,20 +632,20 @@ namespace TwistedTangle.Editor
             RefreshAll();
         }
 
-        private void PlacePeg(Vector2Int coord)
+        private void PlaceEntity(Vector2Int coord)
         {
-            if (_selectedPeg == null) return;
+            if (_selectedEntity == null) return;
             int idx = _level.Pegs.FindIndex(p => p.Coordinates == coord);
-            if (idx >= 0) _level.Pegs[idx] = new PegData(coord, _selectedPeg.TypeId);
-            else _level.Pegs.Add(new PegData(coord, _selectedPeg.TypeId));
+            if (idx >= 0) _level.Pegs[idx] = new PegData(coord, _selectedEntity.TypeId);
+            else _level.Pegs.Add(new PegData(coord, _selectedEntity.TypeId));
         }
 
-        private void RemovePeg(Vector2Int coord) =>
+        private void RemoveEntity(Vector2Int coord) =>
             _level.Pegs.RemoveAll(p => p.Coordinates == coord);
 
         private void AddRopeWaypoint(Vector2Int coord)
         {
-            // Ropes connect pegs, so a waypoint must land on one.
+            // Ropes connect entities, so a waypoint must land on one.
             if (_level.Pegs.FindIndex(p => p.Coordinates == coord) < 0) return;
 
             if (_previewRope == null)
@@ -647,7 +738,7 @@ namespace TwistedTangle.Editor
 
             _level.LevelId = _levelIdField.value;
             _level.TimeSeconds = _timeField.value;
-            var report = LevelValidator.Validate(_level, _pegLookup.Keys);
+            var report = LevelValidator.Validate(_level, _entityLookup.Keys);
             RebuildValidation();
 
             if (!report.IsValid)
@@ -756,7 +847,7 @@ namespace TwistedTangle.Editor
         /// <summary>Maps each bindable command id to the method that runs it. See <see cref="LevelEditorCommands"/>.</summary>
         private void BuildCommandTable()
         {
-            _commands[LevelEditorCommands.ToolPeg] = () => SetTool(Tool.Peg);
+            _commands[LevelEditorCommands.ToolPeg] = () => SetTool(Tool.Entity);
             _commands[LevelEditorCommands.ToolRope] = () => SetTool(Tool.Rope);
             _commands[LevelEditorCommands.ToolErase] = () => SetTool(Tool.Erase);
             _commands[LevelEditorCommands.ToolFlip] = () => SetTool(Tool.Flip);

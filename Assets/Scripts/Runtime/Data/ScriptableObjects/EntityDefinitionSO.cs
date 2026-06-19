@@ -1,27 +1,31 @@
 using UnityEngine;
+using UnityEngine.Scripting.APIUpdating;
 
 namespace TwistedTangle.Runtime.Data.ScriptableObjects
 {
     /// <summary>
-    /// Data-driven definition of a peg type. Adding a new peg kind (locked, nailed, whatever we
-    /// invent next) means creating a new asset of this type — no editor code changes. The editor
-    /// palette and the runtime registry both discover these by scanning the project/Resources, so
-    /// a new asset shows up automatically in the tool and loads correctly in game.
+    /// Data-driven definition of an entity type — anything that can sit on a grid node (a pin, a lock,
+    /// whatever we invent next). Adding a new kind means creating a new asset of this type, no editor
+    /// code changes. The editor palette and the runtime loader both discover these by scanning the
+    /// project/Resources, so a new asset shows up automatically in the tool and loads correctly in game.
     /// </summary>
+    /// <remarks>Renamed from <c>PegDefinitionSO</c>; <see cref="MovedFromAttribute"/> keeps assets and
+    /// levels that referenced the old class name linked to this one.</remarks>
+    [MovedFrom(true, sourceClassName: "PegDefinitionSO")]
     [CreateAssetMenu(
-        fileName = "Peg_New",
-        menuName = "TwistedTangle/Peg Definition",
+        fileName = "Entity_New",
+        menuName = "TwistedTangle/Entity Definition",
         order = 0)]
-    public class PegDefinitionSO : ScriptableObject
+    public class EntityDefinitionSO : ScriptableObject
     {
         [Tooltip("Stable identity referenced by saved levels. Must be unique and must NOT change " +
-                 "once levels reference it, or those levels lose this peg type.")]
+                 "once levels reference it, or those levels lose this entity type.")]
         [SerializeField] private string typeId;
 
         [Tooltip("Human-readable name shown on the palette button.")]
         [SerializeField] private string displayName;
 
-        [Tooltip("Color used to draw this peg in the editor canvas.")]
+        [Tooltip("Color used to draw this entity in the editor canvas.")]
         [SerializeField] private Color editorColor = new(0.85f, 0.85f, 0.85f);
 
         [Tooltip("Optional prefab instantiated by the runtime loader. Leave empty to fall back to " +
