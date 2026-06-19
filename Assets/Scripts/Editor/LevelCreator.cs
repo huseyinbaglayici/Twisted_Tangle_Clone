@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using TwistedTangle.Editor.Canvas;
+using TwistedTangle.Editor.Input;
 using TwistedTangle.Editor.Utils;
 using TwistedTangle.Editor.Validation;
 using TwistedTangle.Runtime.Data.ScriptableObjects;
@@ -52,6 +53,16 @@ namespace TwistedTangle.Editor
         private VisualElement _paletteContainer, _toolsContainer, _ropeListContainer, _validationContainer;
         private readonly Dictionary<Tool, Button> _toolButtons = new();
 
+        // --- keyboard shortcuts ---
+        private readonly Dictionary<string, System.Action> _commands = new();
+        private static readonly Dictionary<Tool, string> ToolCommandIds = new()
+        {
+            { Tool.Peg, LevelEditorCommands.ToolPeg },
+            { Tool.Rope, LevelEditorCommands.ToolRope },
+            { Tool.Erase, LevelEditorCommands.ToolErase },
+            { Tool.Flip, LevelEditorCommands.ToolFlip },
+        };
+
         [MenuItem("TwistedTangle/Level Creation Tool")]
         public static void ShowWindow()
         {
@@ -85,8 +96,18 @@ namespace TwistedTangle.Editor
             scroll.Add(BuildCanvasSection());
 
             root.Add(scroll);
+
+            BuildCommandTable();
+            root.focusable = true;
+            root.RegisterCallback<KeyDownEvent>(OnShortcutKeyDown);
+            KeyBindingStore.Changed -= UpdateShortcutHints;
+            KeyBindingStore.Changed += UpdateShortcutHints;
+
             RefreshAll();
+            UpdateShortcutHints();
         }
+
+        private void OnDisable() => KeyBindingStore.Changed -= UpdateShortcutHints;
 
         #region Data-driven discovery
 
@@ -726,6 +747,93 @@ namespace TwistedTangle.Editor
             _canvas.SelectedRopeId = _selectedRopeId;
             _canvas.ShowCrossings = _tool == Tool.Flip;
             _canvas.Redraw();
+        }
+
+        #endregion
+
+        #region Keyboard shortcuts
+
+        /// <summary>Maps each bindable command id to the method that runs it. See <see cref="LevelEditorCommands"/>.</summary>
+        private void BuildCommandTable()
+        {
+            _commands[LevelEditorCommands.ToolPeg] = () => SetTool(Tool.Peg);
+            _commands[LevelEditorCommands.ToolRope] = () => SetTool(Tool.Rope);
+            _commands[LevelEditorCommands.ToolErase] = () => SetTool(Tool.Erase);
+            _commands[LevelEditorCommands.ToolFlip] = () => SetTool(Tool.Flip);
+
+            _commands[LevelEditorCommands.Save] = SaveCurrentLevel;
+            _commands[LevelEditorCommands.Load] = () => LoadLevel(_levelIdField.value);
+            _commands[LevelEditorCommands.Delete] = () => DeleteLevel(_levelIdField.value);
+            _commands[LevelEditorCommands.GenerateGrid] = GenerateGrid;
+
+            _commands[LevelEditorCommands.FinishRope] = FinishRope;
+            _commands[LevelEditorCommands.CancelRope] = CancelRope;
+            _commands[LevelEditorCommands.RopeToFront] = BringSelectedRopeToFront;
+            _commands[LevelEditorCommands.RopeToBack] = SendSelectedRopeToBack;
+            _commands[LevelEditorCommands.RopeDelete] = DeleteSelectedRope;
+
+            _commands[LevelEditorCommands.Validate] = RebuildValidation;
+        }
+
+        private void OnShortcutKeyDown(KeyDownEvent e)
+        {
+            var combo = KeyCombo.FromEvent(e);
+            if (combo.IsEmpty) return;
+
+            // Don't hijack plain (unmodified) keys while the user is typing in a numeric/text field.
+            if (!combo.Ctrl && !combo.Alt && IsEditingText()) return;
+
+            var id = KeyBindingStore.FindCommandFor(combo);
+            if (id == null || !_commands.TryGetValue(id, out var action)) return;
+
+            action.Invoke();
+            e.StopPropagation();
+        }
+
+        private bool IsEditingText()
+        {
+            var focused = rootVisualElement.focusController?.focusedElement as VisualElement;
+            for (var el = focused; el != null; el = el.parent)
+                if (el is TextField || el is IntegerField || el is FloatField) return true;
+            return false;
+        }
+
+        private RopeData SelectedRope() =>
+            _level?.Ropes.FirstOrDefault(r => r.RopeId == _selectedRopeId);
+
+        private void BringSelectedRopeToFront()
+        {
+            var rope = SelectedRope();
+            if (rope == null) return;
+            BringToFront(rope);
+            RefreshAll();
+        }
+
+        private void SendSelectedRopeToBack()
+        {
+            var rope = SelectedRope();
+            if (rope == null) return;
+            SendToBack(rope);
+            RefreshAll();
+        }
+
+        private void DeleteSelectedRope()
+        {
+            var rope = SelectedRope();
+            if (rope == null) return;
+            DeleteRope(rope);
+            RefreshAll();
+        }
+
+        /// <summary>Shows each tool button's current shortcut in its tooltip; refreshes when bindings change.</summary>
+        private void UpdateShortcutHints()
+        {
+            foreach (var kv in _toolButtons)
+            {
+                if (!ToolCommandIds.TryGetValue(kv.Key, out var id)) continue;
+                var combo = KeyBindingStore.Get(id);
+                kv.Value.tooltip = combo.IsEmpty ? string.Empty : $"Shortcut: {combo}";
+            }
         }
 
         #endregion
