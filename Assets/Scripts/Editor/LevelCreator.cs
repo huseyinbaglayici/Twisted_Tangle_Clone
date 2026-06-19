@@ -53,11 +53,6 @@ namespace TwistedTangle.Editor
         private VisualElement _paletteContainer, _toolsContainer, _ropeListContainer, _validationContainer;
         private readonly Dictionary<Tool, Button> _toolButtons = new();
 
-        // --- new-entity-type creator form ---
-        private TextField _newEntityId, _newEntityName;
-        private UnityEditor.UIElements.ColorField _newEntityColor;
-        private UnityEditor.UIElements.ObjectField _newEntityPrefab;
-
         // --- keyboard shortcuts ---
         private readonly Dictionary<string, System.Action> _commands = new();
         private static readonly Dictionary<Tool, string> ToolCommandIds = new()
@@ -179,48 +174,35 @@ namespace TwistedTangle.Editor
             return so;
         }
 
-        /// <summary>Creates a new entity type from the inline form, then selects it for painting.</summary>
-        private void CreateEntityTypeFromForm()
+        /// <summary>
+        /// Creates a new entity type and selects it for painting. Returns (false, reason) on a bad/clashing
+        /// id so the popup can show the error inline; (true, null) on success. Called by <see cref="EntityTypePopup"/>.
+        /// </summary>
+        private (bool ok, string error) TryCreateEntityType(string id, string name, Color color, GameObject prefab)
         {
-            string id = _newEntityId.value?.Trim();
+            id = id?.Trim();
             if (string.IsNullOrEmpty(id))
-            {
-                EditorUtility.DisplayDialog("New entity type", "Type id is required.", "OK");
-                return;
-            }
+                return (false, "Type id is required.");
 
             RefreshEntityDefinitions();
             if (_entityLookup.ContainsKey(id))
-            {
-                EditorUtility.DisplayDialog("New entity type",
-                    $"An entity type with id '{id}' already exists.", "OK");
-                return;
-            }
+                return (false, $"An entity type with id '{id}' already exists.");
 
-            string displayName = _newEntityName.value?.Trim();
-            if (string.IsNullOrEmpty(displayName)) displayName = id;
+            name = name?.Trim();
+            if (string.IsNullOrEmpty(name)) name = id;
 
             EnsureFolder(EntitiesPath);
-            var so = CreateEntityAsset(id, displayName, _newEntityColor.value,
-                _newEntityPrefab.value as GameObject, EntitiesPath);
+            var so = CreateEntityAsset(id, name, color, prefab, EntitiesPath);
             if (so == null)
-            {
-                EditorUtility.DisplayDialog("New entity type",
-                    $"An asset already exists at {EntitiesPath}/Entity_{displayName}.asset.", "OK");
-                return;
-            }
+                return (false, $"An asset already exists at {EntitiesPath}/Entity_{name}.asset.");
 
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
             RefreshEntityDefinitions();
             _selectedEntity = so;
             SetTool(Tool.Entity);
-
-            _newEntityId.value = string.Empty;
-            _newEntityName.value = string.Empty;
-            _newEntityPrefab.value = null;
-
             RebuildPalette();
+            return (true, null);
         }
 
         /// <summary>Bootstraps a starter color palette so swatches exist out of the box.</summary>
@@ -331,35 +313,13 @@ namespace TwistedTangle.Editor
         {
             var s = MakeSection("New entity type");
 
-            // Built once and kept outside RebuildPalette so in-progress form input isn't wiped on refresh.
-            var foldout = new Foldout { text = "Create a new entity type", value = false };
-
-            _newEntityId = new TextField("Type id")
-            {
-                tooltip = "Stable id stored in saved levels (e.g. \"lock\"). Must be unique and not change later."
-            };
-            _newEntityName = new TextField("Display name");
-            _newEntityColor = new UnityEditor.UIElements.ColorField("Editor color")
-            {
-                value = new Color(0.85f, 0.85f, 0.85f)
-            };
-            _newEntityPrefab = new UnityEditor.UIElements.ObjectField("Prefab")
-            {
-                objectType = typeof(GameObject),
-                allowSceneObjects = false,
-                tooltip = "Prefab the runtime loader instantiates for this entity. Optional for the editor."
-            };
-
-            foldout.Add(_newEntityId);
-            foldout.Add(_newEntityName);
-            foldout.Add(_newEntityColor);
-            foldout.Add(_newEntityPrefab);
-
-            var row = MakeRow();
-            row.Add(MakeButton("Create Entity Type", CreateEntityTypeFromForm, "tt-btn--save"));
-            foldout.Add(row);
-
-            s.Add(foldout);
+            // A transient popup (anchored under the button) keeps this occasional action out of the
+            // main panel — the button is the only thing that lives here permanently.
+            var btn = new Button { text = "+ New Entity Type" };
+            btn.AddToClassList("tt-btn");
+            btn.AddToClassList("tt-btn--primary");
+            btn.clicked += () => UnityEditor.PopupWindow.Show(btn.worldBound, new EntityTypePopup(TryCreateEntityType));
+            s.Add(btn);
             return s;
         }
 
