@@ -121,12 +121,17 @@
     width: 56px;
 }
 
-.tt-canvas-scroll {
+.tt-main-scroll {
     flex-grow: 1;
+}
+
+.tt-canvas-host {
     margin-top: 6px;
     border-top-width: 1px;
     border-top-color: rgba(255, 255, 255, 0.1);
     background-color: #1E1E1E;
+    align-items: center;
+    min-height: 120px;
 }
 
 .tt-canvas {

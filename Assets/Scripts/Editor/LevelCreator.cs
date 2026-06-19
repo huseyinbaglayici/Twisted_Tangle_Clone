@@ -71,15 +71,20 @@ namespace TwistedTangle.Editor
             RefreshPegDefinitions();
             RefreshPalettes();
 
-            root.Add(MakeTitle("Twisted Tangle — Level Creator"));
-            root.Add(BuildLevelIoSection());
-            root.Add(BuildGridSection());
-            root.Add(BuildToolsSection());
-            root.Add(BuildPaletteSection());
-            root.Add(BuildRopeListSection());
-            root.Add(BuildValidationSection());
-            root.Add(BuildCanvasSection());
+            // Single outer scroll so the whole window scrolls when it's short — not just the grid.
+            var scroll = new ScrollView(ScrollViewMode.VerticalAndHorizontal);
+            scroll.AddToClassList("tt-main-scroll");
 
+            scroll.Add(MakeTitle("Twisted Tangle — Level Creator"));
+            scroll.Add(BuildLevelIoSection());
+            scroll.Add(BuildGridSection());
+            scroll.Add(BuildToolsSection());
+            scroll.Add(BuildPaletteSection());
+            scroll.Add(BuildRopeListSection());
+            scroll.Add(BuildValidationSection());
+            scroll.Add(BuildCanvasSection());
+
+            root.Add(scroll);
             RefreshAll();
         }
 
@@ -266,8 +271,9 @@ namespace TwistedTangle.Editor
 
         private VisualElement BuildCanvasSection()
         {
-            var scroll = new ScrollView(ScrollViewMode.VerticalAndHorizontal);
-            scroll.AddToClassList("tt-canvas-scroll");
+            // No inner scroll — the canvas has an explicit size and the outer scroll handles it.
+            var host = new VisualElement();
+            host.AddToClassList("tt-canvas-host");
 
             _canvas = new RopeCanvasElement { PegColorResolver = ResolvePegColor };
             _canvas.AddToClassList("tt-canvas");
@@ -275,8 +281,8 @@ namespace TwistedTangle.Editor
             _canvas.CellDragged = OnCanvasCellDragged;
             _canvas.Released = () => RefreshPanels();
 
-            scroll.Add(_canvas);
-            return scroll;
+            host.Add(_canvas);
+            return host;
         }
 
         #endregion
