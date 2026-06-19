@@ -47,7 +47,7 @@ namespace TwistedTangle.Editor
         private readonly List<(string name, Color color)> _swatches = new();
 
         // --- ui ---
-        private IntegerField _levelIdField, _widthField, _heightField;
+        private IntegerField _levelIdField, _widthField, _heightField, _timeField;
         private RopeCanvasElement _canvas;
         private VisualElement _paletteContainer, _toolsContainer, _ropeListContainer, _validationContainer;
         private readonly Dictionary<Tool, Button> _toolButtons = new();
@@ -207,13 +207,15 @@ namespace TwistedTangle.Editor
 
         private VisualElement BuildGridSection()
         {
-            var s = MakeSection("Grid");
+            var s = MakeSection("Grid & time");
             var row = MakeRow();
 
             _widthField = CompactIntField("Width", 6);
             _heightField = CompactIntField("Height", 6);
+            _timeField = CompactIntField("Time (s)", 45);
             row.Add(_widthField);
             row.Add(_heightField);
+            row.Add(_timeField);
             row.Add(MakeButton("Generate Grid", GenerateGrid, "tt-btn--primary"));
             s.Add(row);
             return s;
@@ -438,6 +440,7 @@ namespace TwistedTangle.Editor
             AddMetric(metricsRow, $"Colors: {m.ColorCount}");
             AddMetric(metricsRow, $"Overrides: {m.OverrideCount}");
             AddMetric(metricsRow, $"Length: {m.TotalPathLength:0.0}");
+            AddMetric(metricsRow, $"Time: {_level.TimeSeconds}s");
             _validationContainer.Add(metricsRow);
 
             var diff = new Label($"Difficulty: {m.Difficulty} (score {m.DifficultyScore:0.0})");
@@ -506,6 +509,7 @@ namespace TwistedTangle.Editor
             _level.LevelId = _levelIdField.value;
             _level.GridWidth = w;
             _level.GridHeight = h;
+            _level.TimeSeconds = _timeField.value;
 
             _isEditMode = false;
             _currentLevelId = 0;
@@ -621,6 +625,7 @@ namespace TwistedTangle.Editor
             }
 
             _level.LevelId = _levelIdField.value;
+            _level.TimeSeconds = _timeField.value;
             var report = LevelValidator.Validate(_level, _pegLookup.Keys);
             RebuildValidation();
 
@@ -656,6 +661,7 @@ namespace TwistedTangle.Editor
             _levelIdField.value = _level.LevelId;
             _widthField.value = _level.GridWidth;
             _heightField.value = _level.GridHeight;
+            _timeField.value = _level.TimeSeconds;
             _isEditMode = true;
             _currentLevelId = _level.LevelId;
             _previewRope = null;

@@ -72,6 +72,7 @@ namespace TwistedTangle.Editor.Utils
             dst.LevelId = src.LevelId;
             dst.GridWidth = src.GridWidth;
             dst.GridHeight = src.GridHeight;
+            dst.TimeSeconds = src.TimeSeconds;
 
             dst.Pegs.Clear();
             dst.Pegs.AddRange(src.Pegs); // PegData is a value type — straight copy is a deep copy.

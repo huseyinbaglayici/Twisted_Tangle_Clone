@@ -65,6 +65,8 @@ namespace TwistedTangle.Editor.Validation
                 report.Errors.Add("Level Id must be >= 1 (0 is reserved for \"no level\").");
             if (level.GridWidth <= 0 || level.GridHeight <= 0)
                 report.Errors.Add($"Grid size is invalid ({level.GridWidth}x{level.GridHeight}).");
+            if (level.TimeSeconds <= 0)
+                report.Errors.Add("Level time must be greater than 0 seconds.");
 
             // Peg coordinate index + duplicate / unknown-type / out-of-bounds checks.
             var pegCells = new HashSet<Vector2Int>();

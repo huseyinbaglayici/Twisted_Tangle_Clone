@@ -18,6 +18,7 @@ namespace TwistedTangle.Runtime.Data.ScriptableObjects
         [SerializeField] private int levelId = -1;
         [SerializeField] private int gridWidth = 5;
         [SerializeField] private int gridHeight = 5;
+        [SerializeField] private int timeSeconds = 45;
         [SerializeField] private List<PegData> pegs = new();
         [SerializeField] private List<RopeData> ropes = new();
         [SerializeField] private List<CrossingOverride> crossingOverrides = new();
@@ -38,6 +39,13 @@ namespace TwistedTangle.Runtime.Data.ScriptableObjects
         {
             get => gridHeight;
             set => gridHeight = value;
+        }
+
+        /// <summary>How long the level lasts, in seconds.</summary>
+        public int TimeSeconds
+        {
+            get => timeSeconds;
+            set => timeSeconds = value;
         }
 
         public List<PegData> Pegs => pegs;
