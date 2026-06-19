@@ -10,10 +10,11 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: e6558c0148d099341a44ac3621135069, type: 3}
-  m_Name: Peg_Standard
+  m_Name: Entity_pin_nailed
   m_EditorClassIdentifier: 
-  typeId: standard
-  displayName: Standard
-  editorColor: {r: 0.85, g: 0.85, b: 0.85, a: 1}
+  typeId: pin.nailed
+  displayName: Nailed
+  editorColor: {r: 0.6226415, g: 0.6226415, b: 0.6226415, a: 1}
+  baseType: {fileID: 11400000, guid: a1ac0eac33b07b7488fabf1acb1e88fe, type: 2}
   prefab: {fileID: 0}
   tags: []

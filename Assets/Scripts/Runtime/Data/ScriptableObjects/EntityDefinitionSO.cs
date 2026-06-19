@@ -28,6 +28,10 @@ namespace TwistedTangle.Runtime.Data.ScriptableObjects
         [Tooltip("Color used to draw this entity in the editor canvas.")]
         [SerializeField] private Color editorColor = new(0.85f, 0.85f, 0.85f);
 
+        [Tooltip("The base type this entity belongs to (Pin, Lock, …). Sub-types are grouped under their " +
+                 "base in the toolbar/palette. Left empty = \"Ungrouped\" until assigned.")]
+        [SerializeField] private EntityBaseTypeSO baseType;
+
         [Tooltip("Optional prefab instantiated by the runtime loader. Leave empty to fall back to " +
                  "a generated placeholder.")]
         [SerializeField] private GameObject prefab;
@@ -40,6 +44,7 @@ namespace TwistedTangle.Runtime.Data.ScriptableObjects
         public string TypeId => string.IsNullOrEmpty(typeId) ? name : typeId;
         public string DisplayName => string.IsNullOrEmpty(displayName) ? TypeId : displayName;
         public Color EditorColor => editorColor;
+        public EntityBaseTypeSO BaseType => baseType;
         public GameObject Prefab => prefab;
         public string[] Tags => tags ?? System.Array.Empty<string>();
     }

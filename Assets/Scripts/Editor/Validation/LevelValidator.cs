@@ -16,7 +16,7 @@ namespace TwistedTangle.Editor.Validation
     /// <summary>Read-only metrics summarizing a level, shown to the designer for self-service.</summary>
     public struct LevelMetrics
     {
-        public int PegCount;
+        public int EntityCount;
         public int RopeCount;
         public int CrossingCount;
         public int ColorCount;
@@ -51,7 +51,7 @@ namespace TwistedTangle.Editor.Validation
         private const float MediumThreshold = 10f;
         private const float HardThreshold = 24f;
 
-        public static ValidationReport Validate(LevelDataSO level, ICollection<string> knownPegTypeIds)
+        public static ValidationReport Validate(LevelDataSO level, ICollection<string> knownEntityTypeIds)
         {
             var report = new ValidationReport();
             if (level == null)
@@ -68,22 +68,22 @@ namespace TwistedTangle.Editor.Validation
             if (level.TimeSeconds <= 0)
                 report.Errors.Add("Level time must be greater than 0 seconds.");
 
-            // Peg coordinate index + duplicate / unknown-type / out-of-bounds checks.
-            var pegCells = new HashSet<Vector2Int>();
-            foreach (var peg in level.Pegs)
+            // Entity coordinate index + duplicate / unknown-type / out-of-bounds checks.
+            var entityCells = new HashSet<Vector2Int>();
+            foreach (var entity in level.Pegs)
             {
-                if (!pegCells.Add(peg.Coordinates))
-                    report.Errors.Add($"Duplicate peg at {peg.Coordinates}.");
+                if (!entityCells.Add(entity.Coordinates))
+                    report.Errors.Add($"Duplicate entity at {entity.Coordinates}.");
 
-                if (!InBounds(peg.Coordinates, level))
-                    report.Errors.Add($"Peg at {peg.Coordinates} is outside the grid.");
+                if (!InBounds(entity.Coordinates, level))
+                    report.Errors.Add($"Entity at {entity.Coordinates} is outside the grid.");
 
-                if (knownPegTypeIds != null && !knownPegTypeIds.Contains(peg.TypeId))
-                    report.Errors.Add($"Peg at {peg.Coordinates} has unknown type '{peg.TypeId}'.");
+                if (knownEntityTypeIds != null && !knownEntityTypeIds.Contains(entity.TypeId))
+                    report.Errors.Add($"Entity at {entity.Coordinates} has unknown type '{entity.TypeId}'.");
             }
 
-            // Rope checks + which pegs actually get used.
-            var usedPegs = new HashSet<Vector2Int>();
+            // Rope checks + which entities actually get used.
+            var usedEntities = new HashSet<Vector2Int>();
             foreach (var rope in level.Ropes)
             {
                 if (rope?.Path == null || rope.Path.Count < 2)
@@ -95,12 +95,12 @@ namespace TwistedTangle.Editor.Validation
                 for (int i = 0; i < rope.Path.Count; i++)
                 {
                     var coord = rope.Path[i].PegCoord;
-                    usedPegs.Add(coord);
+                    usedEntities.Add(coord);
 
-                    if (!pegCells.Contains(coord))
+                    if (!entityCells.Contains(coord))
                     {
                         string where = i == 0 || i == rope.Path.Count - 1 ? "endpoint" : "waypoint";
-                        report.Errors.Add($"Rope {rope.RopeId} {where} at {coord} is not on a peg.");
+                        report.Errors.Add($"Rope {rope.RopeId} {where} at {coord} is not on an entity.");
                     }
 
                     if (i > 0 && rope.Path[i - 1].PegCoord == coord)
@@ -109,9 +109,9 @@ namespace TwistedTangle.Editor.Validation
             }
 
             // --- warnings ----------------------------------------------------------------------
-            foreach (var peg in level.Pegs)
-                if (pegCells.Contains(peg.Coordinates) && !usedPegs.Contains(peg.Coordinates))
-                    report.Warnings.Add($"Peg at {peg.Coordinates} is not used by any rope.");
+            foreach (var entity in level.Pegs)
+                if (entityCells.Contains(entity.Coordinates) && !usedEntities.Contains(entity.Coordinates))
+                    report.Warnings.Add($"Entity at {entity.Coordinates} is not used by any rope.");
 
             var crossings = CrossingSolver.FindCrossings(level.Ropes);
             var ropesWithCrossing = new HashSet<int>();
@@ -156,7 +156,7 @@ namespace TwistedTangle.Editor.Validation
 
             return new LevelMetrics
             {
-                PegCount = level.Pegs.Count,
+                EntityCount = level.Pegs.Count,
                 RopeCount = level.Ropes.Count,
                 CrossingCount = crossingCount,
                 ColorCount = colorCount,

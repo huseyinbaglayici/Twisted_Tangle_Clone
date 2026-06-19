@@ -21,10 +21,17 @@ namespace TwistedTangle.Editor
     /// </summary>
     public class LevelCreator : EditorWindow
     {
-        private enum Tool { Entity, Rope, Erase, Flip }
+        private enum Tool
+        {
+            Place,
+            Rope,
+            Erase,
+            Flip
+        }
 
         private const string LevelsPath = "Assets/Resources/Data/Levels";
         private const string EntitiesPath = "Assets/Resources/Data/Entities";
+        private const string BasesPath = "Assets/Resources/Data/EntityBases";
         private const string PalettesPath = "Assets/Resources/Data/Palettes";
         private const string UssPath = "Assets/Scripts/Editor/LevelCreator.uss";
         private const float FlipPickRadiusCells = 0.35f;
@@ -36,13 +43,15 @@ namespace TwistedTangle.Editor
         private int _nextRopeId;
 
         // --- tool state ---
-        private Tool _tool = Tool.Entity;
-        private EntityDefinitionSO _selectedEntity;
+        private Tool _tool = Tool.Place;
+        private EntityBaseTypeSO _selectedBaseType; // active base in Place mode (null = Ungrouped)
+        private EntityDefinitionSO _selectedEntity; // active sub-type within that base
         private Color _ropeColor = new(0.90f, 0.20f, 0.20f);
         private RopeData _previewRope;
         private int _selectedRopeId = -1;
 
         // --- data-driven content ---
+        private readonly List<EntityBaseTypeSO> _baseTypes = new();
         private readonly List<EntityDefinitionSO> _entityDefs = new();
         private readonly Dictionary<string, EntityDefinitionSO> _entityLookup = new();
         private readonly List<(string name, Color color)> _swatches = new();
@@ -51,13 +60,14 @@ namespace TwistedTangle.Editor
         private IntegerField _levelIdField, _widthField, _heightField, _timeField;
         private RopeCanvasElement _canvas;
         private VisualElement _paletteContainer, _toolsContainer, _ropeListContainer, _validationContainer;
-        private readonly Dictionary<Tool, Button> _toolButtons = new();
+        private readonly Dictionary<Tool, Button> _toolButtons = new(); // built-in tools
+        private readonly List<(EntityBaseTypeSO baseType, Button btn)> _baseButtons = new(); // one per base + Ungrouped
 
         // --- keyboard shortcuts ---
         private readonly Dictionary<string, System.Action> _commands = new();
+
         private static readonly Dictionary<Tool, string> ToolCommandIds = new()
         {
-            { Tool.Entity, LevelEditorCommands.ToolPeg },
             { Tool.Rope, LevelEditorCommands.ToolRope },
             { Tool.Erase, LevelEditorCommands.ToolErase },
             { Tool.Flip, LevelEditorCommands.ToolFlip },
@@ -79,8 +89,14 @@ namespace TwistedTangle.Editor
             var uss = AssetDatabase.LoadAssetAtPath<StyleSheet>(UssPath);
             if (uss != null) root.styleSheets.Add(uss);
 
+            RefreshBaseTypes();
             RefreshEntityDefinitions();
             RefreshPalettes();
+
+            // Default selection: Place mode on the first base if any exist, else the Rope tool.
+            _selectedBaseType = _baseTypes.FirstOrDefault();
+            _selectedEntity = SubTypesOf(_selectedBaseType).FirstOrDefault();
+            _tool = (_baseTypes.Count > 0 || HasUngrouped()) ? Tool.Place : Tool.Rope;
 
             // Single outer scroll so the whole window scrolls when it's short — not just the grid.
             var scroll = new ScrollView(ScrollViewMode.VerticalAndHorizontal);
@@ -112,6 +128,22 @@ namespace TwistedTangle.Editor
 
         #region Data-driven discovery
 
+        private void RefreshBaseTypes()
+        {
+            _baseTypes.Clear();
+            foreach (var guid in AssetDatabase.FindAssets($"t:{nameof(EntityBaseTypeSO)}"))
+            {
+                var b = AssetDatabase.LoadAssetAtPath<EntityBaseTypeSO>(AssetDatabase.GUIDToAssetPath(guid));
+                if (b != null) _baseTypes.Add(b);
+            }
+
+            _baseTypes.Sort((a, b) =>
+                string.Compare(a.DisplayName, b.DisplayName, System.StringComparison.OrdinalIgnoreCase));
+
+            if (_selectedBaseType != null && !_baseTypes.Contains(_selectedBaseType))
+                _selectedBaseType = _baseTypes.FirstOrDefault();
+        }
+
         private void RefreshEntityDefinitions()
         {
             _entityDefs.Clear();
@@ -126,8 +158,14 @@ namespace TwistedTangle.Editor
             }
 
             if (_selectedEntity == null || !_entityDefs.Contains(_selectedEntity))
-                _selectedEntity = _entityDefs.FirstOrDefault();
+                _selectedEntity = SubTypesOf(_selectedBaseType).FirstOrDefault();
         }
+
+        /// <summary>Sub-types belonging to a base (null base = the "Ungrouped" bucket).</summary>
+        private IEnumerable<EntityDefinitionSO> SubTypesOf(EntityBaseTypeSO baseType) =>
+            _entityDefs.Where(d => d.BaseType == baseType);
+
+        private bool HasUngrouped() => _entityDefs.Any(d => d.BaseType == null);
 
         private void RefreshPalettes()
         {
@@ -143,24 +181,48 @@ namespace TwistedTangle.Editor
         private Color ResolveEntityColor(string typeId) =>
             _entityLookup.TryGetValue(typeId, out var def) ? def.EditorColor : new Color(0.5f, 0.5f, 0.5f);
 
-        /// <summary>Bootstraps a few example entity types so an empty project is usable immediately.</summary>
+        /// <summary>Bootstraps a starter "Pin" base with two sub-types so an empty project is usable immediately.</summary>
         private void CreateDefaultEntityTypes()
         {
+            EnsureFolder(BasesPath);
             EnsureFolder(EntitiesPath);
-            CreateEntityAsset("standard", "Standard", new Color(0.85f, 0.85f, 0.85f), null, EntitiesPath);
-            CreateEntityAsset("locked", "Locked", new Color(0.45f, 0.45f, 0.5f), null, EntitiesPath);
-            CreateEntityAsset("nailed", "Nailed", new Color(1f, 0.6f, 0.1f), null, EntitiesPath);
+            var pin = CreateBaseAsset("pin", "Pin", new Color(0.85f, 0.85f, 0.85f), BasesPath);
+            CreateEntityAsset("pin.standard", "Standard", new Color(0.85f, 0.85f, 0.85f), null, pin, EntitiesPath);
+            CreateEntityAsset("pin.nailed", "Nailed", new Color(1f, 0.6f, 0.1f), null, pin, EntitiesPath);
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
+
+            RefreshBaseTypes();
             RefreshEntityDefinitions();
-            RebuildPalette();
+            RebuildToolbar();
+            _selectedBaseType = pin;
+            _selectedEntity = SubTypesOf(pin).FirstOrDefault();
+            _tool = Tool.Place;
+            RefreshAll();
         }
 
-        /// <summary>Creates one EntityDefinitionSO asset. Returns null if an asset already exists at the path.</summary>
-        private static EntityDefinitionSO CreateEntityAsset(string typeId, string displayName, Color color,
-            GameObject prefab, string folder)
+        /// <summary>Creates (or returns an existing) EntityBaseTypeSO asset.</summary>
+        private static EntityBaseTypeSO CreateBaseAsset(string baseId, string displayName, Color color, string folder)
         {
-            string path = $"{folder}/Entity_{displayName}.asset";
+            string path = $"{folder}/EntityBase_{Slugify(displayName)}.asset";
+            var existing = AssetDatabase.LoadAssetAtPath<EntityBaseTypeSO>(path);
+            if (existing != null) return existing;
+
+            var so = CreateInstance<EntityBaseTypeSO>();
+            var sObj = new SerializedObject(so);
+            sObj.FindProperty("baseId").stringValue = baseId;
+            sObj.FindProperty("displayName").stringValue = displayName;
+            sObj.FindProperty("editorColor").colorValue = color;
+            sObj.ApplyModifiedPropertiesWithoutUndo();
+            AssetDatabase.CreateAsset(so, path);
+            return so;
+        }
+
+        /// <summary>Creates one EntityDefinitionSO (sub-type) asset. Returns null if one already exists at the path.</summary>
+        private static EntityDefinitionSO CreateEntityAsset(string typeId, string displayName, Color color,
+            GameObject prefab, EntityBaseTypeSO baseType, string folder)
+        {
+            string path = $"{folder}/Entity_{typeId.Replace('.', '_')}.asset";
             if (AssetDatabase.LoadAssetAtPath<EntityDefinitionSO>(path) != null) return null;
 
             var so = CreateInstance<EntityDefinitionSO>();
@@ -168,40 +230,76 @@ namespace TwistedTangle.Editor
             sObj.FindProperty("typeId").stringValue = typeId;
             sObj.FindProperty("displayName").stringValue = displayName;
             sObj.FindProperty("editorColor").colorValue = color;
+            if (baseType != null) sObj.FindProperty("baseType").objectReferenceValue = baseType;
             if (prefab != null) sObj.FindProperty("prefab").objectReferenceValue = prefab;
             sObj.ApplyModifiedPropertiesWithoutUndo();
             AssetDatabase.CreateAsset(so, path);
             return so;
         }
 
-        /// <summary>
-        /// Creates a new entity type and selects it for painting. Returns (false, reason) on a bad/clashing
-        /// id so the popup can show the error inline; (true, null) on success. Called by <see cref="EntityTypePopup"/>.
-        /// </summary>
-        private (bool ok, string error) TryCreateEntityType(string id, string name, Color color, GameObject prefab)
+        /// <summary>Lowercases, turns spaces into underscores and drops other punctuation — for ids/filenames.</summary>
+        private static string Slugify(string s)
         {
-            id = id?.Trim();
-            if (string.IsNullOrEmpty(id))
-                return (false, "Type id is required.");
+            if (string.IsNullOrEmpty(s)) return string.Empty;
+            var chars = s.Trim().ToLowerInvariant()
+                .Select(c => char.IsWhiteSpace(c) ? '_' : c)
+                .Where(c => char.IsLetterOrDigit(c) || c == '_');
+            return new string(chars.ToArray());
+        }
 
+        /// <summary>
+        /// Creates a new sub-type (and, if needed, a new base type) from the creation popup, then selects it.
+        /// Returns (false, reason) on bad input so the popup can show it inline; (true, null) on success.
+        /// When <paramref name="existingBase"/> is null a new base named <paramref name="newBaseName"/> is created.
+        /// </summary>
+        private (bool ok, string error) TryCreateEntityType(EntityBaseTypeSO existingBase, string newBaseName,
+            string subName, Color color, GameObject prefab)
+        {
+            RefreshBaseTypes();
             RefreshEntityDefinitions();
-            if (_entityLookup.ContainsKey(id))
-                return (false, $"An entity type with id '{id}' already exists.");
 
-            name = name?.Trim();
-            if (string.IsNullOrEmpty(name)) name = id;
+            // Resolve or create the base type.
+            var baseType = existingBase;
+            if (baseType == null)
+            {
+                newBaseName = newBaseName?.Trim();
+                if (string.IsNullOrEmpty(newBaseName))
+                    return (false, "New base type name is required.");
+                string baseId = Slugify(newBaseName);
+                if (string.IsNullOrEmpty(baseId))
+                    return (false, "Base type name must contain letters or digits.");
+                if (_baseTypes.Any(b => string.Equals(b.BaseId, baseId, System.StringComparison.OrdinalIgnoreCase)))
+                    return (false, $"A base type '{newBaseName}' already exists — pick it from the dropdown.");
+                EnsureFolder(BasesPath);
+                baseType = CreateBaseAsset(baseId, newBaseName, color, BasesPath);
+            }
+
+            // Create the sub-type under that base.
+            subName = subName?.Trim();
+            if (string.IsNullOrEmpty(subName))
+                return (false, "Sub-type name is required.");
+            string subSlug = Slugify(subName);
+            if (string.IsNullOrEmpty(subSlug))
+                return (false, "Sub-type name must contain letters or digits.");
+            string typeId = $"{baseType.BaseId}.{subSlug}";
+            if (_entityLookup.ContainsKey(typeId))
+                return (false, $"“{baseType.DisplayName}” already has a sub-type '{subName}'.");
 
             EnsureFolder(EntitiesPath);
-            var so = CreateEntityAsset(id, name, color, prefab, EntitiesPath);
+            var so = CreateEntityAsset(typeId, subName, color, prefab, baseType, EntitiesPath);
             if (so == null)
-                return (false, $"An asset already exists at {EntitiesPath}/Entity_{name}.asset.");
+                return (false, $"An asset already exists for '{subName}' under '{baseType.DisplayName}'.");
 
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
+            RefreshBaseTypes();
             RefreshEntityDefinitions();
+            RebuildToolbar();
+
+            _selectedBaseType = baseType;
             _selectedEntity = so;
-            SetTool(Tool.Entity);
-            RebuildPalette();
+            _tool = Tool.Place;
+            RefreshAll();
             return (true, null);
         }
 
@@ -234,6 +332,7 @@ namespace TwistedTangle.Editor
                     el.FindPropertyRelative("Name").stringValue = colors[i].name;
                     el.FindPropertyRelative("Color").colorValue = colors[i].color;
                 }
+
                 so.ApplyModifiedPropertiesWithoutUndo();
                 AssetDatabase.CreateAsset(pal, path);
                 AssetDatabase.SaveAssets();
@@ -283,14 +382,29 @@ namespace TwistedTangle.Editor
             var s = MakeSection("Tool");
             _toolsContainer = MakeRow();
             _toolsContainer.AddToClassList("tt-row--wrap");
+            RebuildToolbar();
+            s.Add(_toolsContainer);
+            return s;
+        }
 
-            AddToolButton(Tool.Entity, "Entity");
+        /// <summary>Rebuilds the toolbar: Rope (built-in) ▸ one button per base type ▸ Erase, Flip.</summary>
+        private void RebuildToolbar()
+        {
+            if (_toolsContainer == null) return;
+            _toolsContainer.Clear();
+            _toolButtons.Clear();
+            _baseButtons.Clear();
+
             AddToolButton(Tool.Rope, "Rope");
+            foreach (var b in _baseTypes)
+                AddBaseButton(b, b.DisplayName, b.EditorColor);
+            if (HasUngrouped())
+                AddBaseButton(null, "Ungrouped", new Color(0.5f, 0.5f, 0.5f));
             AddToolButton(Tool.Erase, "Erase");
             AddToolButton(Tool.Flip, "Flip Crossing");
 
-            s.Add(_toolsContainer);
-            return s;
+            UpdateToolActiveStates();
+            UpdateShortcutHints();
         }
 
         private void AddToolButton(Tool tool, string label)
@@ -301,9 +415,30 @@ namespace TwistedTangle.Editor
             _toolsContainer.Add(btn);
         }
 
+        private void AddBaseButton(EntityBaseTypeSO baseType, string label, Color accent)
+        {
+            var btn = new Button(() => SelectBase(baseType)) { text = label };
+            btn.AddToClassList("tt-tool");
+            btn.style.borderLeftWidth = 6;
+            btn.style.borderLeftColor = accent;
+            _baseButtons.Add((baseType, btn));
+            _toolsContainer.Add(btn);
+        }
+
+        /// <summary>Enters Place mode for a base type and auto-selects its first sub-type.</summary>
+        private void SelectBase(EntityBaseTypeSO baseType)
+        {
+            _tool = Tool.Place;
+            _selectedBaseType = baseType;
+            _selectedEntity = SubTypesOf(baseType).FirstOrDefault();
+            RebuildPalette();
+            UpdateToolActiveStates();
+            RefreshCanvas();
+        }
+
         private VisualElement BuildPaletteSection()
         {
-            var s = MakeSection("Brush — entity types & rope color");
+            var s = MakeSection("Brush");
             _paletteContainer = new VisualElement();
             s.Add(_paletteContainer);
             return s;
@@ -318,7 +453,8 @@ namespace TwistedTangle.Editor
             var btn = new Button { text = "+ New Entity Type" };
             btn.AddToClassList("tt-btn");
             btn.AddToClassList("tt-btn--primary");
-            btn.clicked += () => UnityEditor.PopupWindow.Show(btn.worldBound, new EntityTypePopup(TryCreateEntityType));
+            btn.clicked += () => UnityEditor.PopupWindow.Show(
+                btn.worldBound, new EntityTypePopup(new List<EntityBaseTypeSO>(_baseTypes), TryCreateEntityType));
             s.Add(btn);
             return s;
         }
@@ -362,40 +498,79 @@ namespace TwistedTangle.Editor
 
         #region UI: dynamic panels
 
+        /// <summary>Context-sensitive palette: its content follows the active tool.</summary>
         private void RebuildPalette()
         {
             _paletteContainer.Clear();
+            switch (_tool)
+            {
+                case Tool.Place: BuildPlacePalette(); break;
+                case Tool.Rope: BuildRopePalette(); break;
+                case Tool.Erase:
+                    _paletteContainer.Add(new Label("Erase: left-click a node to remove its entity."));
+                    break;
+                case Tool.Flip:
+                    _paletteContainer.Add(new Label("Flip: click near a crossing to swap which rope is on top."));
+                    break;
+            }
+        }
 
-            // --- entity type buttons (data-driven) ---
+        /// <summary>Place mode — the sub-types of the selected base type.</summary>
+        private void BuildPlacePalette()
+        {
             if (_entityDefs.Count == 0)
             {
                 _paletteContainer.Add(new HelpBox(
-                    "No EntityDefinitionSO assets found. Add one with “New entity type” above, create them " +
-                    "(Assets ▸ Create ▸ TwistedTangle ▸ Entity Definition) — they appear here automatically — " +
-                    "or click below.",
+                    "No entity types yet. Use “+ New Entity Type” below (pick or create a base type), " +
+                    "or click to create a starter Pin set.",
                     HelpBoxMessageType.Info));
-                _paletteContainer.Add(MakeButton("Create Default Entity Types", CreateDefaultEntityTypes, "tt-btn--primary"));
-            }
-            else
-            {
-                var entityRow = MakeRow();
-                entityRow.AddToClassList("tt-row--wrap");
-                foreach (var def in _entityDefs)
-                {
-                    var btn = new Button(() => { _selectedEntity = def; SetTool(Tool.Entity); RebuildPalette(); })
-                    {
-                        text = def.DisplayName
-                    };
-                    btn.AddToClassList("tt-tool");
-                    if (def == _selectedEntity) btn.AddToClassList("tt-tool--active");
-                    btn.style.borderLeftWidth = 6;
-                    btn.style.borderLeftColor = def.EditorColor;
-                    entityRow.Add(btn);
-                }
-                _paletteContainer.Add(entityRow);
+                _paletteContainer.Add(MakeButton("Create Default Entity Types", CreateDefaultEntityTypes,
+                    "tt-btn--primary"));
+                return;
             }
 
-            // --- rope color: free picker + palette swatches ---
+            var subTypes = SubTypesOf(_selectedBaseType).ToList();
+            string baseName = _selectedBaseType != null ? _selectedBaseType.DisplayName : "Ungrouped";
+
+            if (subTypes.Count == 0)
+            {
+                _paletteContainer.Add(new HelpBox(
+                    $"“{baseName}” has no sub-types yet. Add one with “+ New Entity Type” below.",
+                    HelpBoxMessageType.Info));
+                return;
+            }
+
+            var header = new Label($"{baseName} types");
+            header.AddToClassList("tt-section__header");
+            _paletteContainer.Add(header);
+
+            var row = MakeRow();
+            row.AddToClassList("tt-row--wrap");
+            foreach (var def in subTypes)
+            {
+                var captured = def;
+                var btn = new Button(() =>
+                {
+                    _selectedEntity = captured;
+                    RebuildPalette();
+                    RefreshCanvas();
+                })
+                {
+                    text = def.DisplayName
+                };
+                btn.AddToClassList("tt-tool");
+                if (def == _selectedEntity) btn.AddToClassList("tt-tool--active");
+                btn.style.borderLeftWidth = 6;
+                btn.style.borderLeftColor = def.EditorColor;
+                row.Add(btn);
+            }
+
+            _paletteContainer.Add(row);
+        }
+
+        /// <summary>Rope mode — color picker, palette swatches, and finish/cancel actions.</summary>
+        private void BuildRopePalette()
+        {
             var colorRow = MakeRow();
             colorRow.AddToClassList("tt-row--wrap");
             var colorField = new UnityEditor.UIElements.ColorField("Rope color") { value = _ropeColor };
@@ -426,6 +601,7 @@ namespace TwistedTangle.Editor
                     b.style.backgroundColor = color;
                     swRow.Add(b);
                 }
+
                 _paletteContainer.Add(swRow);
             }
             else
@@ -433,7 +609,6 @@ namespace TwistedTangle.Editor
                 _paletteContainer.Add(MakeButton("Create Default Palette", CreateDefaultPalette, "tt-btn--primary"));
             }
 
-            // --- rope authoring actions ---
             var actionRow = MakeRow();
             actionRow.Add(MakeButton("Finish Rope", FinishRope, "tt-btn--save"));
             actionRow.Add(MakeButton("Cancel Rope", CancelRope, "tt-btn--danger"));
@@ -461,15 +636,34 @@ namespace TwistedTangle.Editor
 
                 var label = new Label($"Rope {rope.RopeId}  ·  L{rope.Layer}  ·  {rope.Path.Count} pts")
                 {
-                    style = { minWidth = 170, unityFontStyleAndWeight =
-                        rope.RopeId == _selectedRopeId ? FontStyle.Bold : FontStyle.Normal }
+                    style =
+                    {
+                        minWidth = 170, unityFontStyleAndWeight =
+                            rope.RopeId == _selectedRopeId ? FontStyle.Bold : FontStyle.Normal
+                    }
                 };
                 row.Add(label);
 
-                row.Add(MakeButton("Select", () => { _selectedRopeId = captured.RopeId; RefreshAll(); }, "tt-tool"));
-                row.Add(MakeButton("▲ Front", () => { BringToFront(captured); RefreshAll(); }, "tt-tool"));
-                row.Add(MakeButton("▼ Back", () => { SendToBack(captured); RefreshAll(); }, "tt-tool"));
-                row.Add(MakeButton("✕", () => { DeleteRope(captured); RefreshAll(); }, "tt-btn--danger"));
+                row.Add(MakeButton("Select", () =>
+                {
+                    _selectedRopeId = captured.RopeId;
+                    RefreshAll();
+                }, "tt-tool"));
+                row.Add(MakeButton("▲ Front", () =>
+                {
+                    BringToFront(captured);
+                    RefreshAll();
+                }, "tt-tool"));
+                row.Add(MakeButton("▼ Back", () =>
+                {
+                    SendToBack(captured);
+                    RefreshAll();
+                }, "tt-tool"));
+                row.Add(MakeButton("✕", () =>
+                {
+                    DeleteRope(captured);
+                    RefreshAll();
+                }, "tt-btn--danger"));
 
                 _ropeListContainer.Add(row);
             }
@@ -496,6 +690,7 @@ namespace TwistedTangle.Editor
                 l.AddToClassList("tt-validation__error");
                 _validationContainer.Add(l);
             }
+
             foreach (var warn in report.Warnings)
             {
                 var l = new Label("• " + warn);
@@ -506,7 +701,7 @@ namespace TwistedTangle.Editor
             var m = report.Metrics;
             var metricsRow = MakeRow();
             metricsRow.AddToClassList("tt-row--wrap");
-            AddMetric(metricsRow, $"Entities: {m.PegCount}");
+            AddMetric(metricsRow, $"Entities: {m.EntityCount}");
             AddMetric(metricsRow, $"Ropes: {m.RopeCount}");
             AddMetric(metricsRow, $"Crossings: {m.CrossingCount}");
             AddMetric(metricsRow, $"Colors: {m.ColorCount}");
@@ -538,7 +733,7 @@ namespace TwistedTangle.Editor
 
             switch (_tool)
             {
-                case Tool.Entity:
+                case Tool.Place:
                     if (button == 1) RemoveEntity(coord);
                     else PlaceEntity(coord);
                     break;
@@ -555,14 +750,14 @@ namespace TwistedTangle.Editor
             }
 
             RefreshCanvas();
-            if (_tool != Tool.Entity && _tool != Tool.Erase) RefreshPanels();
+            if (_tool != Tool.Place && _tool != Tool.Erase) RefreshPanels();
         }
 
         private void OnCanvasCellDragged(int x, int y)
         {
             if (_level == null) return;
             var coord = new Vector2Int(x, y);
-            if (_tool == Tool.Entity) PlaceEntity(coord);
+            if (_tool == Tool.Place) PlaceEntity(coord);
             else if (_tool == Tool.Erase) RemoveEntity(coord);
             else return;
             RefreshCanvas();
@@ -628,6 +823,7 @@ namespace TwistedTangle.Editor
                 _selectedRopeId = _previewRope.RopeId;
                 _nextRopeId++;
             }
+
             _previewRope = null;
             RefreshAll();
         }
@@ -678,6 +874,7 @@ namespace TwistedTangle.Editor
                     found = true;
                 }
             }
+
             if (!found) return;
 
             var key = CrossingOverride.Create(nearest.RopeIdA, nearest.SegA, nearest.RopeIdB, nearest.SegB);
@@ -768,8 +965,8 @@ namespace TwistedTangle.Editor
         private void SetTool(Tool tool)
         {
             _tool = tool;
-            foreach (var kv in _toolButtons)
-                kv.Value.EnableInClassList("tt-tool--active", kv.Key == tool);
+            RebuildPalette();
+            UpdateToolActiveStates();
             RefreshCanvas();
         }
 
@@ -778,8 +975,16 @@ namespace TwistedTangle.Editor
             RefreshCanvas();
             RebuildPalette();
             RefreshPanels();
+            UpdateToolActiveStates();
+        }
+
+        /// <summary>Highlights the active built-in tool, or the active base button when in Place mode.</summary>
+        private void UpdateToolActiveStates()
+        {
             foreach (var kv in _toolButtons)
-                kv.Value.EnableInClassList("tt-tool--active", kv.Key == _tool);
+                kv.Value.EnableInClassList("tt-tool--active", _tool == kv.Key);
+            foreach (var (baseType, btn) in _baseButtons)
+                btn.EnableInClassList("tt-tool--active", _tool == Tool.Place && _selectedBaseType == baseType);
         }
 
         private void RefreshPanels()
@@ -807,7 +1012,7 @@ namespace TwistedTangle.Editor
         /// <summary>Maps each bindable command id to the method that runs it. See <see cref="LevelEditorCommands"/>.</summary>
         private void BuildCommandTable()
         {
-            _commands[LevelEditorCommands.ToolPeg] = () => SetTool(Tool.Entity);
+            _commands[LevelEditorCommands.ToolPeg] = () => SelectBase(_selectedBaseType ?? _baseTypes.FirstOrDefault());
             _commands[LevelEditorCommands.ToolRope] = () => SetTool(Tool.Rope);
             _commands[LevelEditorCommands.ToolErase] = () => SetTool(Tool.Erase);
             _commands[LevelEditorCommands.ToolFlip] = () => SetTool(Tool.Flip);
@@ -845,7 +1050,8 @@ namespace TwistedTangle.Editor
         {
             var focused = rootVisualElement.focusController?.focusedElement as VisualElement;
             for (var el = focused; el != null; el = el.parent)
-                if (el is TextField || el is IntegerField || el is FloatField) return true;
+                if (el is TextField || el is IntegerField || el is FloatField)
+                    return true;
             return false;
         }
 
