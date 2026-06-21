@@ -40,6 +40,7 @@ namespace TwistedTangle.Editor
 
         // --- tool state ---
         private Tool _tool = Tool.Place;
+        private bool _isPainting; // when true, dragging paints (place/erase) across cells; off by default
         private EntityBaseTypeSO _selectedBaseType; // active base in Place mode (null = Ungrouped)
         private EntityDefinitionSO _selectedEntity; // active sub-type within that base
         private Color _ropeColor = new(0.90f, 0.20f, 0.20f);
@@ -380,6 +381,12 @@ namespace TwistedTangle.Editor
             _toolsContainer.AddToClassList("tt-row--wrap");
             RebuildToolbar();
             s.Add(_toolsContainer);
+
+            // Drag-to-paint is opt-in: off by default so a stray drag never alters many cells at once.
+            var paintToggle = new Toggle("Paint on drag") { value = _isPainting };
+            paintToggle.RegisterValueChangedCallback(e => _isPainting = e.newValue);
+            s.Add(paintToggle);
+
             return s;
         }
 
@@ -751,7 +758,7 @@ namespace TwistedTangle.Editor
 
         private void OnCanvasCellDragged(int x, int y)
         {
-            if (_level == null) return;
+            if (_level == null || !_isPainting) return;
             var coord = new Vector2Int(x, y);
             if (_tool == Tool.Place) PlaceEntity(coord);
             else if (_tool == Tool.Erase) RemoveEntity(coord);
