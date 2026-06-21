@@ -1,4 +1,5 @@
 using TwistedTangle.Editor.Input;
+using TwistedTangle.Editor.Utils;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -12,8 +13,6 @@ namespace TwistedTangle.Editor
     /// </summary>
     public class KeyBindingWindow : EditorWindow
     {
-        private const string UssPath = "Assets/Scripts/Editor/LevelCreator.uss";
-
         private string _listeningId; // command currently capturing a key press, or null
         private VisualElement _rowsHost;
 
@@ -30,7 +29,7 @@ namespace TwistedTangle.Editor
             var root = rootVisualElement;
             root.AddToClassList("tt-root");
 
-            var uss = AssetDatabase.LoadAssetAtPath<StyleSheet>(UssPath);
+            var uss = AssetDatabase.LoadAssetAtPath<StyleSheet>(LevelEditorPaths.Uss);
             if (uss != null) root.styleSheets.Add(uss);
 
             var scroll = new ScrollView();

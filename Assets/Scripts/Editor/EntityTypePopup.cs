@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using TwistedTangle.Editor.Utils;
 using TwistedTangle.Runtime.Data.ScriptableObjects;
 using UnityEditor;
 using UnityEngine;
@@ -16,7 +17,6 @@ namespace TwistedTangle.Editor
     /// </summary>
     public class EntityTypePopup : PopupWindowContent
     {
-        private const string UssPath = "Assets/Scripts/Editor/LevelCreator.uss";
         private const string NewBaseChoice = "＋ New base type…";
 
         private readonly List<EntityBaseTypeSO> _bases;
@@ -45,7 +45,7 @@ namespace TwistedTangle.Editor
         {
             var root = editorWindow.rootVisualElement;
 
-            var uss = AssetDatabase.LoadAssetAtPath<StyleSheet>(UssPath);
+            var uss = AssetDatabase.LoadAssetAtPath<StyleSheet>(LevelEditorPaths.Uss);
             if (uss != null) root.styleSheets.Add(uss);
             root.style.paddingLeft = 8;
             root.style.paddingRight = 8;

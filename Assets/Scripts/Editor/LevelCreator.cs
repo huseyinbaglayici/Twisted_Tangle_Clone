@@ -29,11 +29,7 @@ namespace TwistedTangle.Editor
             Flip
         }
 
-        private const string LevelsPath = "Assets/Resources/Data/Levels";
-        private const string EntitiesPath = "Assets/Resources/Data/Entities";
-        private const string BasesPath = "Assets/Resources/Data/EntityBases";
-        private const string PalettesPath = "Assets/Resources/Data/Palettes";
-        private const string UssPath = "Assets/Scripts/Editor/LevelCreator.uss";
+        // Filesystem paths are now editable via the "Level Editor Paths" window (LevelEditorPaths store).
         private const float FlipPickRadiusCells = 0.35f;
 
         // --- model ---
@@ -86,7 +82,7 @@ namespace TwistedTangle.Editor
             var root = rootVisualElement;
             root.AddToClassList("tt-root");
 
-            var uss = AssetDatabase.LoadAssetAtPath<StyleSheet>(UssPath);
+            var uss = AssetDatabase.LoadAssetAtPath<StyleSheet>(LevelEditorPaths.Uss);
             if (uss != null) root.styleSheets.Add(uss);
 
             RefreshBaseTypes();
@@ -184,11 +180,11 @@ namespace TwistedTangle.Editor
         /// <summary>Bootstraps a starter "Pin" base with two sub-types so an empty project is usable immediately.</summary>
         private void CreateDefaultEntityTypes()
         {
-            EnsureFolder(BasesPath);
-            EnsureFolder(EntitiesPath);
-            var pin = CreateBaseAsset("pin", "Pin", new Color(0.85f, 0.85f, 0.85f), BasesPath);
-            CreateEntityAsset("pin.standard", "Standard", new Color(0.85f, 0.85f, 0.85f), null, pin, EntitiesPath);
-            CreateEntityAsset("pin.nailed", "Nailed", new Color(1f, 0.6f, 0.1f), null, pin, EntitiesPath);
+            EnsureFolder(LevelEditorPaths.Bases);
+            EnsureFolder(LevelEditorPaths.Entities);
+            var pin = CreateBaseAsset("pin", "Pin", new Color(0.85f, 0.85f, 0.85f), LevelEditorPaths.Bases);
+            CreateEntityAsset("pin.standard", "Standard", new Color(0.85f, 0.85f, 0.85f), null, pin, LevelEditorPaths.Entities);
+            CreateEntityAsset("pin.nailed", "Nailed", new Color(1f, 0.6f, 0.1f), null, pin, LevelEditorPaths.Entities);
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
 
@@ -270,8 +266,8 @@ namespace TwistedTangle.Editor
                     return (false, "Base type name must contain letters or digits.");
                 if (_baseTypes.Any(b => string.Equals(b.BaseId, baseId, System.StringComparison.OrdinalIgnoreCase)))
                     return (false, $"A base type '{newBaseName}' already exists — pick it from the dropdown.");
-                EnsureFolder(BasesPath);
-                baseType = CreateBaseAsset(baseId, newBaseName, color, BasesPath);
+                EnsureFolder(LevelEditorPaths.Bases);
+                baseType = CreateBaseAsset(baseId, newBaseName, color, LevelEditorPaths.Bases);
             }
 
             // Create the sub-type under that base.
@@ -285,8 +281,8 @@ namespace TwistedTangle.Editor
             if (_entityLookup.ContainsKey(typeId))
                 return (false, $"“{baseType.DisplayName}” already has a sub-type '{subName}'.");
 
-            EnsureFolder(EntitiesPath);
-            var so = CreateEntityAsset(typeId, subName, color, prefab, baseType, EntitiesPath);
+            EnsureFolder(LevelEditorPaths.Entities);
+            var so = CreateEntityAsset(typeId, subName, color, prefab, baseType, LevelEditorPaths.Entities);
             if (so == null)
                 return (false, $"An asset already exists for '{subName}' under '{baseType.DisplayName}'.");
 
@@ -306,8 +302,8 @@ namespace TwistedTangle.Editor
         /// <summary>Bootstraps a starter color palette so swatches exist out of the box.</summary>
         private void CreateDefaultPalette()
         {
-            EnsureFolder(PalettesPath);
-            string path = $"{PalettesPath}/DefaultPalette.asset";
+            EnsureFolder(LevelEditorPaths.Palettes);
+            string path = $"{LevelEditorPaths.Palettes}/DefaultPalette.asset";
             if (AssetDatabase.LoadAssetAtPath<ColorPaletteSO>(path) == null)
             {
                 (string name, Color color)[] colors =
@@ -905,7 +901,7 @@ namespace TwistedTangle.Editor
                 return;
             }
 
-            var saved = LevelSaveUtility.SaveLevel(_level, LevelsPath);
+            var saved = LevelSaveUtility.SaveLevel(_level, LevelEditorPaths.Levels);
             if (saved != null)
             {
                 _isEditMode = true;
@@ -916,7 +912,7 @@ namespace TwistedTangle.Editor
 
         private void LoadLevel(int id)
         {
-            var asset = LevelSaveUtility.GetSelectedLevel(id, LevelsPath);
+            var asset = LevelSaveUtility.GetSelectedLevel(id, LevelEditorPaths.Levels);
             if (asset == null)
             {
                 EditorUtility.DisplayDialog("Load", $"No level with id {id}.", "OK");
@@ -943,7 +939,7 @@ namespace TwistedTangle.Editor
         private void DeleteLevel(int id)
         {
             if (!EditorUtility.DisplayDialog("Delete", $"Delete level {id}?", "Delete", "Cancel")) return;
-            if (!LevelSaveUtility.DeleteSelectedLevel(id, LevelsPath))
+            if (!LevelSaveUtility.DeleteSelectedLevel(id, LevelEditorPaths.Levels))
             {
                 EditorUtility.DisplayDialog("Delete", $"No level with id {id}.", "OK");
                 return;
