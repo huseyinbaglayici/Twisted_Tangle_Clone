@@ -4,7 +4,6 @@ using System.Text;
 using TwistedTangle.Runtime.Data.ScriptableObjects;
 using TwistedTangle.Runtime.Data.ValueObjects;
 using UnityEngine;
-using UnityEngine.Networking;
 
 namespace TwistedTangle.Editor.Generation
 {
@@ -17,42 +16,17 @@ namespace TwistedTangle.Editor.Generation
         public string Difficulty = "Medium";        // Easy | Medium | Hard
         public List<string> EntityTypeIds = new();   // allowed peg types
         public List<string> PaletteHex = new();       // allowed rope colors as #RRGGBB
-        public string Model = "claude-sonnet-4-6";
-        public int MaxTokens = 8000;
     }
 
     /// <summary>
-    /// Editor-time AI level generation (see Docs/level-solver-design.md §3). Two free-or-cheap paths,
-    /// both producing a LevelDataSO the designer reviews/validates/solves/commits — never runs in a build:
-    ///   • Manual (free, uses Claude Pro): <see cref="BuildManualPrompt"/> → paste into claude.ai → paste
-    ///     the JSON answer back → <see cref="TryParseLevelJson"/>.
-    ///   • Live API (needs ANTHROPIC_API_KEY + credit): <see cref="Generate"/> calls the Messages API with
-    ///     structured outputs.
+    /// Provider-agnostic, editor-time AI level generation (see Docs/level-solver-design.md §3).
+    /// Build a prompt with <see cref="BuildManualPrompt"/>, paste it into ANY AI chat (Claude, Gemini,
+    /// ChatGPT, ...), then paste the AI's JSON answer back and turn it into a LevelDataSO via
+    /// <see cref="TryParseLevelJson"/>. The designer reviews / validates / solves / commits. Never runs in a build.
     /// </summary>
     public static class LevelAiGenerator
     {
-        private const string Endpoint = "https://api.anthropic.com/v1/messages";
-        private const string AnthropicVersion = "2023-06-01";
-
-        // json_schema for the live-API structured output — guarantees the response shape. Mirrors LevelDto.
-        private const string LevelSchema =
-            "{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{" +
-            "\"gridWidth\":{\"type\":\"integer\"}," +
-            "\"gridHeight\":{\"type\":\"integer\"}," +
-            "\"timeSeconds\":{\"type\":\"integer\"}," +
-            "\"pegs\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"additionalProperties\":false," +
-            "\"properties\":{\"x\":{\"type\":\"integer\"},\"y\":{\"type\":\"integer\"},\"typeId\":{\"type\":\"string\"}}," +
-            "\"required\":[\"x\",\"y\",\"typeId\"]}}," +
-            "\"ropes\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"additionalProperties\":false," +
-            "\"properties\":{\"ropeId\":{\"type\":\"integer\"},\"color\":{\"type\":\"string\"},\"layer\":{\"type\":\"integer\"}," +
-            "\"path\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"additionalProperties\":false," +
-            "\"properties\":{\"x\":{\"type\":\"integer\"},\"y\":{\"type\":\"integer\"}},\"required\":[\"x\",\"y\"]}}}," +
-            "\"required\":[\"ropeId\",\"color\",\"layer\",\"path\"]}}" +
-            "},\"required\":[\"gridWidth\",\"gridHeight\",\"timeSeconds\",\"pegs\",\"ropes\"]}";
-
-        // ---------------------------------------------------------------- manual (free) path
-
-        /// <summary>A self-contained prompt to paste into claude.ai: the rules + the exact JSON shape to return.</summary>
+        /// <summary>A self-contained prompt to paste into any AI chat: the rules + the exact JSON shape to return.</summary>
         public static string BuildManualPrompt(LevelGenerationRequest r)
         {
             var sb = new StringBuilder();
@@ -93,72 +67,6 @@ namespace TwistedTangle.Editor.Generation
             return start >= 0 && end > start ? s.Substring(start, end - start + 1) : null;
         }
 
-        // ---------------------------------------------------------------- live API path
-
-        /// <summary>Fires <paramref name="onSuccess"/> (or <paramref name="onError"/>) on the main thread when done.</summary>
-        public static void Generate(LevelGenerationRequest request,
-            Action<LevelDataSO> onSuccess, Action<string> onError)
-        {
-            string apiKey = Environment.GetEnvironmentVariable("ANTHROPIC_API_KEY");
-            if (string.IsNullOrEmpty(apiKey))
-            {
-                onError?.Invoke("ANTHROPIC_API_KEY environment variable is not set.");
-                return;
-            }
-
-            string prompt = Rules(request) + "\nOutput ONLY a level object matching the provided JSON schema.";
-            string body =
-                "{\"model\":\"" + request.Model + "\"," +
-                "\"max_tokens\":" + request.MaxTokens + "," +
-                "\"messages\":[{\"role\":\"user\",\"content\":\"" + JsonEscape(prompt) + "\"}]," +
-                "\"output_config\":{\"format\":{\"type\":\"json_schema\",\"schema\":" + LevelSchema + "}}}";
-
-            var req = new UnityWebRequest(Endpoint, "POST")
-            {
-                uploadHandler = new UploadHandlerRaw(Encoding.UTF8.GetBytes(body)),
-                downloadHandler = new DownloadHandlerBuffer()
-            };
-            req.SetRequestHeader("content-type", "application/json");
-            req.SetRequestHeader("x-api-key", apiKey);
-            req.SetRequestHeader("anthropic-version", AnthropicVersion);
-
-            req.SendWebRequest().completed += _ =>
-            {
-                try { HandleResponse(req, onSuccess, onError); }
-                finally { req.Dispose(); }
-            };
-        }
-
-        private static void HandleResponse(UnityWebRequest req,
-            Action<LevelDataSO> onSuccess, Action<string> onError)
-        {
-            if (req.result != UnityWebRequest.Result.Success)
-            {
-                onError?.Invoke($"HTTP {req.responseCode}: {req.error}\n{req.downloadHandler.text}");
-                return;
-            }
-
-            AnthropicResponse resp;
-            try { resp = JsonUtility.FromJson<AnthropicResponse>(req.downloadHandler.text); }
-            catch (Exception e) { onError?.Invoke("Could not parse API response: " + e.Message); return; }
-
-            if (resp?.content == null || resp.content.Length == 0)
-            {
-                onError?.Invoke($"Empty response (stop_reason: {resp?.stop_reason}).");
-                return;
-            }
-            if (resp.stop_reason == "refusal")
-            {
-                onError?.Invoke("The model declined the request (refusal).");
-                return;
-            }
-
-            if (TryParseLevelJson(resp.content[0].text, out var level, out var error)) onSuccess?.Invoke(level);
-            else onError?.Invoke(error + "\n" + resp.content[0].text);
-        }
-
-        // ---------------------------------------------------------------- shared
-
         private static LevelDataSO ToLevel(LevelDto dto)
         {
             var level = ScriptableObject.CreateInstance<LevelDataSO>();
@@ -186,7 +94,7 @@ namespace TwistedTangle.Editor.Generation
         private static Color ParseColor(string hex) =>
             !string.IsNullOrEmpty(hex) && ColorUtility.TryParseHtmlString(hex, out var c) ? c : Color.white;
 
-        /// <summary>The puzzle rules + designer context, shared by both the manual and API prompts.</summary>
+        /// <summary>The puzzle rules + designer context the AI must respect.</summary>
         private static string Rules(LevelGenerationRequest r)
         {
             int maxX = Mathf.Max(0, r.GridWidth - 1);
@@ -214,31 +122,7 @@ namespace TwistedTangle.Editor.Generation
             return sb.ToString();
         }
 
-        // Minimal JSON string escaper for the API prompt content.
-        private static string JsonEscape(string s)
-        {
-            var sb = new StringBuilder(s.Length + 16);
-            foreach (char c in s)
-            {
-                switch (c)
-                {
-                    case '\"': sb.Append("\\\""); break;
-                    case '\\': sb.Append("\\\\"); break;
-                    case '\n': sb.Append("\\n"); break;
-                    case '\r': sb.Append("\\r"); break;
-                    case '\t': sb.Append("\\t"); break;
-                    default:
-                        if (c < 0x20) sb.Append("\\u").Append(((int)c).ToString("x4"));
-                        else sb.Append(c);
-                        break;
-                }
-            }
-            return sb.ToString();
-        }
-
         // --- DTOs (JsonUtility-friendly: public fields, [Serializable]) ---
-        [Serializable] private class AnthropicResponse { public ContentBlock[] content; public string stop_reason; }
-        [Serializable] private class ContentBlock { public string type; public string text; }
         [Serializable] private class LevelDto { public int gridWidth; public int gridHeight; public int timeSeconds; public PegDto[] pegs; public RopeDto[] ropes; }
         [Serializable] private class PegDto { public int x; public int y; public string typeId; }
         [Serializable] private class RopeDto { public int ropeId; public string color; public int layer; public PointDto[] path; }

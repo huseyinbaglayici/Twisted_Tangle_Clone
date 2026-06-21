@@ -119,8 +119,9 @@ The reason the solver exists: let a designer generate a level with AI in the edi
 ### 3.1 Flow
 1. Designer provides **basic content/context**: grid size, available entity types & palette, any **locked
    pins** to build around, and a **target difficulty**.
-2. An editor button calls an **LLM (Claude API)** with that context and asks for a level.
-3. The returned JSON is parsed into a `LevelDataSO` and loaded into the editor.
+2. The editor builds a prompt ("Copy prompt"); the designer pastes it into **any AI chat** (Claude, Gemini,
+   ChatGPT, …), then copies the AI's JSON answer back ("Import JSON").
+3. The pasted JSON is parsed into a `LevelDataSO` and loaded into the editor.
 4. The **solver** reports solvable? + difficulty; structural **validation** catches malformed output.
 5. The designer edits as needed and **commits** the level.
 
@@ -132,15 +133,12 @@ The model's JSON must map cleanly onto the existing data model: `gridWidth/Heigh
 the same rules this doc defines, so generated levels respect reach, locked pins, etc.
 
 ### 3.3 Decisions (settled)
-- **Primary path — manual, free (uses Claude Pro):** editor **"Copy prompt"** → paste into claude.ai → paste
-  Claude's JSON answer back → **"Import JSON"**. No API cost (Claude Pro ≠ API access, but the chat works fine).
-  Same rules, JSON shape, and validate/solve pipeline as the API path.
-- **Optional live-API path:** raw HTTP via `UnityWebRequest` (no NuGet/SDK). `POST .../v1/messages`; headers
-  `x-api-key`, `anthropic-version: 2023-06-01`, `content-type: application/json`. Needs a key + a little credit.
-- **Model (API path):** `claude-sonnet-4-6`.
-- **Reliable JSON:** structured outputs (`output_config.format` json_schema) on the API path; the manual prompt
-  inlines the exact JSON shape. Parsed with Unity's `JsonUtility` (no Newtonsoft); tolerates ```json fences/prose.
-- **API key:** `ANTHROPIC_API_KEY` env var; never committed (`.gitignore` has a secrets net).
+- **Provider-agnostic, manual, free:** the system isn't tied to any AI vendor. Editor **"Copy prompt"** →
+  paste into **any AI chat** (Claude, Gemini, ChatGPT, …) → paste the JSON answer back → **"Import JSON"**.
+  No API key, no cost. (A live in-editor API call was intentionally dropped to stay vendor-neutral and free —
+  the prompt + JSON parser are all that's needed, and they work the same with any model.)
+- **Reliable JSON:** the prompt inlines the exact JSON shape; parsed with Unity's `JsonUtility` (no Newtonsoft),
+  tolerating ```json fences / surrounding prose.
 - **Validation loop:** parse → `LevelValidator` + `LevelSolver` → show solvable?/difficulty → designer edits → commit.
 - **Difficulty targeting:** pass Easy/Medium/Hard in the prompt; accept/reject via the solver's move-count bucket.
 

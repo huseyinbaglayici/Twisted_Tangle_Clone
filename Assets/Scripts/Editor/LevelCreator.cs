@@ -365,9 +365,9 @@ namespace TwistedTangle.Editor
                 "3. Pick a base tool (e.g. Pin) and click grid cells to place pins.\n" +
                 "4. Pick the 'Rope' tool, choose a color, click pins in order, then 'Finish Rope'. Make a few ropes that cross.\n" +
                 "5. Use 'Flip Crossing' to set which rope is on top at a crossing.\n\n" +
-                "GENERATE WITH AI (free — uses your Claude Pro)\n" +
+                "GENERATE WITH AI (paste into any AI chat)\n" +
                 "6. Set Difficulty, click '1 · Copy prompt'.\n" +
-                "7. Paste it into claude.ai, send, then copy Claude's JSON answer.\n" +
+                "7. Paste it into an AI chat (Claude, Gemini, ChatGPT…), send, then copy the JSON answer.\n" +
                 "8. Paste that JSON into the box and click '2 · Import JSON'.\n\n" +
                 "CHECK & SAVE (always)\n" +
                 "9. 'Validate' must be green and 'Solve' must say Solvable — fix issues if not.\n" +
@@ -515,7 +515,7 @@ namespace TwistedTangle.Editor
 
         private VisualElement BuildAiSection()
         {
-            var s = MakeSection("AI level generation (via Claude)");
+            var s = MakeSection("AI level generation");
 
             var row = MakeRow();
             row.AddToClassList("tt-row--wrap");
@@ -523,11 +523,11 @@ namespace TwistedTangle.Editor
             _aiDifficulty.style.minWidth = 140;
             row.Add(_aiDifficulty);
             var copyBtn = MakeButton("1 · Copy prompt", CopyAiPrompt, "tt-btn--primary");
-            copyBtn.tooltip = "Copies a ready prompt (rules + your grid/difficulty + the JSON shape). Paste it into claude.ai.";
+            copyBtn.tooltip = "Copies a ready prompt (rules + your grid/difficulty + the JSON shape). Paste it into any AI chat.";
             row.Add(copyBtn);
             s.Add(row);
 
-            s.Add(new Label("Paste the prompt into claude.ai, then paste Claude's JSON answer below and Import:"));
+            s.Add(new Label("Paste the prompt into an AI chat, then paste its JSON answer below and Import:"));
 
             _aiJsonField = new TextField { multiline = true };
             _aiJsonField.style.minHeight = 90;
@@ -535,12 +535,11 @@ namespace TwistedTangle.Editor
 
             var actions = MakeRow();
             var importBtn = MakeButton("2 · Import JSON", ImportAiJson, "tt-btn--save");
-            importBtn.tooltip = "Paste Claude's JSON answer in the box above, then click to load it as a level.";
+            importBtn.tooltip = "Paste the AI's JSON answer in the box above, then click to load it as a level.";
             actions.Add(importBtn);
-            actions.Add(MakeButton("Generate via API (needs key)", RunAiGenerate, "tt-tool"));
             s.Add(actions);
 
-            _aiStatus = new Label("Manual path is free — uses your Claude Pro. Uses the grid/time set above.");
+            _aiStatus = new Label("Paste the prompt into any AI chat, then paste its JSON back. Uses the grid/time set above.");
             s.Add(_aiStatus);
             return s;
         }
@@ -556,11 +555,11 @@ namespace TwistedTangle.Editor
             PaletteHex = _swatches.Select(sw => "#" + ColorUtility.ToHtmlStringRGB(sw.color)).ToList()
         };
 
-        /// <summary>Copies a ready-to-paste prompt (rules + context + JSON shape) to the clipboard for claude.ai.</summary>
+        /// <summary>Copies a ready-to-paste prompt (rules + context + JSON shape) to the clipboard for any AI chat.</summary>
         private void CopyAiPrompt()
         {
             EditorGUIUtility.systemCopyBuffer = LevelAiGenerator.BuildManualPrompt(CurrentAiRequest());
-            _aiStatus.text = "✓ Prompt copied. Paste it into claude.ai, then paste the JSON answer below.";
+            _aiStatus.text = "✓ Prompt copied. Paste it into your AI chat, then paste its JSON answer below.";
         }
 
         /// <summary>Parses the pasted level JSON into a level and loads it for review.</summary>
@@ -575,15 +574,6 @@ namespace TwistedTangle.Editor
             {
                 _aiStatus.text = "✗ " + error;
             }
-        }
-
-        /// <summary>Live API path — only works if ANTHROPIC_API_KEY is set and the account has credit.</summary>
-        private void RunAiGenerate()
-        {
-            _aiStatus.text = "Generating via API…";
-            LevelAiGenerator.Generate(CurrentAiRequest(),
-                level => { LoadGeneratedLevel(level); _aiStatus.text = "✓ Generated. Validate + Solve before saving."; },
-                error => { _aiStatus.text = "✗ " + error; Debug.LogError("[AI Generate] " + error); });
         }
 
         /// <summary>Loads a generated/imported level into the editor for review (does not save).</summary>

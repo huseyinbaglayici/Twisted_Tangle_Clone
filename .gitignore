@@ -40,7 +40,7 @@ Assets/StreamingAssets/aa/*
 # -------------------------------
 # Secrets / API keys (NEVER commit)
 # -------------------------------
-# The Claude API key is read from the ANTHROPIC_API_KEY environment variable, not a file.
+# Any AI provider API key belongs in an environment variable, never in a committed file.
 # These patterns are a safety net so a stray local key file can never be committed.
 .env
 *.env
