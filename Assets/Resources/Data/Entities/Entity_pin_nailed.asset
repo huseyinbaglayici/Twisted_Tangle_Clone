@@ -17,4 +17,5 @@ MonoBehaviour:
   editorColor: {r: 0.6226415, g: 0.6226415, b: 0.6226415, a: 1}
   baseType: {fileID: 11400000, guid: a1ac0eac33b07b7488fabf1acb1e88fe, type: 2}
   prefab: {fileID: 0}
-  tags: []
+  tags:
+  - nailed
