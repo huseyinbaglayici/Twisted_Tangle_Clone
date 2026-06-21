@@ -4,6 +4,7 @@ using TwistedTangle.Editor.Canvas;
 using TwistedTangle.Editor.Input;
 using TwistedTangle.Editor.Utils;
 using TwistedTangle.Editor.Validation;
+using TwistedTangle.Editor.Solver;
 using TwistedTangle.Runtime.Data.ScriptableObjects;
 using TwistedTangle.Runtime.Data.ValueObjects;
 using TwistedTangle.Editor.Geometry;
@@ -56,7 +57,7 @@ namespace TwistedTangle.Editor
         // --- ui ---
         private IntegerField _levelIdField, _widthField, _heightField, _timeField;
         private RopeCanvasElement _canvas;
-        private VisualElement _paletteContainer, _toolsContainer, _ropeListContainer, _validationContainer;
+        private VisualElement _paletteContainer, _toolsContainer, _ropeListContainer, _validationContainer, _solverContainer;
         private readonly Dictionary<Tool, Button> _toolButtons = new(); // built-in tools
         private readonly List<(EntityBaseTypeSO baseType, Button btn)> _baseButtons = new(); // one per base + Ungrouped
 
@@ -107,6 +108,7 @@ namespace TwistedTangle.Editor
             scroll.Add(BuildEntityCreatorSection());
             scroll.Add(BuildRopeListSection());
             scroll.Add(BuildValidationSection());
+            scroll.Add(BuildSolverSection());
             scroll.Add(BuildCanvasSection());
 
             root.Add(scroll);
@@ -479,6 +481,76 @@ namespace TwistedTangle.Editor
             _validationContainer = new VisualElement();
             s.Add(_validationContainer);
             return s;
+        }
+
+        private VisualElement BuildSolverSection()
+        {
+            var s = MakeSection("Solver (untangle check)");
+            var row = MakeRow();
+            row.Add(MakeButton("Solve", RunSolve, "tt-btn--primary"));
+            s.Add(row);
+            _solverContainer = new VisualElement();
+            s.Add(_solverContainer);
+            return s;
+        }
+
+        /// <summary>Runs the auto-solver on the current level and shows whether/how it untangles.</summary>
+        private void RunSolve()
+        {
+            _solverContainer.Clear();
+            if (_level == null)
+            {
+                _solverContainer.Add(new Label("Generate or load a level first."));
+                return;
+            }
+
+            // Needle/locked pins will fill SolveOptions.LockedCells once that feature exists; none yet.
+            var result = LevelSolver.Solve(_level);
+
+            string headline, cls;
+            if (result.Solvable)
+            {
+                headline = result.Moves == 0
+                    ? "✓ Already untangled (no crossings)."
+                    : $"✓ Solvable in {result.Moves} move(s).";
+                cls = "tt-validation__ok";
+            }
+            else if (result.HitExpansionLimit)
+            {
+                headline = "⚠ Inconclusive — search hit its limit (raise the cap or simplify).";
+                cls = "tt-validation__warn";
+            }
+            else
+            {
+                headline = "✗ Not solvable within the move budget.";
+                cls = "tt-validation__error";
+            }
+
+            var status = new Label(headline);
+            status.AddToClassList(cls);
+            _solverContainer.Add(status);
+
+            var metricsRow = MakeRow();
+            metricsRow.AddToClassList("tt-row--wrap");
+            AddMetric(metricsRow, $"Start crossings: {result.InitialCrossings}");
+            AddMetric(metricsRow, $"Moves: {(result.Moves >= 0 ? result.Moves.ToString() : "-")}");
+            AddMetric(metricsRow, $"Searched: {result.ExpandedNodes}");
+            _solverContainer.Add(metricsRow);
+
+            if (result.OverStretchedRopes > 0)
+            {
+                var warn = new Label($"⚠ {result.OverStretchedRopes} rope(s) start longer than the reach limit.");
+                warn.AddToClassList("tt-validation__warn");
+                _solverContainer.Add(warn);
+            }
+
+            // The actual untangle steps — which rope's pin moves where — so the designer can follow it.
+            int step = 1;
+            foreach (var m in result.Solution)
+            {
+                string who = string.IsNullOrEmpty(m.PinDesc) ? "Pin" : m.PinDesc;
+                _solverContainer.Add(new Label($"{step++}. {who}: ({m.From.x},{m.From.y}) → ({m.To.x},{m.To.y})"));
+            }
         }
 
         private VisualElement BuildCanvasSection()
