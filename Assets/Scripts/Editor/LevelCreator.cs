@@ -105,6 +105,7 @@ namespace TwistedTangle.Editor
             scroll.AddToClassList("tt-main-scroll");
 
             scroll.Add(MakeTitle("Twisted Tangle — Level Creator"));
+            scroll.Add(BuildHelpSection());
             scroll.Add(BuildLevelIoSection());
             scroll.Add(BuildGridSection());
             scroll.Add(BuildAiSection());
@@ -351,6 +352,30 @@ namespace TwistedTangle.Editor
 
         #region UI: static sections
 
+        /// <summary>A collapsible "how to use" panel so a designer can follow the workflow without docs.</summary>
+        private VisualElement BuildHelpSection()
+        {
+            var foldout = new Foldout { text = "ⓘ  How to use — click to expand", value = false };
+            foldout.AddToClassList("tt-section");
+            foldout.Add(new HelpBox(
+                "QUICK START\n" +
+                "1. Set Width / Height / Time, then click 'Generate Grid'.\n" +
+                "2. First time only: if there are no entity types or palette yet, use 'Create Default Entity Types' and 'Create Default Palette'.\n\n" +
+                "AUTHOR A LEVEL BY HAND\n" +
+                "3. Pick a base tool (e.g. Pin) and click grid cells to place pins.\n" +
+                "4. Pick the 'Rope' tool, choose a color, click pins in order, then 'Finish Rope'. Make a few ropes that cross.\n" +
+                "5. Use 'Flip Crossing' to set which rope is on top at a crossing.\n\n" +
+                "GENERATE WITH AI (free — uses your Claude Pro)\n" +
+                "6. Set Difficulty, click '1 · Copy prompt'.\n" +
+                "7. Paste it into claude.ai, send, then copy Claude's JSON answer.\n" +
+                "8. Paste that JSON into the box and click '2 · Import JSON'.\n\n" +
+                "CHECK & SAVE (always)\n" +
+                "9. 'Validate' must be green and 'Solve' must say Solvable — fix issues if not.\n" +
+                "10. Set Level Id and click 'Save'.",
+                HelpBoxMessageType.Info));
+            return foldout;
+        }
+
         private VisualElement BuildLevelIoSection()
         {
             var s = MakeSection("Level (save / load / delete by id)");
@@ -497,7 +522,9 @@ namespace TwistedTangle.Editor
             _aiDifficulty = new DropdownField("Difficulty", new List<string> { "Easy", "Medium", "Hard" }, 1);
             _aiDifficulty.style.minWidth = 140;
             row.Add(_aiDifficulty);
-            row.Add(MakeButton("1 · Copy prompt", CopyAiPrompt, "tt-btn--primary"));
+            var copyBtn = MakeButton("1 · Copy prompt", CopyAiPrompt, "tt-btn--primary");
+            copyBtn.tooltip = "Copies a ready prompt (rules + your grid/difficulty + the JSON shape). Paste it into claude.ai.";
+            row.Add(copyBtn);
             s.Add(row);
 
             s.Add(new Label("Paste the prompt into claude.ai, then paste Claude's JSON answer below and Import:"));
@@ -507,7 +534,9 @@ namespace TwistedTangle.Editor
             s.Add(_aiJsonField);
 
             var actions = MakeRow();
-            actions.Add(MakeButton("2 · Import JSON", ImportAiJson, "tt-btn--save"));
+            var importBtn = MakeButton("2 · Import JSON", ImportAiJson, "tt-btn--save");
+            importBtn.tooltip = "Paste Claude's JSON answer in the box above, then click to load it as a level.";
+            actions.Add(importBtn);
             actions.Add(MakeButton("Generate via API (needs key)", RunAiGenerate, "tt-tool"));
             s.Add(actions);
 
