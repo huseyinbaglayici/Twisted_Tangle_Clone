@@ -56,8 +56,12 @@ Because of the reach limit, relocating a rope far away is done by walking its tw
 - Concrete current form: a **needle pin** (fully immovable; a difficulty modifier). Movement-restriction is a
   family of future difficulty features, so movability is modeled generically (extensible to per-pin allowed
   cells later).
-- ⚠️ **Representation:** `PegData` has no `Locked` flag yet (recommend a per-peg `bool Locked`). The solver
-  takes the locked set as a **parameter**, so it's independent of that data-model decision.
+- ✅ **Representation (implemented) — type-based:** a pin is nailed/locked when its `EntityDefinitionSO.Tags`
+  contains `"nailed"` or `"locked"` (the existing `tags` field). The editor collects pegs of tagged types and
+  passes them to the solver as `LockedCells` (`LevelCreator.NailedCells()`); the AI prompt lists those typeIds as
+  immovable. The default `pin.nailed` is now created with the `"nailed"` tag (existing `pin.nailed` assets need the
+  tag added in the Inspector). A rope may have 0, 1, or 2 nailed endpoints; the solver handles all three (a
+  two-nailed rope is cleared only by moving other ropes away — else it reports unsolvable).
 
 ### 1.5 Other special pins (later phase) 🟡
 - **Octopus** — one pin carries multiple ropes (degree 2); already handled as a normal node.

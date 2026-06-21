@@ -15,6 +15,7 @@ namespace TwistedTangle.Editor.Generation
         public int TimeSeconds = 45;
         public string Difficulty = "Medium";        // Easy | Medium | Hard
         public List<string> EntityTypeIds = new();   // allowed peg types
+        public List<string> NailedTypeIds = new();    // immovable pin types (the solver can't move these)
         public List<string> PaletteHex = new();       // allowed rope colors as #RRGGBB
     }
 
@@ -115,6 +116,10 @@ namespace TwistedTangle.Editor.Generation
               .Append(" (Easy ~ 2-3 ropes / few crossings, Medium ~ 3-4, Hard ~ 5+ with denser crossings).\n");
             if (r.EntityTypeIds is { Count: > 0 })
                 sb.Append("- Use ONLY these peg typeId values: ").Append(string.Join(", ", r.EntityTypeIds)).Append(".\n");
+            if (r.NailedTypeIds is { Count: > 0 })
+                sb.Append("- These pin types are NAILED (immovable — the solver can never move them): ")
+                  .Append(string.Join(", ", r.NailedTypeIds))
+                  .Append(". A rope may have 0, 1, or 2 nailed endpoints. Keep the level solvable: a rope with BOTH endpoints nailed can only be cleared by moving OTHER ropes out of its way, so don't trap such ropes in unavoidable crossings.\n");
             if (r.PaletteHex is { Count: > 0 })
                 sb.Append("- Use rope colors from this palette (hex): ").Append(string.Join(", ", r.PaletteHex))
                   .Append(". Prefer a distinct color per rope.\n");

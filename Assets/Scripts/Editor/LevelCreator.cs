@@ -193,7 +193,7 @@ namespace TwistedTangle.Editor
             EnsureFolder(LevelEditorPaths.Entities);
             var pin = CreateBaseAsset("pin", "Pin", new Color(0.85f, 0.85f, 0.85f), LevelEditorPaths.Bases);
             CreateEntityAsset("pin.standard", "Standard", new Color(0.85f, 0.85f, 0.85f), null, pin, LevelEditorPaths.Entities);
-            CreateEntityAsset("pin.nailed", "Nailed", new Color(1f, 0.6f, 0.1f), null, pin, LevelEditorPaths.Entities);
+            CreateEntityAsset("pin.nailed", "Nailed", new Color(1f, 0.6f, 0.1f), null, pin, LevelEditorPaths.Entities, new[] { "nailed" });
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
 
@@ -225,7 +225,7 @@ namespace TwistedTangle.Editor
 
         /// <summary>Creates one EntityDefinitionSO (sub-type) asset. Returns null if one already exists at the path.</summary>
         private static EntityDefinitionSO CreateEntityAsset(string typeId, string displayName, Color color,
-            GameObject prefab, EntityBaseTypeSO baseType, string folder)
+            GameObject prefab, EntityBaseTypeSO baseType, string folder, string[] tags = null)
         {
             string path = $"{folder}/Entity_{typeId.Replace('.', '_')}.asset";
             if (AssetDatabase.LoadAssetAtPath<EntityDefinitionSO>(path) != null) return null;
@@ -237,6 +237,13 @@ namespace TwistedTangle.Editor
             sObj.FindProperty("editorColor").colorValue = color;
             if (baseType != null) sObj.FindProperty("baseType").objectReferenceValue = baseType;
             if (prefab != null) sObj.FindProperty("prefab").objectReferenceValue = prefab;
+            if (tags is { Length: > 0 })
+            {
+                var tagsProp = sObj.FindProperty("tags");
+                tagsProp.arraySize = tags.Length;
+                for (int i = 0; i < tags.Length; i++)
+                    tagsProp.GetArrayElementAtIndex(i).stringValue = tags[i];
+            }
             sObj.ApplyModifiedPropertiesWithoutUndo();
             AssetDatabase.CreateAsset(so, path);
             return so;
@@ -552,6 +559,7 @@ namespace TwistedTangle.Editor
             TimeSeconds = Mathf.Max(1, _timeField.value),
             Difficulty = _aiDifficulty?.value ?? "Medium",
             EntityTypeIds = _entityDefs.Select(d => d.TypeId).ToList(),
+            NailedTypeIds = _entityDefs.Where(IsNailed).Select(d => d.TypeId).ToList(),
             PaletteHex = _swatches.Select(sw => "#" + ColorUtility.ToHtmlStringRGB(sw.color)).ToList()
         };
 
@@ -592,6 +600,27 @@ namespace TwistedTangle.Editor
             RefreshAll();
         }
 
+        /// <summary>Grid cells whose entity type is tagged "nailed"/"locked" — immovable to the solver.</summary>
+        private HashSet<Vector2Int> NailedCells()
+        {
+            var cells = new HashSet<Vector2Int>();
+            if (_level == null) return cells;
+            foreach (var peg in _level.Pegs)
+                if (_entityLookup.TryGetValue(peg.TypeId, out var def) && IsNailed(def))
+                    cells.Add(peg.Coordinates);
+            return cells;
+        }
+
+        /// <summary>True if an entity type is marked immovable via a "nailed" or "locked" tag.</summary>
+        private static bool IsNailed(EntityDefinitionSO def)
+        {
+            foreach (var tag in def.Tags)
+                if (string.Equals(tag, "nailed", System.StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(tag, "locked", System.StringComparison.OrdinalIgnoreCase))
+                    return true;
+            return false;
+        }
+
         private VisualElement BuildSolverSection()
         {
             var s = MakeSection("Solver (untangle check)");
@@ -613,8 +642,9 @@ namespace TwistedTangle.Editor
                 return;
             }
 
-            // Needle/locked pins will fill SolveOptions.LockedCells once that feature exists; none yet.
-            var result = LevelSolver.Solve(_level);
+            // Nailed/locked pins (entity types tagged "nailed"/"locked") are immovable to the solver.
+            var locked = NailedCells();
+            var result = LevelSolver.Solve(_level, new SolveOptions { LockedCells = locked });
 
             string headline, cls;
             if (result.Solvable)
@@ -644,6 +674,7 @@ namespace TwistedTangle.Editor
             AddMetric(metricsRow, $"Start crossings: {result.InitialCrossings}");
             AddMetric(metricsRow, $"Moves: {(result.Moves >= 0 ? result.Moves.ToString() : "-")}");
             AddMetric(metricsRow, $"Searched: {result.ExpandedNodes}");
+            AddMetric(metricsRow, $"Locked pins: {locked.Count}");
             _solverContainer.Add(metricsRow);
 
             if (result.Solvable)
