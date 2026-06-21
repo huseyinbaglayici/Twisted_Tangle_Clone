@@ -1,6 +1,7 @@
 using System.IO;
 using TwistedTangle.Editor.Utils;
 using UnityEditor;
+using UnityEditor.UIElements;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -8,9 +9,11 @@ namespace TwistedTangle.Editor
 {
     /// <summary>
     /// Standalone window for editing every filesystem path the Level Creator uses — the folders levels,
-    /// entities, base types and palettes are written to, plus the editor stylesheet. It only edits
-    /// <see cref="LevelEditorPaths"/>, so the Level Creator need not be open; changes are picked up the
-    /// next time a path is used (reopen the Level Creator to re-apply a changed stylesheet).
+    /// entities, base types and palettes are written to, plus the editor stylesheet. Each path is a Unity
+    /// <see cref="ObjectField"/>: drag a folder/file in from the Project window, pick one via the object
+    /// picker, or click the assigned asset (or "Reveal") to highlight it in the Project window. It only
+    /// edits <see cref="LevelEditorPaths"/>, so the Level Creator need not be open (reopen it to re-apply
+    /// a changed stylesheet).
     /// </summary>
     public class PathSettingsWindow : EditorWindow
     {
@@ -40,8 +43,9 @@ namespace TwistedTangle.Editor
             scroll.Add(title);
 
             scroll.Add(new HelpBox(
-                "Where the Level Creator reads and writes its assets. Paths are project-relative " +
-                "(must start with \"Assets/\"). Saved per-project on this machine.",
+                "Where the Level Creator reads and writes its assets. Drag a folder/file from the Project " +
+                "window onto a field, pick one with the object picker, or click an assigned asset to jump " +
+                "to it in the Project window. Saved per-project on this machine.",
                 HelpBoxMessageType.Info));
 
             _rowsHost = new VisualElement();
@@ -73,7 +77,7 @@ namespace TwistedTangle.Editor
 
         private VisualElement BuildRow(LevelEditorPaths.PathDef def)
         {
-            // One bordered section per path so the value field and its warning stay visually grouped.
+            // One bordered section per path so the field, its path text and any warning stay grouped.
             var container = new VisualElement();
             container.AddToClassList("tt-section");
 
@@ -85,19 +89,31 @@ namespace TwistedTangle.Editor
 
             string current = LevelEditorPaths.Get(def.Id);
 
-            // isDelayed: commit on Enter/blur rather than every keystroke (each commit rebuilds the row).
-            var field = new TextField { value = current, isDelayed = true };
+            // Folders are DefaultAssets in Unity; the stylesheet is a StyleSheet. The ObjectField then
+            // accepts drag-drop from the Project window, offers a native picker, and pings on click.
+            var objType = def.IsFolder ? typeof(DefaultAsset) : typeof(StyleSheet);
+            var field = new ObjectField
+            {
+                objectType = objType,
+                allowSceneObjects = false,
+                value = AssetDatabase.LoadAssetAtPath(current, objType),
+                tooltip = def.IsFolder
+                    ? "Drag a folder here, or click it to reveal it in the Project window."
+                    : "Drag a .uss file here, or click it to reveal it in the Project window."
+            };
             field.style.flexGrow = 1;
             field.style.minWidth = 220;
-            field.RegisterValueChangedCallback(e =>
-            {
-                LevelEditorPaths.Set(def.Id, e.newValue);
-                Rebuild();
-            });
+            field.RegisterValueChangedCallback(e => OnObjectPicked(def, e.newValue));
             row.Add(field);
+
+            var reveal = new Button(() => Reveal(current)) { text = "Reveal" };
+            reveal.AddToClassList("tt-tool");
+            reveal.tooltip = "Highlight this path in the Project window.";
+            row.Add(reveal);
 
             var browse = new Button(() => Browse(def)) { text = "Browse…" };
             browse.AddToClassList("tt-tool");
+            browse.tooltip = "Pick via the OS file dialog.";
             row.Add(browse);
 
             if (LevelEditorPaths.IsOverridden(def.Id))
@@ -113,6 +129,12 @@ namespace TwistedTangle.Editor
 
             container.Add(row);
 
+            // The resolved project path, so designers can read/confirm it at a glance.
+            var pathLabel = new Label(current);
+            pathLabel.AddToClassList("tt-metric");
+            pathLabel.style.marginLeft = 2;
+            container.Add(pathLabel);
+
             var problem = Validate(def, current);
             if (problem != null)
             {
@@ -122,6 +144,44 @@ namespace TwistedTangle.Editor
             }
 
             return container;
+        }
+
+        /// <summary>Applies a folder/file dropped or picked into the ObjectField (null clears to default).</summary>
+        private void OnObjectPicked(LevelEditorPaths.PathDef def, Object picked)
+        {
+            if (picked == null)
+            {
+                LevelEditorPaths.Reset(def.Id);
+                Rebuild();
+                return;
+            }
+
+            string path = AssetDatabase.GetAssetPath(picked);
+            if (def.IsFolder && !AssetDatabase.IsValidFolder(path))
+            {
+                EditorUtility.DisplayDialog("Pick a folder",
+                    "This field needs a folder from the Project window.", "OK");
+                Rebuild(); // revert the field to the stored value
+                return;
+            }
+
+            LevelEditorPaths.Set(def.Id, path);
+            Rebuild();
+        }
+
+        /// <summary>Selects and pings the asset at <paramref name="projectRelative"/> in the Project window.</summary>
+        private static void Reveal(string projectRelative)
+        {
+            var obj = AssetDatabase.LoadAssetAtPath<Object>(projectRelative);
+            if (obj == null)
+            {
+                EditorUtility.DisplayDialog("Not in project",
+                    $"Nothing exists at \"{projectRelative}\" yet — it will be created on first use.", "OK");
+                return;
+            }
+
+            Selection.activeObject = obj;
+            EditorGUIUtility.PingObject(obj);
         }
 
         /// <summary>Returns a human-readable note about the path, or null when it looks fine.</summary>
