@@ -131,13 +131,18 @@ The model's JSON must map cleanly onto the existing data model: `gridWidth/Heigh
 `pegs[]` (coord + type id), and `ropes[]` (ordered pin path + color + layer). The generation prompt carries
 the same rules this doc defines, so generated levels respect reach, locked pins, etc.
 
-### 3.3 Open questions to settle when we start this phase ⚠️
-- **Calling the API from the Unity editor**: HTTP request + **API-key management** (where the key lives,
-  never committed).
-- **Prompt design**: how to encode the rules + context so output is consistently valid.
-- **Schema & validation loop**: strict JSON schema, parse → validate → (retry on invalid) → solver-check.
-- **Model**: default to the latest capable Claude model.
-- **Difficulty targeting**: ask for a difficulty, then accept/reject via the solver's bucket.
+### 3.3 Decisions (settled)
+- **Primary path — manual, free (uses Claude Pro):** editor **"Copy prompt"** → paste into claude.ai → paste
+  Claude's JSON answer back → **"Import JSON"**. No API cost (Claude Pro ≠ API access, but the chat works fine).
+  Same rules, JSON shape, and validate/solve pipeline as the API path.
+- **Optional live-API path:** raw HTTP via `UnityWebRequest` (no NuGet/SDK). `POST .../v1/messages`; headers
+  `x-api-key`, `anthropic-version: 2023-06-01`, `content-type: application/json`. Needs a key + a little credit.
+- **Model (API path):** `claude-sonnet-4-6`.
+- **Reliable JSON:** structured outputs (`output_config.format` json_schema) on the API path; the manual prompt
+  inlines the exact JSON shape. Parsed with Unity's `JsonUtility` (no Newtonsoft); tolerates ```json fences/prose.
+- **API key:** `ANTHROPIC_API_KEY` env var; never committed (`.gitignore` has a secrets net).
+- **Validation loop:** parse → `LevelValidator` + `LevelSolver` → show solvable?/difficulty → designer edits → commit.
+- **Difficulty targeting:** pass Easy/Medium/Hard in the prompt; accept/reject via the solver's move-count bucket.
 
 ---
 

@@ -17,41 +17,53 @@ MonoBehaviour:
   gridHeight: 6
   timeSeconds: 45
   pegs:
-  - Coordinates: {x: 0, y: 4}
+  - Coordinates: {x: 1, y: 1}
+    TypeId: pin.nailed
+  - Coordinates: {x: 4, y: 4}
     TypeId: pin.standart
-  - Coordinates: {x: 3, y: 4}
+  - Coordinates: {x: 1, y: 4}
+    TypeId: pin.nailed
+  - Coordinates: {x: 4, y: 1}
     TypeId: pin.standart
-  - Coordinates: {x: 0, y: 5}
+  - Coordinates: {x: 0, y: 2}
+    TypeId: pin.nailed
+  - Coordinates: {x: 3, y: 5}
     TypeId: pin.standart
-  - Coordinates: {x: 2, y: 3}
-    TypeId: pin.standart
-  - Coordinates: {x: 0, y: 3}
-    TypeId: pin.standart
-  - Coordinates: {x: 2, y: 5}
+  - Coordinates: {x: 2, y: 0}
+    TypeId: pin.nailed
+  - Coordinates: {x: 5, y: 3}
     TypeId: pin.standart
   ropes:
-  - RopeId: 0
-    Tint: {r: 0.9, g: 0.2, b: 0.2, a: 1}
+  - RopeId: 1
+    Tint: {r: 0.9019608, g: 0.2, b: 0.2, a: 1}
     Layer: 1
     Path:
-    - PegCoord: {x: 0, y: 4}
+    - PegCoord: {x: 1, y: 1}
       Side: 0
-    - PegCoord: {x: 3, y: 4}
-      Side: 0
-  - RopeId: 1
-    Tint: {r: 0.95, g: 0.85, b: 0.1, a: 1}
-    Layer: -3
-    Path:
-    - PegCoord: {x: 0, y: 5}
-      Side: 0
-    - PegCoord: {x: 2, y: 3}
+    - PegCoord: {x: 4, y: 4}
       Side: 0
   - RopeId: 2
-    Tint: {r: 0.55, g: 0.25, b: 0.8, a: 1}
-    Layer: -2
+    Tint: {r: 0.2, g: 0.54901963, b: 0.9490196, a: 1}
+    Layer: 2
     Path:
-    - PegCoord: {x: 2, y: 5}
+    - PegCoord: {x: 1, y: 4}
       Side: 0
-    - PegCoord: {x: 0, y: 3}
+    - PegCoord: {x: 4, y: 1}
+      Side: 0
+  - RopeId: 3
+    Tint: {r: 0.29803923, g: 0.7490196, b: 0.34901962, a: 1}
+    Layer: 3
+    Path:
+    - PegCoord: {x: 0, y: 2}
+      Side: 0
+    - PegCoord: {x: 3, y: 5}
+      Side: 0
+  - RopeId: 4
+    Tint: {r: 0.9490196, g: 0.8509804, b: 0.101960786, a: 1}
+    Layer: 4
+    Path:
+    - PegCoord: {x: 2, y: 0}
+      Side: 0
+    - PegCoord: {x: 5, y: 3}
       Side: 0
   crossingOverrides: []

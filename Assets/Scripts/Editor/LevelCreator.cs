@@ -5,6 +5,7 @@ using TwistedTangle.Editor.Input;
 using TwistedTangle.Editor.Utils;
 using TwistedTangle.Editor.Validation;
 using TwistedTangle.Editor.Solver;
+using TwistedTangle.Editor.Generation;
 using TwistedTangle.Runtime.Data.ScriptableObjects;
 using TwistedTangle.Runtime.Data.ValueObjects;
 using TwistedTangle.Editor.Geometry;
@@ -58,6 +59,9 @@ namespace TwistedTangle.Editor
         private IntegerField _levelIdField, _widthField, _heightField, _timeField;
         private RopeCanvasElement _canvas;
         private VisualElement _paletteContainer, _toolsContainer, _ropeListContainer, _validationContainer, _solverContainer;
+        private DropdownField _aiDifficulty;
+        private TextField _aiJsonField;
+        private Label _aiStatus;
         private readonly Dictionary<Tool, Button> _toolButtons = new(); // built-in tools
         private readonly List<(EntityBaseTypeSO baseType, Button btn)> _baseButtons = new(); // one per base + Ungrouped
 
@@ -103,6 +107,7 @@ namespace TwistedTangle.Editor
             scroll.Add(MakeTitle("Twisted Tangle — Level Creator"));
             scroll.Add(BuildLevelIoSection());
             scroll.Add(BuildGridSection());
+            scroll.Add(BuildAiSection());
             scroll.Add(BuildToolsSection());
             scroll.Add(BuildPaletteSection());
             scroll.Add(BuildEntityCreatorSection());
@@ -481,6 +486,91 @@ namespace TwistedTangle.Editor
             _validationContainer = new VisualElement();
             s.Add(_validationContainer);
             return s;
+        }
+
+        private VisualElement BuildAiSection()
+        {
+            var s = MakeSection("AI level generation (via Claude)");
+
+            var row = MakeRow();
+            row.AddToClassList("tt-row--wrap");
+            _aiDifficulty = new DropdownField("Difficulty", new List<string> { "Easy", "Medium", "Hard" }, 1);
+            _aiDifficulty.style.minWidth = 140;
+            row.Add(_aiDifficulty);
+            row.Add(MakeButton("1 · Copy prompt", CopyAiPrompt, "tt-btn--primary"));
+            s.Add(row);
+
+            s.Add(new Label("Paste the prompt into claude.ai, then paste Claude's JSON answer below and Import:"));
+
+            _aiJsonField = new TextField { multiline = true };
+            _aiJsonField.style.minHeight = 90;
+            s.Add(_aiJsonField);
+
+            var actions = MakeRow();
+            actions.Add(MakeButton("2 · Import JSON", ImportAiJson, "tt-btn--save"));
+            actions.Add(MakeButton("Generate via API (needs key)", RunAiGenerate, "tt-tool"));
+            s.Add(actions);
+
+            _aiStatus = new Label("Manual path is free — uses your Claude Pro. Uses the grid/time set above.");
+            s.Add(_aiStatus);
+            return s;
+        }
+
+        /// <summary>Builds a generation request from the current editor inputs (grid, time, difficulty, types, palette).</summary>
+        private LevelGenerationRequest CurrentAiRequest() => new()
+        {
+            GridWidth = Mathf.Max(1, _widthField.value),
+            GridHeight = Mathf.Max(1, _heightField.value),
+            TimeSeconds = Mathf.Max(1, _timeField.value),
+            Difficulty = _aiDifficulty?.value ?? "Medium",
+            EntityTypeIds = _entityDefs.Select(d => d.TypeId).ToList(),
+            PaletteHex = _swatches.Select(sw => "#" + ColorUtility.ToHtmlStringRGB(sw.color)).ToList()
+        };
+
+        /// <summary>Copies a ready-to-paste prompt (rules + context + JSON shape) to the clipboard for claude.ai.</summary>
+        private void CopyAiPrompt()
+        {
+            EditorGUIUtility.systemCopyBuffer = LevelAiGenerator.BuildManualPrompt(CurrentAiRequest());
+            _aiStatus.text = "✓ Prompt copied. Paste it into claude.ai, then paste the JSON answer below.";
+        }
+
+        /// <summary>Parses the pasted level JSON into a level and loads it for review.</summary>
+        private void ImportAiJson()
+        {
+            if (LevelAiGenerator.TryParseLevelJson(_aiJsonField.value, out var level, out var error))
+            {
+                LoadGeneratedLevel(level);
+                _aiStatus.text = "✓ Imported. Review, then Validate + Solve before saving.";
+            }
+            else
+            {
+                _aiStatus.text = "✗ " + error;
+            }
+        }
+
+        /// <summary>Live API path — only works if ANTHROPIC_API_KEY is set and the account has credit.</summary>
+        private void RunAiGenerate()
+        {
+            _aiStatus.text = "Generating via API…";
+            LevelAiGenerator.Generate(CurrentAiRequest(),
+                level => { LoadGeneratedLevel(level); _aiStatus.text = "✓ Generated. Validate + Solve before saving."; },
+                error => { _aiStatus.text = "✗ " + error; Debug.LogError("[AI Generate] " + error); });
+        }
+
+        /// <summary>Loads a generated/imported level into the editor for review (does not save).</summary>
+        private void LoadGeneratedLevel(LevelDataSO level)
+        {
+            level.LevelId = _levelIdField.value;
+            _level = level;
+            _isEditMode = false;
+            _currentLevelId = 0;
+            _previewRope = null;
+            _selectedRopeId = -1;
+            _nextRopeId = _level.Ropes.Count == 0 ? 0 : _level.Ropes.Max(r => r.RopeId) + 1;
+            _widthField.value = _level.GridWidth;
+            _heightField.value = _level.GridHeight;
+            _timeField.value = _level.TimeSeconds;
+            RefreshAll();
         }
 
         private VisualElement BuildSolverSection()

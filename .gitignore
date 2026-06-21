@@ -38,6 +38,17 @@ Assets/StreamingAssets/aa.meta
 Assets/StreamingAssets/aa/*
 
 # -------------------------------
+# Secrets / API keys (NEVER commit)
+# -------------------------------
+# The Claude API key is read from the ANTHROPIC_API_KEY environment variable, not a file.
+# These patterns are a safety net so a stray local key file can never be committed.
+.env
+*.env
+**/secrets.json
+**/*.secret
+**/anthropic*.key
+
+# -------------------------------
 # IDE files
 # -------------------------------
 # JetBrains Rider / IntelliJ
