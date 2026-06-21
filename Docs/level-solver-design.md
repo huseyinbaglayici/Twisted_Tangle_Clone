@@ -1,166 +1,176 @@
-# Twisted Tangle — Oyun Kuralları & Solver Tasarımı
+# Twisted Tangle — Level Solver & AI Generation Design
 
-> Amaç: Bir level'in **çözülebilir mi** olduğunu ve **zorluğunu** otomatik ölçen bir solver.
+> **What this is.** The single source of truth for two editor-time tools in this project:
+> 1. an **auto-solver** that tells a designer whether a level is untangle-able and roughly how hard, and
+> 2. an **AI level-generation** flow (the project's centerpiece) where a designer hands the AI some basic
+>    content and gets back a playable level to review, fix, and commit.
 >
-> **İş akışı (editör-zamanı, designer güdümlü):** designer editörde AI'a bir level ürettirir → solver
-> editörde **çözülebilirliği** ve **zorluğu** gösterir → designer düzenler → **commit** eder.
-> ❌ Runtime'da level üretimi YOK (asla). ❌ Toplu/hızlı (rapid) üretim şimdilik kapsam dışı.
-> Solver **editörde** çalışan bir tooldur; oyun çalışırken bu doc'u veya solver'ı kimse çağırmaz.
-> Bu doc'un tek tüketicisi: solver'ı kuracak ajan (gelecek oturumlar) + designer/geliştirici.
+> **Scope & intent.** This is a **portfolio project**, not production. The goal is to learn and correctly
+> demonstrate the AI level-generation integration at a **basic, industry-standard** level — kept simple on
+> purpose. Everything runs **at editor time**; nothing here is called by the game at runtime, and there is
+> no bulk/rapid generation.
 >
-> Bu döküman **mantığı oturtmak** içindir; kod sonra gelir. Notasyon: ✅ onaylı, ⚠️ açık.
-
-> **Model kararı:** **Planarity + 3-birim uzama limiti** (layer = strateji, kural değil).
-> Bir pini, kilitli değilse, **erişim içindeki** boş bir deliğe taşıyarak çözersin. İki **sert** kural + bir **tercih**:
-> 1. **Uzama (sert):** her bağlı rope'un pinA–pinB uzunluğu **≤ 3** (yön önemsiz → **Chebyshev/kare**).
-> 2. **Katı halat YOK (sert):** sürerken ip ipi bloke etmez; sadece **son kesişim** çözülmeyi belirler.
-> 3. **Layer tercihi (yumuşak):** alttaki rope da oynatılabilir; ama çözüme **genelde en üstten başlanır** →
->    solver eşit verimlilikteki hamlelerde **yüksek layer'lı (üstteki) rope'u önce** seçer. **Yasak değil, sıralama.**
-> Uzağa taşımak pinleri sırayla oynatmayı (**inchworm**) gerektirebilir.
-> (Over/under = global `Layer`, eşitlikte rope id; per-crossing override'lar şimdilik yok sayılıyor.)
+> **Audience of this doc.** The engineer/agent building these tools, and the designer using them.
+> Status tags: ✅ done · 🟡 planned · ⚠️ open question.
 
 ---
 
-## 1. Sözlük
+## 1. The Model (game rules the solver assumes)
 
-| Terim | Anlam |
-|---|---|
-| **Delik (hole/slot)** | Grid üzerindeki pin yuvası (oyundaki soluk daireler). Pinler sadece deliklerde durur. |
-| **Pin (node)** | Bir delikteki düğüm. Bir veya daha çok rope'un ucu olabilir. |
-| **Rope (edge)** | İki pini (pinA, pinB) birleştiren **düz** çizgi. |
-| **Crossing** | İki rope segmentinin kesişmesi. |
-| **Çözülmüş level** | Hiçbir rope başka bir rope'u kesmiyor. |
+A level is a small grid of **holes**. **Pins** sit on holes. A **rope** connects exactly two pins and is
+treated as a **straight segment** between them. The puzzle is solved when **no two ropes cross**.
+
+### 1.1 Board & pieces
+- Pins live only on discrete grid holes. A rope connects exactly two pins.
+- A pin may belong to several ropes (an "octopus" pin; degree is small in practice).
+- `pinA`/`pinB` is **just a label** (the rope's first/last authored waypoint). The two ends are symmetric —
+  the solver treats them identically. We reason **rope-centric**: a rope is solved when it crosses nothing.
+- A rope is stored as a polyline (`RopeData.Path`) whose middle waypoints describe an initial visual wrap.
+  The solver uses only the **two endpoints** (straight edge); middle waypoints are ignored (**assumption A**,
+  revisit only if wraps ever affect play).
+
+### 1.2 Moving a pin
+A move grabs one pin and drops it on an **empty hole**, subject to two hard rules and one soft preference:
+
+- **Reach (hard).** Every rope attached to the moved pin must keep its two pins within **3 units**.
+  Distance is direction-independent → **Chebyshev / king-move**: `max(|dx|, |dy|) ≤ 3`.
+  *(Metric is isolated in one helper; swappable to Euclidean/Manhattan if needed.)*
+- **No solid ropes (hard).** Ropes do not block each other mid-move; only the **final** crossing state
+  decides resolution. (So you may park a rope in a crossing state on the way to untangling.)
+- **Layer = soft preference, not a rule.** A bottom rope *can* be moved too, but a player generally starts
+  from the **top**. The solver therefore tries higher-`Layer` ropes first, so solutions read top-down.
+  Over/under uses the global `Layer` (ties broken by rope id); per-crossing overrides are ignored for now.
+
+Because of the reach limit, relocating a rope far away is done by walking its two pins in turn (**inchworm**).
+
+### 1.3 Win condition & limit
+- **Win:** no two ropes cross.
+- **Limit:** a move count (this project surfaces it as a **timer** in the UI). ⚠️ The time↔move-budget
+  mapping is still open; the solver reports a move count and the budget is derived from it.
+
+### 1.4 Locked / needle pins (core)
+- A **locked pin cannot be moved** (fixed position; the solver never relocates it).
+- Designers place locked pins as **anchors/context**: "these x, y, z are fixed — build the level around them."
+  AI generation takes them as fixed input; the solver treats them as fixed nodes.
+- They directly affect solvability — locked pins can force unavoidable crossings, making a level unsolvable.
+- Concrete current form: a **needle pin** (fully immovable; a difficulty modifier). Movement-restriction is a
+  family of future difficulty features, so movability is modeled generically (extensible to per-pin allowed
+  cells later).
+- ⚠️ **Representation:** `PegData` has no `Locked` flag yet (recommend a per-peg `bool Locked`). The solver
+  takes the locked set as a **parameter**, so it's independent of that data-model decision.
+
+### 1.5 Other special pins (later phase) 🟡
+- **Octopus** — one pin carries multiple ropes (degree 2); already handled as a normal node.
+- **Key / Lock** — untangling the key's ropes opens the lock → a sequencing constraint.
+- **Barrier** — a static obstacle a rope may not cross → a forbidden region in the crossing test.
 
 ---
 
-## 2. Oyun Kuralları
+## 2. The Solver
 
-### 2.1 Temel
-- ✅ Pinler ayrık **deliklerde** durur. Bir rope tam **iki** pini bağlar.
-- ✅ Bir pin birden çok rope'a ait olabilir (Octopus pin = derece ~2; genelde de sınırlı derece).
-- ✅ Rope iki pini arasında **düz çizgi** segmentidir.
-- ✅ **pinA/pinB ayrımı yalnızca etiket** (çizim sırası: Path'in ilk/son ucu). Oynanışta **simetrik**;
-  solver iki ucu eşit görür → ayrı bir A/B authoring yapısı **kurulmadı.** **Rope-merkezli** bakıyoruz:
-  bir rope **hiçbir ipi kesmiyorsa çözülmüştür** (nailed/kilitli pin olsa da bu tanım değişmez).
-
-### 2.2 Hareket
-- ✅ Hamle = bir ipin **ucunu (pini)** tut, **erişim içindeki** boş bir deliğe bırak; pin oraya bağlanır.
-- ✅ **Uzama limiti VAR:** bir hamle, o pine bağlı **her** rope'un pinA–pinB uzunluğunu **≤ 3** tutmalı.
-  Yön önemsiz → **Chebyshev (kare):** `max(|dx|,|dy|) ≤ 3`. (Metrik tek satırda Öklid/Manhattan'a çevrilebilir.)
-- ✅ **Layer = tercih, kural değil:** alttaki rope da oynatılabilir. Ama çözüme **genelde en üstten başlanır** →
-  solver eşit verimlilikteki hamlelerde **yüksek layer'lı rope'u önce** dener (sıralama/tiebreak). Over/under = global `Layer`, eşitlikte rope id.
-- ✅ **Katı halat YOK** — hareket sırasında hiçbir ip diğerini geometrik bloke etmez; sadece **son durumdaki kesişim** çözülmeyi belirler.
-- ✅ Atomik kural: bir hamle tek bir pini taşır. Uzağa taşımak için pinler sırayla yürütülür (**inchworm**).
-
-### 2.3 Kazanma & Sınır
-- ✅ **Kazanma:** hiçbir rope başka rope'u kesmiyor (tümü ayrık).
-- ✅ **Sınır:** hamle sayısı (bu projede **süre** — UI tercihi). Biterse başarısız.
-- ⚠️ Süre ↔ hamle eşlemesi: solver **min hamle** hesaplar; level'in süre/hamle bütçesi bu sayıdan türetilir.
-
-### 2.4 Kilitli (locked / fixed) entity'ler — ÇEKİRDEK
-- **Kilitli pin oynatılamaz**; konumu sabittir (solver aramasında hareket etmez).
-- Designer bunları **bağlam/çapa** olarak yerleştirir: "şu x, y, z kilitli; level'i bunların etrafında kur."
-  AI üretimi kilitli pinleri **veri olarak alıp onlara göre** üretir; solver onları **sabit düğüm** sayar.
-- Çözülebilirliği doğrudan etkiler: kilitli pinler kaçınılmaz kesişime zorlarsa level çözülemez olabilir.
-- Somut güncel biçim: **needle (iğneli) pin** = hareketi tamamen kısıtlanmış pin; bir zorluk modifiyesi. İleride başka hareket-kısıtı feature'ları gelecek; solver bunu genel "oynar/oynamaz" olarak modelliyor (ileride per-pin "izinli hücreler"e genişletilebilir).
-- ⚠️ **Temsil:** PegData'da henüz `Locked` alanı yok. Öneri: per-peg `bool Locked`. Solver şimdilik
-  kilitli hücreleri **parametre** olarak alır (veri-modeli kararından bağımsız).
-
-### 2.4b Diğer özel pinler (sonraki faz)
-- **Octopus pin:** birden çok rope taşır (derece 2). Normal düğüm gibi işlenir.
-- **Key/Lock:** anahtarın ipleri çözülünce kilit açılır → **sıralama** kısıtı.
-- **Barrier:** statik engel; bir rope bunun üzerinden geçemez → kesişim testine "yasak bölge" olarak eklenir.
-
----
-
-## 3. Formal Model
-
-### 3.1 Durum (state)
+### 2.1 Formal model
 ```
-State = pin → delik ataması   // hangi pin hangi delikte
+State = assignment of each movable pin → a hole
+Move  = relocate one movable pin to an empty hole, if it is reach-legal (1.2)
+Goal  = zero crossings
+Cost  = number of moves
 ```
-Ropelar (kenarlar) sabittir; sadece pin konumları değişir. Crossing'ler konumlardan **türetilir**.
-Tekrar aramayı önlemek için durum **hash**'lenir.
+Ropes (edges) are fixed; only pin positions change. Crossings are **derived** from positions, never stored.
+States are hashed so the search never revisits a configuration.
 
-### 3.2 Hamle (move)
-- **Kilitli olmayan** bir pini boş bir deliğe taşı — yalnızca o pine bağlı **tüm ropelar ≤ 3** kalıyorsa. Kilitli pinler taşınamaz.
+### 2.2 Why it stays tractable
+- **Straight ropes ⇒ any two ropes cross at most once**, so the tangle is just a *set of pairwise
+  crossings* (not knot theory).
+- Only pins **involved in a crossing** are worth moving → small branching.
+- Plenty of empty holes ⇒ a crossing-free arrangement almost always exists; the difficulty is the move count.
 
-### 3.3 Hedef
-- Kesişim kümesi boş.
+### 2.3 Algorithm (best-first search)
+1. Build a graph: nodes = endpoint pins, edges = ropes.
+2. Best-first (A*-ish) search. Heuristic `h = current crossing count`; `f = g + h`.
+3. Generate moves **top-layer first**; the priority queue breaks ties by insertion order, so an
+   equally-good solution that starts from the top rope is the one returned.
+4. Each candidate move must land on an empty hole and pass the reach check.
+5. A visited-set skips repeats; a move budget + an expansion cap keep it bounded.
 
----
+Atomic operation: a **segment–segment intersection test** (reused from `CrossingSolver.SegmentsIntersect`).
 
-## 4. Türetilen Kolaylaştırıcı Özellikler
-- ✅ **Düz ip ⇒ çift başına en fazla 1 crossing** (iki doğru parçası en çok bir kez kesişir).
-- ✅ Tangle = bir **ikili-kesişim kümesi** (düğüm teorisi değil).
-- ✅ Bol boş delik ⇒ planar bir graf için kesişimsiz düzen neredeyse her zaman var; zorluk **min hamle**de.
+> Note: a formal **planarity pre-check** (reject non-planar graphs outright) is a possible optimization but
+> is **not** implemented — the bounded search already answers "solvable within budget?", which is enough at
+> this scope.
 
----
+### 2.4 Outputs
+- **Solvable?** — a solution was found within the move/expansion budget. If the cap was hit, the result is
+  *inconclusive* rather than a definite "no".
+- **Solution steps** — each step names the rope and its from→to hole (e.g. `Rope 2: (2,5) → (0,0)`).
+- **Diagnostics** — initial crossings, ropes that start over the reach limit, nodes expanded.
 
-## 5. Solver Mimarisi
-
-### 5.0 Atomik işlem
-- **Segment–segment kesişim testi.** "Bu rope birini kesiyor mu?" = bu testin tüm ropelara karşı çağrılması.
-
-### 5.1 Katman 1 — Çözülebilir mi? (varış düzeni var mı)
-- **Hızlı eleme:** ip grafiği **planar değilse** (K5 / K3,3 minörü) hiçbir düzen kesişimsiz olamaz ⇒ **kesin çözülemez.** Planarity testi lineer zamanda yapılır.
-- Planar **ve** yeterli boş delik varsa ⇒ kesişimsiz bir hedef düzen bulunabilir.
-- ⚠️ Tam titizlik: hedef, pinlerin **sabit delik kümesine** düz-çizgi gömülmesidir (point-set embedding). Pratikte bol delikle sorun olmaz; gerekirse hedef düzeni arama ile bulunur.
-
-### 5.2 Katman 2 — Bütçe içinde mi? (min hamle araması)
-```
-Durum  = pin→delik ataması
-Hamle  = bir oynar pini, tüm bağlı ropeları ≤3 tutan boş bir deliğe taşı (Chebyshev)
-Hedef  = kesişim yok
-Maliyet= hamle sayısı
-```
-- **En-iyi-öncelikli / A\*** ile ara; sezgi `h = crossing_sayısı` (veya kesişime karışan pin sayısı).
-- **Hamle önceliklendirme:** en çok kesişen pini, en çok kesişimi gideren boş deliğe taşıyan hamleler önce.
-- **Görülen-durum tablosu** ile tekrarı atla.
-- **Bütçe sınırı:** N genişlemede çözülemezse "bu bütçede çözülemez" (üretim filtresi için yeterli).
-- Sadece **kesişime karışan** pinleri oynatmak yeterli ⇒ dallanma küçülür.
-
-### 5.3 Çıktılar
-1. **Çözülebilir mi?** = planar mı **ve** bütçe içinde min hamle bulundu mu.
-2. **Zorluk skoru:** min hamle + kesişim yoğunluğu + (özel pinler eklenince) sıralama/engel zorlukları.
+### 2.5 Difficulty (kept deliberately simple)
+A plain **move-count bucket**, the most common industry proxy: `≤2 → Easy`, `3–5 → Medium`, `≥6 → Hard`
+(thresholds are one-liners and tunable). No calibration or multi-signal formula — that would be
+over-engineering for this project. Richer signals (branching, locked-pin pressure) can be added later if a
+real need shows up.
 
 ---
 
-## 6. Zorluk Metrikleri (taslak)
-| Sinyal | Anlamı |
-|---|---|
-| Min hamle sayısı | Temel efor |
-| Başlangıç crossing sayısı/yoğunluğu | Görsel + mantıksal karmaşa |
-| Dallanma (adım başı seçenek) | Yanlış yapma kolaylığı |
-| (Key/Lock) sıralama derinliği | Bağımlı açma zincirleri |
-→ Mevcut editör difficulty metrikleriyle hizalanmalı.
+## 3. AI Level Generation Integration (the centerpiece) 🟡
+
+The reason the solver exists: let a designer generate a level with AI in the editor, then verify and fix it.
+
+### 3.1 Flow
+1. Designer provides **basic content/context**: grid size, available entity types & palette, any **locked
+   pins** to build around, and a **target difficulty**.
+2. An editor button calls an **LLM (Claude API)** with that context and asks for a level.
+3. The returned JSON is parsed into a `LevelDataSO` and loaded into the editor.
+4. The **solver** reports solvable? + difficulty; structural **validation** catches malformed output.
+5. The designer edits as needed and **commits** the level.
+
+Human-in-the-loop, one level at a time. No runtime generation, no bulk runs.
+
+### 3.2 Output contract
+The model's JSON must map cleanly onto the existing data model: `gridWidth/Height`, `timeSeconds`,
+`pegs[]` (coord + type id), and `ropes[]` (ordered pin path + color + layer). The generation prompt carries
+the same rules this doc defines, so generated levels respect reach, locked pins, etc.
+
+### 3.3 Open questions to settle when we start this phase ⚠️
+- **Calling the API from the Unity editor**: HTTP request + **API-key management** (where the key lives,
+  never committed).
+- **Prompt design**: how to encode the rules + context so output is consistently valid.
+- **Schema & validation loop**: strict JSON schema, parse → validate → (retry on invalid) → solver-check.
+- **Model**: default to the latest capable Claude model.
+- **Difficulty targeting**: ask for a difficulty, then accept/reject via the solver's bucket.
 
 ---
 
-## 7. Kodlamadan Önce Kapatılacak Açık Noktalar (⚠️)
-1. **Süre ↔ hamle bütçesi eşlemesi** (§2.3).
-2. **Point-set embedding titizliği** (§5.1): bol delikle pratikte gerek olmayabilir; doğrulanmalı.
-3. **Boş delik kuralı:** pin yalnızca boş deliğe mi taşınır (takas yok)? (Varsayım: evet.)
-4. **Diğer özel pinlerin** ilk sürümde kapsamda olup olmadığı (§2.4b). Öneri: önce çekirdek + kilitli pin, sonra Octopus/Key-Lock/Barrier.
-5. **Difficulty eşlemesi** (§6).
-6. **Kilitli-lik temsili** (§2.4): PegData'ya per-peg `Locked` flag mı, yoksa "fixed" entity tipi mi? Solver bu karardan bağımsız (locked set'i parametre alır).
-7. **Rope = düz kenar varsayımı (A):** RopeData aslında **polyline** (ara peg'lerde sarım). Solver her rope'u ilk↔son peg arası **düz kenar** sayar; ara waypoint'ler yok sayılır (başlangıç görseli). Sarımlar oynanışı etkileyecekse yeniden ele alınır.
+## 4. Implementation Status
+
+- ✅ `Assets/Scripts/Editor/Solver/LevelSolver.cs` — graph build, reach-limited best-first search,
+  layer-preference tie-break, tiny min-heap. Returns solvable? / moves / crossings / over-stretched ropes /
+  named solution steps.
+- ✅ `Assets/Scripts/Editor/LevelCreator.cs` — a **Solve** button (Solver section) showing the result, the
+  simple difficulty bucket, and the named untangle steps.
+- ✅ `Assets/Scripts/Editor/Validation/LevelValidator.cs` (pre-existing) — structural validation + its own
+  static difficulty score. May later defer its difficulty to the solver's move-based one.
+- 🟡 AI level-generation flow (section 3) — not started; the next major piece.
 
 ---
 
-## 8. Kodlama Sırası
-1. Veri: pin/delik/rope'tan solver iç modeline (graf) dönüştürücü.
-2. Segment-kesişim + "rope birini kesiyor mu" + tüm crossing kümesi.
-3. Planarity testi (Katman 1 — imkânsızı ele).
-4. Katman 2: A* min-hamle araması (+ görülen-durum + bütçe).
-5. Çıktı: çözülebilirlik + zorluk; editöre "Solve / Score" düğmesi.
-6. (Sonra) Özel pinler: Fixed, Octopus, Key/Lock, Barrier.
+## 5. Open Items
+1. ⚠️ **Reach metric** — Chebyshev assumed; confirm vs Euclidean/Manhattan (one-line change).
+2. ⚠️ **Locked-ness representation** — `PegData.Locked` flag vs a "fixed" entity type. Solver is decoupled
+   (takes a locked set as a parameter).
+3. ⚠️ **Time ↔ move-budget mapping** (1.3).
+4. 🟡 **Per-crossing overrides / layer cycles** — would enable true deadlock detection; ignored for now.
+5. ⚠️ **Rope wraps (assumption A)** — solver uses straight endpoint-to-endpoint edges; revisit if authored
+   wraps ever affect play.
+6. 🟡 **AI generation phase** (section 3) — the main open design.
 
 ---
 
-## 9. Kaynaklar (gerçek oyun araştırması)
-- Rollic Twisted Tangle — App Store: https://apps.apple.com/us/app/twisted-tangle/id6447757125
+## 6. Sources (real-game research)
+- Twisted Tangle — App Store: https://apps.apple.com/us/app/twisted-tangle/id6447757125
 - Twisted Tangle — CrazyGames: https://www.crazygames.com/game/twisted-tangle-nmt
 - Rollic Help Center — How to play: https://rollic.helpshift.com/hc/en/11-twisted-tangle/faq/254-how-to-play-twisted-tangle/
 
-Özet bulgu: "Bir ipin ucunu tutup başka bir deliğe sürüklersin, eski delikten kopup yenisine bağlanır; amaç hiçbir ipin kesişmemesi; sınır hamle/süre." Hiçbir kaynakta uzunluk limiti veya katı-halat kuralı geçmiyor.
+Finding: you drag a rope's end to another hole (it reattaches); the goal is that no ropes cross; the limit is
+moves/time. No source mentions a length limit or solid ropes — the **3-unit reach limit and the layer
+preference are this project's design choices**, not the original game's mechanics.

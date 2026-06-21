@@ -537,6 +537,15 @@ namespace TwistedTangle.Editor
             AddMetric(metricsRow, $"Searched: {result.ExpandedNodes}");
             _solverContainer.Add(metricsRow);
 
+            if (result.Solvable)
+            {
+                // Basic move-count difficulty (tunable thresholds) — portfolio-level, not calibrated.
+                string diff = result.Moves <= 2 ? "Easy" : result.Moves <= 5 ? "Medium" : "Hard";
+                var diffLabel = new Label($"Difficulty: {diff}  ·  {result.Moves} move(s)");
+                diffLabel.AddToClassList($"tt-difficulty--{diff}");
+                _solverContainer.Add(diffLabel);
+            }
+
             if (result.OverStretchedRopes > 0)
             {
                 var warn = new Label($"⚠ {result.OverStretchedRopes} rope(s) start longer than the reach limit.");
