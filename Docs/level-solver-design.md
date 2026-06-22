@@ -145,6 +145,10 @@ the same rules this doc defines, so generated levels respect reach, locked pins,
   tolerating ```json fences / surrounding prose.
 - **Validation loop:** parse → `LevelValidator` + `LevelSolver` → show solvable?/difficulty → designer edits → commit.
 - **Difficulty targeting:** pass Easy/Medium/Hard in the prompt; accept/reject via the solver's move-count bucket.
+- **Entity selection (v1):** an include/exclude toggle per entity type (all on by default); only checked types
+  go into the prompt. The list auto-rebuilds when types change, plus a Refresh button for externally-added assets.
+  **v2 (later):** per-entity appearance frequency (Rare/Some/Many) — it strongly affects difficulty, so kept separate.
+- **Nailed pins:** types tagged `"nailed"`/`"locked"` are sent to the AI as immovable and to the solver as `LockedCells`.
 
 ---
 

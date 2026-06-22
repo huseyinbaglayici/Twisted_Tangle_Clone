@@ -62,6 +62,8 @@ namespace TwistedTangle.Editor
         private DropdownField _aiDifficulty;
         private TextField _aiJsonField;
         private Label _aiStatus;
+        private VisualElement _aiEntitiesContainer;
+        private readonly HashSet<string> _aiExcludedTypeIds = new(); // entity types the designer unchecked for AI
         private readonly Dictionary<Tool, Button> _toolButtons = new(); // built-in tools
         private readonly List<(EntityBaseTypeSO baseType, Button btn)> _baseButtons = new(); // one per base + Ungrouped
 
@@ -447,6 +449,7 @@ namespace TwistedTangle.Editor
 
             UpdateToolActiveStates();
             UpdateShortcutHints();
+            RebuildAiEntities(); // keep the AI include/exclude list in sync when entity types change
         }
 
         private void AddToolButton(Tool tool, string label)
@@ -488,7 +491,7 @@ namespace TwistedTangle.Editor
 
         private VisualElement BuildEntityCreatorSection()
         {
-            var s = MakeSection("New entity type");
+            var s = MakeSection("New entity type", expanded: false);
 
             // A transient popup (anchored under the button) keeps this occasional action out of the
             // main panel — the button is the only thing that lives here permanently.
@@ -511,7 +514,7 @@ namespace TwistedTangle.Editor
 
         private VisualElement BuildValidationSection()
         {
-            var s = MakeSection("Validation & metrics");
+            var s = MakeSection("Validation & metrics", expanded: false);
             var row = MakeRow();
             row.Add(MakeButton("Validate", RebuildValidation, "tt-btn--primary"));
             s.Add(row);
@@ -522,7 +525,7 @@ namespace TwistedTangle.Editor
 
         private VisualElement BuildAiSection()
         {
-            var s = MakeSection("AI level generation");
+            var s = MakeSection("AI level generation", expanded: false);
 
             var row = MakeRow();
             row.AddToClassList("tt-row--wrap");
@@ -533,6 +536,13 @@ namespace TwistedTangle.Editor
             copyBtn.tooltip = "Copies a ready prompt (rules + your grid/difficulty + the JSON shape). Paste it into any AI chat.";
             row.Add(copyBtn);
             s.Add(row);
+
+            var entFoldout = new Foldout { text = "Entity types for the prompt", value = false };
+            entFoldout.Add(MakeButton("↻ Refresh list", RefreshAiEntities, "tt-tool"));
+            _aiEntitiesContainer = new VisualElement();
+            entFoldout.Add(_aiEntitiesContainer);
+            s.Add(entFoldout);
+            RebuildAiEntities();
 
             s.Add(new Label("Paste the prompt into an AI chat, then paste its JSON answer below and Import:"));
 
@@ -551,6 +561,44 @@ namespace TwistedTangle.Editor
             return s;
         }
 
+        /// <summary>One include/exclude toggle per entity type (all on by default). Rebuilt when types change.</summary>
+        private void RebuildAiEntities()
+        {
+            if (_aiEntitiesContainer == null) return;
+            _aiEntitiesContainer.Clear();
+            if (_entityDefs.Count == 0)
+            {
+                _aiEntitiesContainer.Add(new Label("No entity types yet."));
+                return;
+            }
+
+            foreach (var def in _entityDefs)
+            {
+                string id = def.TypeId;
+                var item = MakeRow();
+                item.style.alignItems = Align.Center;
+                var toggle = new Toggle { value = !_aiExcludedTypeIds.Contains(id) };
+                toggle.style.marginRight = 4;
+                toggle.RegisterValueChangedCallback(e =>
+                {
+                    if (e.newValue) _aiExcludedTypeIds.Remove(id);
+                    else _aiExcludedTypeIds.Add(id);
+                });
+                item.Add(toggle);
+                item.Add(new Label(def.DisplayName));
+                _aiEntitiesContainer.Add(item);
+            }
+        }
+
+        /// <summary>Re-scans entity assets (e.g. after one is added outside the tool) and refreshes the UI.</summary>
+        private void RefreshAiEntities()
+        {
+            RefreshBaseTypes();
+            RefreshEntityDefinitions();
+            RebuildToolbar();   // also rebuilds the AI entity toggles
+            RebuildPalette();
+        }
+
         /// <summary>Builds a generation request from the current editor inputs (grid, time, difficulty, types, palette).</summary>
         private LevelGenerationRequest CurrentAiRequest() => new()
         {
@@ -558,8 +606,8 @@ namespace TwistedTangle.Editor
             GridHeight = Mathf.Max(1, _heightField.value),
             TimeSeconds = Mathf.Max(1, _timeField.value),
             Difficulty = _aiDifficulty?.value ?? "Medium",
-            EntityTypeIds = _entityDefs.Select(d => d.TypeId).ToList(),
-            NailedTypeIds = _entityDefs.Where(IsNailed).Select(d => d.TypeId).ToList(),
+            EntityTypeIds = _entityDefs.Where(d => !_aiExcludedTypeIds.Contains(d.TypeId)).Select(d => d.TypeId).ToList(),
+            NailedTypeIds = _entityDefs.Where(d => IsNailed(d) && !_aiExcludedTypeIds.Contains(d.TypeId)).Select(d => d.TypeId).ToList(),
             PaletteHex = _swatches.Select(sw => "#" + ColorUtility.ToHtmlStringRGB(sw.color)).ToList()
         };
 
@@ -623,7 +671,7 @@ namespace TwistedTangle.Editor
 
         private VisualElement BuildSolverSection()
         {
-            var s = MakeSection("Solver (untangle check)");
+            var s = MakeSection("Solver (untangle check)", expanded: false);
             var row = MakeRow();
             row.Add(MakeButton("Solve", RunSolve, "tt-btn--primary"));
             s.Add(row);
@@ -1328,14 +1376,12 @@ namespace TwistedTangle.Editor
             return l;
         }
 
-        private static VisualElement MakeSection(string header)
+        private static VisualElement MakeSection(string header, bool expanded = true)
         {
-            var s = new VisualElement();
-            s.AddToClassList("tt-section");
-            var h = new Label(header);
-            h.AddToClassList("tt-section__header");
-            s.Add(h);
-            return s;
+            // Collapsible section (Unity-standard for long editor windows) so the panel stays compact.
+            var f = new Foldout { text = header, value = expanded };
+            f.AddToClassList("tt-section");
+            return f;
         }
 
         private static VisualElement MakeRow()
