@@ -146,7 +146,7 @@ namespace TwistedTangle.Editor
         private VisualElement BuildSubFoldout(string key, string title, IReadOnlyList<EditorCommand> subs)
         {
             var foldout = new Foldout { text = title, value = _expanded.Contains(key) };
-            foldout.style.marginLeft = 12; // indent under its base type
+            foldout.AddToClassList("tt-subgroup"); // indent + accent so it reads as nested under its base
             // The rows hold only buttons/labels (no bool fields), so every ChangeEvent<bool> here is the
             // foldout's own expand/collapse — safe to track directly.
             foldout.RegisterValueChangedCallback(e =>
@@ -155,11 +155,11 @@ namespace TwistedTangle.Editor
                 else _expanded.Remove(key);
             });
             foreach (var cmd in subs)
-                foldout.Add(BuildRow(cmd));
+                foldout.Add(BuildRow(cmd, sub: true));
             return foldout;
         }
 
-        private VisualElement BuildRow(EditorCommand cmd)
+        private VisualElement BuildRow(EditorCommand cmd, bool sub = false)
         {
             var row = MakeRow();
             bool listening = _listeningId == cmd.Id;
@@ -168,6 +168,7 @@ namespace TwistedTangle.Editor
             // The name flexes (and ellipsises long text) so the fixed-width buttons always stay on one
             // line — otherwise "Default" wraps below on narrow windows / long command names.
             var name = new Label(cmd.DisplayName) { tooltip = cmd.DisplayName };
+            if (sub) name.AddToClassList("tt-subname"); // smaller + dimmer for nested sub-types
             name.style.flexGrow = 1;
             name.style.flexShrink = 1;
             name.style.minWidth = 60;
