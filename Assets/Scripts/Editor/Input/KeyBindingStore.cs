@@ -55,7 +55,13 @@ namespace TwistedTangle.Editor.Input
 
         public static void Set(string id, KeyCombo combo)
         {
-            Overrides[id] = combo;
+            // Binding a command to its own default isn't an override — drop any existing one instead of
+            // storing a redundant copy, so the row doesn't show a "Default" button that reverts to the same key.
+            var def = LevelEditorCommands.Find(id)?.Default ?? KeyCombo.None;
+            if (combo.Equals(def))
+                Overrides.Remove(id);
+            else
+                Overrides[id] = combo;
             Save();
         }
 
