@@ -66,6 +66,7 @@ namespace TwistedTangle.Editor
         private readonly HashSet<string> _aiExcludedTypeIds = new(); // entity types the designer unchecked for AI
         private readonly Dictionary<Tool, Button> _toolButtons = new(); // built-in tools
         private readonly List<(EntityBaseTypeSO baseType, Button btn)> _baseButtons = new(); // one per base + Ungrouped
+        private readonly List<(EntityDefinitionSO def, Button btn)> _entityButtons = new(); // sub-type brush buttons (Place mode)
 
         // --- keyboard shortcuts ---
         private readonly Dictionary<string, System.Action> _commands = new();
@@ -168,9 +169,13 @@ namespace TwistedTangle.Editor
                 _selectedEntity = SubTypesOf(_selectedBaseType).FirstOrDefault();
         }
 
-        /// <summary>Sub-types belonging to a base (null base = the "Ungrouped" bucket).</summary>
+        /// <summary>
+        /// Sub-types belonging to a base (null base = the "Ungrouped" bucket), in shared display order
+        /// (untagged first) so the palette, the default selection, and the bindings dropdown all agree.
+        /// </summary>
         private IEnumerable<EntityDefinitionSO> SubTypesOf(EntityBaseTypeSO baseType) =>
-            _entityDefs.Where(d => d.BaseType == baseType);
+            _entityDefs.Where(d => d.BaseType == baseType)
+                       .OrderBy(d => d, Comparer<EntityDefinitionSO>.Create(LevelEditorCommands.CompareSubTypes));
 
         private bool HasUngrouped() => _entityDefs.Any(d => d.BaseType == null);
 
@@ -450,6 +455,11 @@ namespace TwistedTangle.Editor
             UpdateToolActiveStates();
             UpdateShortcutHints();
             RebuildAiEntities(); // keep the AI include/exclude list in sync when entity types change
+
+            // Publish the current entity types as bindable commands (so a new type shows up in the Key
+            // Bindings window as "Sub-type / Base type"), and keep the runnable command map in sync.
+            LevelEditorCommands.Refresh();
+            BuildCommandTable();
         }
 
         private void AddToolButton(Tool tool, string label)
@@ -476,6 +486,18 @@ namespace TwistedTangle.Editor
             _tool = Tool.Place;
             _selectedBaseType = baseType;
             _selectedEntity = SubTypesOf(baseType).FirstOrDefault();
+            RebuildPalette();
+            UpdateToolActiveStates();
+            RefreshCanvas();
+        }
+
+        /// <summary>Enters Place mode for a specific sub-type (and its base) — the per-entity shortcut target.</summary>
+        private void SelectEntity(EntityDefinitionSO def)
+        {
+            if (def == null) return;
+            _tool = Tool.Place;
+            _selectedBaseType = def.BaseType;
+            _selectedEntity = def;
             RebuildPalette();
             UpdateToolActiveStates();
             RefreshCanvas();
@@ -774,6 +796,7 @@ namespace TwistedTangle.Editor
         private void RebuildPalette()
         {
             _paletteContainer.Clear();
+            _entityButtons.Clear(); // repopulated by BuildPlacePalette when in Place mode
             switch (_tool)
             {
                 case Tool.Place: BuildPlacePalette(); break;
@@ -834,6 +857,8 @@ namespace TwistedTangle.Editor
                 if (def == _selectedEntity) btn.AddToClassList("tt-tool--active");
                 btn.style.borderLeftWidth = 6;
                 btn.style.borderLeftColor = def.EditorColor;
+                btn.tooltip = ShortcutTooltip(LevelEditorCommands.EntityCommandId(def.TypeId));
+                _entityButtons.Add((captured, btn)); // so UpdateShortcutHints can refresh its hint live
                 row.Add(btn);
             }
 
@@ -1284,7 +1309,8 @@ namespace TwistedTangle.Editor
         /// <summary>Maps each bindable command id to the method that runs it. See <see cref="LevelEditorCommands"/>.</summary>
         private void BuildCommandTable()
         {
-            _commands[LevelEditorCommands.ToolPeg] = () => SelectBase(_selectedBaseType ?? _baseTypes.FirstOrDefault());
+            _commands.Clear();
+
             _commands[LevelEditorCommands.ToolRope] = () => SetTool(Tool.Rope);
             _commands[LevelEditorCommands.ToolErase] = () => SetTool(Tool.Erase);
             _commands[LevelEditorCommands.ToolFlip] = () => SetTool(Tool.Flip);
@@ -1301,6 +1327,21 @@ namespace TwistedTangle.Editor
             _commands[LevelEditorCommands.RopeDelete] = DeleteSelectedRope;
 
             _commands[LevelEditorCommands.Validate] = RebuildValidation;
+
+            // One tool command per base type — its shortcut enters Place mode for that base (first sub-type).
+            foreach (var b in _baseTypes)
+            {
+                var captured = b;
+                _commands[LevelEditorCommands.BaseCommandId(b.BaseId)] = () => SelectBase(captured);
+            }
+
+            // One placement command per entity sub-type, matching the dynamic bindings in
+            // LevelEditorCommands so the "Sub-type / Base type" shortcuts in the Key Bindings window run.
+            foreach (var def in _entityDefs)
+            {
+                var captured = def;
+                _commands[LevelEditorCommands.EntityCommandId(def.TypeId)] = () => SelectEntity(captured);
+            }
         }
 
         private void OnShortcutKeyDown(KeyDownEvent e)
@@ -1354,15 +1395,32 @@ namespace TwistedTangle.Editor
             RefreshAll();
         }
 
-        /// <summary>Shows each tool button's current shortcut in its tooltip; refreshes when bindings change.</summary>
+        /// <summary>Shows each tool/entity button's current shortcut in its tooltip; refreshes when bindings change.</summary>
         private void UpdateShortcutHints()
         {
             foreach (var kv in _toolButtons)
             {
                 if (!ToolCommandIds.TryGetValue(kv.Key, out var id)) continue;
-                var combo = KeyBindingStore.Get(id);
-                kv.Value.tooltip = combo.IsEmpty ? string.Empty : $"Shortcut: {combo}";
+                kv.Value.tooltip = ShortcutTooltip(id);
             }
+
+            // Custom entity sub-types are bound per type — show each one's hint on its brush button too.
+            foreach (var (def, btn) in _entityButtons)
+                btn.tooltip = ShortcutTooltip(LevelEditorCommands.EntityCommandId(def.TypeId));
+
+            // Each base type has its own shortcut (like a built-in tool) — show it on its toolbar button.
+            // The synthetic "Ungrouped" bucket (null base) has no command, so it stays hint-free.
+            foreach (var (baseType, btn) in _baseButtons)
+                btn.tooltip = baseType != null
+                    ? ShortcutTooltip(LevelEditorCommands.BaseCommandId(baseType.BaseId))
+                    : string.Empty;
+        }
+
+        /// <summary>"Shortcut: X" for a bound command, or empty when the command has no shortcut.</summary>
+        private static string ShortcutTooltip(string commandId)
+        {
+            var combo = KeyBindingStore.Get(commandId);
+            return combo.IsEmpty ? string.Empty : $"Shortcut: {combo}";
         }
 
         #endregion
