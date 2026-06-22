@@ -165,8 +165,15 @@ namespace TwistedTangle.Editor
             bool listening = _listeningId == cmd.Id;
             var combo = KeyBindingStore.Get(cmd.Id);
 
-            var name = new Label(cmd.DisplayName);
-            name.style.minWidth = 170;
+            // The name flexes (and ellipsises long text) so the fixed-width buttons always stay on one
+            // line — otherwise "Default" wraps below on narrow windows / long command names.
+            var name = new Label(cmd.DisplayName) { tooltip = cmd.DisplayName };
+            name.style.flexGrow = 1;
+            name.style.flexShrink = 1;
+            name.style.minWidth = 60;
+            name.style.overflow = Overflow.Hidden;
+            name.style.textOverflow = TextOverflow.Ellipsis;
+            name.style.whiteSpace = WhiteSpace.NoWrap;
             row.Add(name);
 
             var bindBtn = new Button(() =>
@@ -179,12 +186,14 @@ namespace TwistedTangle.Editor
                 text = listening ? "Press keys…" : combo.ToString()
             };
             bindBtn.AddToClassList("tt-tool");
-            bindBtn.style.minWidth = 150;
+            bindBtn.style.minWidth = 110;
+            bindBtn.style.flexShrink = 0;
             if (listening) bindBtn.AddToClassList("tt-tool--active");
             row.Add(bindBtn);
 
             var clear = new Button(() => { KeyBindingStore.Set(cmd.Id, KeyCombo.None); Rebuild(); }) { text = "Clear" };
             clear.AddToClassList("tt-tool");
+            clear.style.flexShrink = 0;
             clear.SetEnabled(!combo.IsEmpty);
             row.Add(clear);
 
@@ -192,6 +201,7 @@ namespace TwistedTangle.Editor
             {
                 var reset = new Button(() => { KeyBindingStore.Reset(cmd.Id); Rebuild(); }) { text = "Default" };
                 reset.AddToClassList("tt-tool");
+                reset.style.flexShrink = 0;
                 row.Add(reset);
             }
 
