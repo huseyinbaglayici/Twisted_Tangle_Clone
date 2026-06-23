@@ -54,11 +54,18 @@ namespace TwistedTangle.Editor
         private readonly List<EntityDefinitionSO> _entityDefs = new();
         private readonly Dictionary<string, EntityDefinitionSO> _entityLookup = new();
         private readonly List<(string name, Color color)> _swatches = new();
+        private readonly List<ColorPaletteSO> _paletteAssets = new();
 
         // --- ui ---
         private IntegerField _levelIdField, _widthField, _heightField, _timeField;
         private RopeCanvasElement _canvas;
-        private VisualElement _paletteContainer, _toolsContainer, _ropeListContainer, _validationContainer, _solverContainer;
+
+        private VisualElement _paletteContainer,
+            _toolsContainer,
+            _ropeListContainer,
+            _validationContainer,
+            _solverContainer;
+
         private DropdownField _aiDifficulty;
         private TextField _aiJsonField;
         private Label _aiStatus;
@@ -66,7 +73,9 @@ namespace TwistedTangle.Editor
         private readonly HashSet<string> _aiExcludedTypeIds = new(); // entity types the designer unchecked for AI
         private readonly Dictionary<Tool, Button> _toolButtons = new(); // built-in tools
         private readonly List<(EntityBaseTypeSO baseType, Button btn)> _baseButtons = new(); // one per base + Ungrouped
-        private readonly List<(EntityDefinitionSO def, Button btn)> _entityButtons = new(); // sub-type brush buttons (Place mode)
+
+        private readonly List<(EntityDefinitionSO def, Button btn)>
+            _entityButtons = new(); // sub-type brush buttons (Place mode)
 
         // --- keyboard shortcuts ---
         private readonly Dictionary<string, System.Action> _commands = new();
@@ -175,17 +184,19 @@ namespace TwistedTangle.Editor
         /// </summary>
         private IEnumerable<EntityDefinitionSO> SubTypesOf(EntityBaseTypeSO baseType) =>
             _entityDefs.Where(d => d.BaseType == baseType)
-                       .OrderBy(d => d, Comparer<EntityDefinitionSO>.Create(LevelEditorCommands.CompareSubTypes));
+                .OrderBy(d => d, Comparer<EntityDefinitionSO>.Create(LevelEditorCommands.CompareSubTypes));
 
         private bool HasUngrouped() => _entityDefs.Any(d => d.BaseType == null);
 
         private void RefreshPalettes()
         {
             _swatches.Clear();
+            _paletteAssets.Clear();
             foreach (var guid in AssetDatabase.FindAssets($"t:{nameof(ColorPaletteSO)}"))
             {
                 var pal = AssetDatabase.LoadAssetAtPath<ColorPaletteSO>(AssetDatabase.GUIDToAssetPath(guid));
                 if (pal == null) continue;
+                _paletteAssets.Add(pal);
                 foreach (var e in pal.Entries) _swatches.Add((e.Name, e.Color));
             }
         }
@@ -199,8 +210,10 @@ namespace TwistedTangle.Editor
             EnsureFolder(LevelEditorPaths.Bases);
             EnsureFolder(LevelEditorPaths.Entities);
             var pin = CreateBaseAsset("pin", "Pin", new Color(0.85f, 0.85f, 0.85f), LevelEditorPaths.Bases);
-            CreateEntityAsset("pin.standard", "Standard", new Color(0.85f, 0.85f, 0.85f), null, pin, LevelEditorPaths.Entities);
-            CreateEntityAsset("pin.nailed", "Nailed", new Color(1f, 0.6f, 0.1f), null, pin, LevelEditorPaths.Entities, new[] { "nailed" });
+            CreateEntityAsset("pin.standard", "Standard", new Color(0.85f, 0.85f, 0.85f), null, pin,
+                LevelEditorPaths.Entities);
+            CreateEntityAsset("pin.nailed", "Nailed", new Color(1f, 0.6f, 0.1f), null, pin, LevelEditorPaths.Entities,
+                new[] { "nailed" });
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
 
@@ -251,6 +264,7 @@ namespace TwistedTangle.Editor
                 for (int i = 0; i < tags.Length; i++)
                     tagsProp.GetArrayElementAtIndex(i).stringValue = tags[i];
             }
+
             sObj.ApplyModifiedPropertiesWithoutUndo();
             AssetDatabase.CreateAsset(so, path);
             return so;
@@ -326,7 +340,7 @@ namespace TwistedTangle.Editor
         private void CreateDefaultPalette()
         {
             EnsureFolder(LevelEditorPaths.Palettes);
-            string path = $"{LevelEditorPaths.Palettes}/DefaultPalette.asset";
+            string path = $"{LevelEditorPaths.Palettes}/BaseGameColorPalette.asset";
             if (AssetDatabase.LoadAssetAtPath<ColorPaletteSO>(path) == null)
             {
                 (string name, Color color)[] colors =
@@ -360,6 +374,52 @@ namespace TwistedTangle.Editor
 
             RefreshPalettes();
             RebuildPalette();
+        }
+
+        /// <summary>
+        /// Adds a named color to an existing palette asset, or creates a new palette first when
+        /// <paramref name="existingPalette"/> is null. Called from <see cref="PaletteColorPopup"/>.
+        /// Returns (false, reason) on bad input; (true, null) on success.
+        /// </summary>
+        private (bool ok, string error) TryAddPaletteColor(ColorPaletteSO existingPalette,
+            string newPaletteName, string colorName, Color color)
+        {
+            colorName = colorName?.Trim();
+            if (string.IsNullOrEmpty(colorName)) return (false, "Color name is required.");
+
+            var palette = existingPalette;
+            if (palette == null)
+            {
+                newPaletteName = newPaletteName?.Trim();
+                if (string.IsNullOrEmpty(newPaletteName)) return (false, "New palette name is required.");
+                EnsureFolder(LevelEditorPaths.Palettes);
+                string path = $"{LevelEditorPaths.Palettes}/{newPaletteName.Replace(' ', '_')}.asset";
+                palette = AssetDatabase.LoadAssetAtPath<ColorPaletteSO>(path);
+                if (palette == null)
+                {
+                    palette = CreateInstance<ColorPaletteSO>();
+                    AssetDatabase.CreateAsset(palette, path);
+                }
+            }
+
+            foreach (var e in palette.Entries)
+                if (string.Equals(e.Name, colorName, System.StringComparison.OrdinalIgnoreCase))
+                    return (false, $"'{palette.name}' already has a color named '{colorName}'.");
+
+            var so = new SerializedObject(palette);
+            var entries = so.FindProperty("entries");
+            entries.arraySize++;
+            var el = entries.GetArrayElementAtIndex(entries.arraySize - 1);
+            el.FindPropertyRelative("Name").stringValue = colorName;
+            el.FindPropertyRelative("Color").colorValue = color;
+            so.ApplyModifiedProperties();
+
+            EditorUtility.SetDirty(palette);
+            AssetDatabase.SaveAssets();
+
+            RefreshPalettes();
+            RebuildPalette();
+            return (true, null);
         }
 
         #endregion
@@ -555,7 +615,8 @@ namespace TwistedTangle.Editor
             _aiDifficulty.style.minWidth = 140;
             row.Add(_aiDifficulty);
             var copyBtn = MakeButton("1 · Copy prompt", CopyAiPrompt, "tt-btn--primary");
-            copyBtn.tooltip = "Copies a ready prompt (rules + your grid/difficulty + the JSON shape). Paste it into any AI chat.";
+            copyBtn.tooltip =
+                "Copies a ready prompt (rules + your grid/difficulty + the JSON shape). Paste it into any AI chat.";
             row.Add(copyBtn);
             s.Add(row);
 
@@ -578,7 +639,8 @@ namespace TwistedTangle.Editor
             actions.Add(importBtn);
             s.Add(actions);
 
-            _aiStatus = new Label("Paste the prompt into any AI chat, then paste its JSON back. Uses the grid/time set above.");
+            _aiStatus = new Label(
+                "Paste the prompt into any AI chat, then paste its JSON back. Uses the grid/time set above.");
             s.Add(_aiStatus);
             return s;
         }
@@ -617,7 +679,7 @@ namespace TwistedTangle.Editor
         {
             RefreshBaseTypes();
             RefreshEntityDefinitions();
-            RebuildToolbar();   // also rebuilds the AI entity toggles
+            RebuildToolbar(); // also rebuilds the AI entity toggles
             RebuildPalette();
         }
 
@@ -628,8 +690,10 @@ namespace TwistedTangle.Editor
             GridHeight = Mathf.Max(1, _heightField.value),
             TimeSeconds = Mathf.Max(1, _timeField.value),
             Difficulty = _aiDifficulty?.value ?? "Medium",
-            EntityTypeIds = _entityDefs.Where(d => !_aiExcludedTypeIds.Contains(d.TypeId)).Select(d => d.TypeId).ToList(),
-            NailedTypeIds = _entityDefs.Where(d => IsNailed(d) && !_aiExcludedTypeIds.Contains(d.TypeId)).Select(d => d.TypeId).ToList(),
+            EntityTypeIds = _entityDefs.Where(d => !_aiExcludedTypeIds.Contains(d.TypeId)).Select(d => d.TypeId)
+                .ToList(),
+            NailedTypeIds = _entityDefs.Where(d => IsNailed(d) && !_aiExcludedTypeIds.Contains(d.TypeId))
+                .Select(d => d.TypeId).ToList(),
             PaletteHex = _swatches.Select(sw => "#" + ColorUtility.ToHtmlStringRGB(sw.color)).ToList()
         };
 
@@ -905,6 +969,13 @@ namespace TwistedTangle.Editor
             {
                 _paletteContainer.Add(MakeButton("Create Default Palette", CreateDefaultPalette, "tt-btn--primary"));
             }
+
+            var addBtn = new Button { text = "+ Add Color to Palette" };
+            addBtn.AddToClassList("tt-btn");
+            addBtn.clicked += () => UnityEditor.PopupWindow.Show(
+                addBtn.worldBound,
+                new PaletteColorPopup(new List<ColorPaletteSO>(_paletteAssets), _ropeColor, TryAddPaletteColor));
+            _paletteContainer.Add(addBtn);
 
             var actionRow = MakeRow();
             actionRow.Add(MakeButton("Finish Rope", FinishRope, "tt-btn--save"));
