@@ -55,6 +55,7 @@ namespace TwistedTangle.Editor
         private readonly Dictionary<string, EntityDefinitionSO> _entityLookup = new();
         private readonly List<(string name, Color color)> _swatches = new();
         private readonly List<ColorPaletteSO> _paletteAssets = new();
+        private int _selectedPaletteIndex = 0;
 
         // --- ui ---
         private IntegerField _levelIdField, _widthField, _heightField, _timeField;
@@ -932,28 +933,42 @@ namespace TwistedTangle.Editor
         /// <summary>Rope mode — palette swatches and finish/cancel actions.</summary>
         private void BuildRopePalette()
         {
-            if (_swatches.Count > 0)
+            if (_paletteAssets.Count == 0)
             {
+                _paletteContainer.Add(MakeButton("Create Default Palette", CreateDefaultPalette, "tt-btn--primary"));
+            }
+            else
+            {
+                _selectedPaletteIndex = Mathf.Clamp(_selectedPaletteIndex, 0, _paletteAssets.Count - 1);
+                var paletteNames = _paletteAssets.Select(p => p.DisplayName).ToList();
+                var selector = new DropdownField("Palette", paletteNames, _selectedPaletteIndex);
+                selector.AddToClassList("tt-palette-selector");
+                selector.RegisterValueChangedCallback(e =>
+                {
+                    _selectedPaletteIndex = paletteNames.IndexOf(e.newValue);
+                    RebuildPalette();
+                });
+                var selectorRow = MakeRow();
+                selectorRow.Add(selector);
+                _paletteContainer.Add(selectorRow);
+
+                var palette = _paletteAssets[Mathf.Clamp(_selectedPaletteIndex, 0, _paletteAssets.Count - 1)];
                 var swRow = MakeRow();
                 swRow.AddToClassList("tt-row--wrap");
-                foreach (var (name, color) in _swatches)
+                foreach (var entry in palette.Entries)
                 {
+                    var color = entry.Color;
                     var b = new Button(() =>
                     {
                         _ropeColor = color;
                         if (_previewRope != null) _previewRope.Tint = color;
                         RefreshCanvas();
-                    }) { tooltip = name };
+                    }) { tooltip = entry.Name };
                     b.AddToClassList("tt-swatch");
                     b.style.backgroundColor = color;
                     swRow.Add(b);
                 }
-
                 _paletteContainer.Add(swRow);
-            }
-            else
-            {
-                _paletteContainer.Add(MakeButton("Create Default Palette", CreateDefaultPalette, "tt-btn--primary"));
             }
 
             var addBtn = new Button { text = "+ Add Color to Palette" };

@@ -161,6 +161,23 @@
 .tt-difficulty--Medium { color: #E0B341; -unity-font-style: bold; }
 .tt-difficulty--Hard { color: #E55353; -unity-font-style: bold; }
 
+/* Palette selector dropdown in rope mode — sits inline, doesn't stretch full-width */
+.tt-palette-selector {
+    flex-grow: 0;
+    margin-top: 2px;
+    margin-bottom: 4px;
+}
+
+.tt-palette-selector .unity-base-field__label {
+    min-width: 0;
+    width: 44px;
+}
+
+.tt-palette-selector .unity-dropdown-field__input {
+    min-width: 160px;
+    max-width: 240px;
+}
+
 /* Key Bindings: a base type's sub-types, set apart as a nested, secondary group.
    Cyan left accent (vs. the orange section accent) + indent + faint fill read as "child of". */
 .tt-subgroup {

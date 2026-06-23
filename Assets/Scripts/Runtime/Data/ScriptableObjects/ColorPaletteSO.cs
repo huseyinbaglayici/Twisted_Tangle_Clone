@@ -23,12 +23,16 @@ namespace TwistedTangle.Runtime.Data.ScriptableObjects
             public Material Variant;
         }
 
+        [Tooltip("Display name shown in the Level Creator palette selector. Defaults to the asset file name if left empty.")]
+        [SerializeField] private string displayName;
+
         [Tooltip("The ToonyColorsPro (or any) material used as the parent/template. Generated entries " +
                  "become variants of this, overriding only the color, so the look stays in one place.")]
         [SerializeField] private Material variantTemplate;
 
         [SerializeField] private List<Entry> entries = new();
 
+        public string DisplayName => string.IsNullOrWhiteSpace(displayName) ? name : displayName;
         public Material VariantTemplate => variantTemplate;
         public IReadOnlyList<Entry> Entries => entries;
     }

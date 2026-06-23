@@ -56,7 +56,7 @@ namespace TwistedTangle.Editor
             title.AddToClassList("tt-section__header");
             root.Add(title);
 
-            var choices = _palettes.Select(p => p.name).ToList();
+            var choices = _palettes.Select(p => p.DisplayName).ToList();
             choices.Add(NewPaletteChoice);
             _paletteDropdown = new DropdownField("Palette", choices, _palettes.Count > 0 ? 0 : choices.Count - 1)
             {
