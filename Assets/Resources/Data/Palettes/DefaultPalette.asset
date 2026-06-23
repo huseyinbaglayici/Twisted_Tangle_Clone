@@ -17,25 +17,25 @@ MonoBehaviour:
   entries:
   - Name: Red
     Color: {r: 0.9, g: 0.2, b: 0.2, a: 1}
-    Variant: {fileID: 2100000, guid: 1736eeb89f5d21d41917bbb4ea92bd44, type: 2}
+    Variant: {fileID: 2100000, guid: e64cf498233881d47af9efd127b00477, type: 2}
   - Name: Orange
     Color: {r: 1, g: 0.55, b: 0, a: 1}
-    Variant: {fileID: 2100000, guid: b8dd2e0a5ff7e7e42a653d872dbac7ec, type: 2}
+    Variant: {fileID: 2100000, guid: 08cf424fff6dc424db84ba43f93e6b4b, type: 2}
   - Name: Yellow
     Color: {r: 0.95, g: 0.85, b: 0.1, a: 1}
-    Variant: {fileID: 2100000, guid: a734e1d5aa388cf4881c0d08596e5963, type: 2}
+    Variant: {fileID: 2100000, guid: 1c2168279f39e9840ba76e821f9ac113, type: 2}
   - Name: Green
     Color: {r: 0.3, g: 0.75, b: 0.35, a: 1}
-    Variant: {fileID: 2100000, guid: 37cb91a96618b0247aab7cfe5019c423, type: 2}
+    Variant: {fileID: 2100000, guid: 6aa7bc3d64eea484b98c6be8e4e5376a, type: 2}
   - Name: Blue
     Color: {r: 0.2, g: 0.55, b: 0.95, a: 1}
-    Variant: {fileID: 2100000, guid: cd25cd4a58a7d594a9dc133470323e42, type: 2}
+    Variant: {fileID: 2100000, guid: c737ca78a51adaf47aaa7d56f3ed9736, type: 2}
   - Name: Purple
     Color: {r: 0.55, g: 0.25, b: 0.8, a: 1}
-    Variant: {fileID: 2100000, guid: 76a2ec9226ac8134fa9ad718610a66a5, type: 2}
+    Variant: {fileID: 2100000, guid: 76b760a1df0740f40868a91541a4d9a5, type: 2}
   - Name: Pink
     Color: {r: 0.95, g: 0.4, b: 0.7, a: 1}
-    Variant: {fileID: 2100000, guid: 7329c388b44631f45b52da0206b601bd, type: 2}
+    Variant: {fileID: 2100000, guid: 7d297131a5edd214f9a5ada308d1001c, type: 2}
   - Name: White
     Color: {r: 1, g: 1, b: 1, a: 1}
-    Variant: {fileID: 2100000, guid: 18130327ab389f643a71dbab08be26ce, type: 2}
+    Variant: {fileID: 2100000, guid: f3f29bc458690a040b384c8b743eafa5, type: 2}

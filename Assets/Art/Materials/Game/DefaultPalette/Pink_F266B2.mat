@@ -7,7 +7,7 @@ Material:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: DefaultPalette_F266B2
+  m_Name: Pink_F266B2
   m_Shader: {fileID: -6465566751694194690, guid: edd7abf643fa4bc4e8561d4c280c97cf,
     type: 3}
   m_Parent: {fileID: 2100000, guid: b769fd7691bd3774cb0b237e8765cf43, type: 2}

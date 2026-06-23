@@ -20,14 +20,14 @@ namespace TwistedTangle.Editor.Materials
             _factory = factory;
         }
 
-        /// <summary>Returns the saved variant asset for (template, color), creating it if missing.</summary>
-        public Material GetOrCreate(Material template, Color color)
+        /// <summary>Returns the saved variant asset for (template, colorName, color), creating it if missing.</summary>
+        public Material GetOrCreate(Material template, string colorName, Color color)
         {
             if (template == null) return null;
             EnsureFolder(_folder);
 
-            string paletteName = _folder.Contains('/') ? _folder[(_folder.LastIndexOf('/') + 1)..] : _folder;
-            string path = $"{_folder}/{paletteName}_{ColorUtility.ToHtmlStringRGB(color)}.mat";
+            string safeName = string.IsNullOrWhiteSpace(colorName) ? "Color" : colorName.Trim().Replace(' ', '_');
+            string path = $"{_folder}/{safeName}_{ColorUtility.ToHtmlStringRGB(color)}.mat";
             var existing = AssetDatabase.LoadAssetAtPath<Material>(path);
             if (existing != null)
             {

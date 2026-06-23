@@ -51,8 +51,9 @@ namespace TwistedTangle.Editor.Inspectors
             for (int i = 0; i < entries.arraySize; i++)
             {
                 var entry = entries.GetArrayElementAtIndex(i);
+                string colorName = entry.FindPropertyRelative("Name").stringValue;
                 Color color = entry.FindPropertyRelative("Color").colorValue;
-                var variant = repository.GetOrCreate(template, color);
+                var variant = repository.GetOrCreate(template, colorName, color);
                 entry.FindPropertyRelative("Variant").objectReferenceValue = variant;
                 if (variant != null) created++;
             }

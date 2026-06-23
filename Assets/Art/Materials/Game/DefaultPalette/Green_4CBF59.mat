@@ -7,7 +7,7 @@ Material:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: DefaultPalette_FFFFFF
+  m_Name: Green_4CBF59
   m_Shader: {fileID: -6465566751694194690, guid: edd7abf643fa4bc4e8561d4c280c97cf,
     type: 3}
   m_Parent: {fileID: 2100000, guid: b769fd7691bd3774cb0b237e8765cf43, type: 2}
@@ -32,6 +32,6 @@ Material:
     m_Ints: []
     m_Floats: []
     m_Colors:
-    - _BaseColor: {r: 1, g: 1, b: 1, a: 1}
+    - _BaseColor: {r: 0.3, g: 0.75, b: 0.35, a: 1}
   m_BuildTextureStacks: []
   m_AllowLocking: 1
