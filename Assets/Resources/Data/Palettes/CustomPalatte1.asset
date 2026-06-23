@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 103be95983ba8904f894e2fd6153c486, type: 3}
+  m_Name: CustomPalatte1
+  m_EditorClassIdentifier: 
+  displayName: 
+  variantTemplate: {fileID: 2100000, guid: b769fd7691bd3774cb0b237e8765cf43, type: 2}
+  entries:
+  - Name: CYAN
+    Color: {r: 0, g: 0.9150943, b: 0.8613863, a: 1}
+    Variant: {fileID: 2100000, guid: 108daf6c960d627478455414bf73fd5d, type: 2}
+  - Name: Purple
+    Color: {r: 0.7063372, g: 0, b: 0.8962264, a: 1}
+    Variant: {fileID: 2100000, guid: 5753a9da6a729d042a8adf879751a7b4, type: 2}
