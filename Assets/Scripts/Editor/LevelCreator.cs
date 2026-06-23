@@ -1188,6 +1188,19 @@ namespace TwistedTangle.Editor
 
             // Skip if same cell as the last waypoint (avoids zero-length segments).
             if (_previewRope.Path.Count > 0 && _previewRope.Path[^1].PegCoord == coord) return;
+
+            // Enforce reach limit: consecutive waypoints must be within MaxRopeReach (Chebyshev).
+            if (_previewRope.Path.Count > 0)
+            {
+                Vector2Int last = _previewRope.Path[^1].PegCoord;
+                int maxReach = new SolveOptions().MaxRopeReach;
+                if (Mathf.Max(Mathf.Abs(coord.x - last.x), Mathf.Abs(coord.y - last.y)) > maxReach)
+                {
+                    ShowNotification(new GUIContent($"Too far — max reach is {maxReach}."));
+                    return;
+                }
+            }
+
             _previewRope.Path.Add(new RopeWaypoint(coord));
         }
 
