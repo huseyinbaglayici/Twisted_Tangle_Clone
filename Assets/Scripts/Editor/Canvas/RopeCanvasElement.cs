@@ -295,6 +295,19 @@ namespace TwistedTangle.Editor.Canvas
 
             DrawDot(p, ToPx(CrossingSolver.Center(rope.Path[0].PegCoord)), r, color);
             DrawDot(p, ToPx(CrossingSolver.Center(rope.Path[^1].PegCoord)), r, color);
+
+            // Hollow ring at each bend point.
+            float br = RopeWidth * 0.45f;
+            for (int i = 1; i < rope.Path.Count - 1; i++)
+            {
+                if (!rope.Path[i].IsBendPoint) continue;
+                Vector2 c = ToPx(CrossingSolver.Center(rope.Path[i].PegCoord));
+                p.lineWidth = 2f;
+                p.strokeColor = new Color(color.r, color.g, color.b, 0.85f);
+                p.BeginPath();
+                p.Arc(c, br, Angle.Degrees(0f), Angle.Degrees(360f));
+                p.Stroke();
+            }
         }
 
         private void DrawPreview(Painter2D p)
@@ -318,8 +331,21 @@ namespace TwistedTangle.Editor.Canvas
             }
 
             foreach (var wp in PreviewRope.Path)
-                DrawDot(p, ToPx(CrossingSolver.Center(wp.PegCoord)), RopeWidth * 0.7f,
-                    new Color(1f, 1f, 1f, 0.9f));
+            {
+                Vector2 c = ToPx(CrossingSolver.Center(wp.PegCoord));
+                if (wp.IsBendPoint)
+                {
+                    p.lineWidth = 2f;
+                    p.strokeColor = new Color(1f, 0.9f, 0.2f, 0.9f);
+                    p.BeginPath();
+                    p.Arc(c, RopeWidth * 0.5f, Angle.Degrees(0f), Angle.Degrees(360f));
+                    p.Stroke();
+                }
+                else
+                {
+                    DrawDot(p, c, RopeWidth * 0.7f, new Color(1f, 1f, 1f, 0.9f));
+                }
+            }
         }
 
         private void DrawCrossingMarkers(Painter2D p)

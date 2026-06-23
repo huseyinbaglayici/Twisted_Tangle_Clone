@@ -94,13 +94,17 @@ namespace TwistedTangle.Editor.Validation
 
                 for (int i = 0; i < rope.Path.Count; i++)
                 {
-                    var coord = rope.Path[i].PegCoord;
-                    usedEntities.Add(coord);
+                    var wp = rope.Path[i];
+                    var coord = wp.PegCoord;
 
-                    if (!entityCells.Contains(coord))
+                    if (!wp.IsBendPoint)
                     {
-                        string where = i == 0 || i == rope.Path.Count - 1 ? "endpoint" : "waypoint";
-                        report.Errors.Add($"Rope {rope.RopeId} {where} at {coord} is not on an entity.");
+                        usedEntities.Add(coord);
+                        if (!entityCells.Contains(coord))
+                        {
+                            string where = i == 0 || i == rope.Path.Count - 1 ? "endpoint" : "waypoint";
+                            report.Errors.Add($"Rope {rope.RopeId} {where} at {coord} is not on an entity.");
+                        }
                     }
 
                     if (i > 0 && rope.Path[i - 1].PegCoord == coord)

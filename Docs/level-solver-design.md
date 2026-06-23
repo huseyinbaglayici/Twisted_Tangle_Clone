@@ -25,9 +25,10 @@ treated as a **straight segment** between them. The puzzle is solved when **no t
 - A pin may belong to several ropes (an "octopus" pin; degree is small in practice).
 - `pinA`/`pinB` is **just a label** (the rope's first/last authored waypoint). The two ends are symmetric —
   the solver treats them identically. We reason **rope-centric**: a rope is solved when it crosses nothing.
-- A rope is stored as a polyline (`RopeData.Path`) whose middle waypoints describe an initial visual wrap.
-  The solver uses only the **two endpoints** (straight edge); middle waypoints are ignored (**assumption A**,
-  revisit only if wraps ever affect play).
+- A rope is stored as a polyline (`RopeData.Path`) whose middle waypoints describe its authored path
+  (wrap pins or free bend points). The solver uses **all consecutive waypoint segments** for crossing
+  detection. Only the two endpoint pins are movable; bend points and middle pins stay fixed during the
+  search.
 
 ### 1.2 Moving a pin
 A move grabs one pin and drops it on an **empty hole**, subject to two hard rules and one soft preference:

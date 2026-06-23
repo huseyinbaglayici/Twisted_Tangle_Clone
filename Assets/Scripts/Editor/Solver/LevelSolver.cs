@@ -93,6 +93,19 @@ namespace TwistedTangle.Editor.Solver
             if (edges.Count == 0) { result.Solvable = true; result.Moves = 0; return result; }
             int nodeCount = nodeCoords.Count;
 
+            // --- all rope segments for crossing detection (bend waypoints included) ---------------
+            var segRopeIdx = new List<int>();
+            var segWpA     = new List<int>();
+            var segWpB     = new List<int>();
+            for (int ri = 0; ri < level.Ropes.Count; ri++)
+            {
+                var rope = level.Ropes[ri];
+                if (rope?.Path == null || rope.Path.Count < 2) continue;
+                for (int si = 0; si < rope.Path.Count - 1; si++)
+                { segRopeIdx.Add(ri); segWpA.Add(si); segWpB.Add(si + 1); }
+            }
+            int segCount = segRopeIdx.Count;
+
             // Movable = endpoint pins the designer did NOT lock. movableOf[node] = slot index, or -1.
             var movableOf = new int[nodeCount];
             var movableNodes = new List<int>();
@@ -157,39 +170,56 @@ namespace TwistedTangle.Editor.Solver
                 return true;
             }
 
-            bool EdgesShareNode(int i, int j) =>
-                edges[i].a == edges[j].a || edges[i].a == edges[j].b ||
-                edges[i].b == edges[j].a || edges[i].b == edges[j].b;
-
-            bool Crosses(int[] state, int i, int j)
+            // World-center of a waypoint. Only endpoint waypoints (first/last) can be movable;
+            // bend points and middle pins stay at their authored grid position.
+            Vector2 WaypointPos(int[] st, int ropeIdx, int wpIdx)
             {
-                Vector2 p1 = Center(NodeCell(state, edges[i].a), width);
-                Vector2 p2 = Center(NodeCell(state, edges[i].b), width);
-                Vector2 q1 = Center(NodeCell(state, edges[j].a), width);
-                Vector2 q2 = Center(NodeCell(state, edges[j].b), width);
-                return CrossingSolver.SegmentsIntersect(p1, p2, q1, q2, out _, out _, out _);
+                var rope = level.Ropes[ropeIdx];
+                var coord = rope.Path[wpIdx].PegCoord;
+                bool isEndpoint = wpIdx == 0 || wpIdx == rope.Path.Count - 1;
+                if (isEndpoint && nodeIndex.TryGetValue(coord, out int nd) && movableOf[nd] >= 0)
+                    return Center(st[movableOf[nd]], width);
+                return Center(Encode(coord, width), width);
             }
 
-            int CountCrossings(int[] state)
+            // Two segments share a waypoint cell → they meet at a common pin, not a crossing.
+            bool SegsShareCell(int si, int sj)
+            {
+                var pi = level.Ropes[segRopeIdx[si]].Path;
+                var pj = level.Ropes[segRopeIdx[sj]].Path;
+                Vector2Int a0 = pi[segWpA[si]].PegCoord, a1 = pi[segWpB[si]].PegCoord;
+                Vector2Int b0 = pj[segWpA[sj]].PegCoord, b1 = pj[segWpB[sj]].PegCoord;
+                return a0 == b0 || a0 == b1 || a1 == b0 || a1 == b1;
+            }
+
+            bool SegsCross(int[] st, int si, int sj) =>
+                CrossingSolver.SegmentsIntersect(
+                    WaypointPos(st, segRopeIdx[si], segWpA[si]),
+                    WaypointPos(st, segRopeIdx[si], segWpB[si]),
+                    WaypointPos(st, segRopeIdx[sj], segWpA[sj]),
+                    WaypointPos(st, segRopeIdx[sj], segWpB[sj]),
+                    out _, out _, out _);
+
+            int CountCrossings(int[] st)
             {
                 int count = 0;
-                for (int i = 0; i < edges.Count; i++)
-                    for (int j = i + 1; j < edges.Count; j++)
-                        if (!EdgesShareNode(i, j) && Crosses(state, i, j)) count++;
+                for (int i = 0; i < segCount; i++)
+                    for (int j = i + 1; j < segCount; j++)
+                        if (segRopeIdx[i] != segRopeIdx[j] && !SegsShareCell(i, j) && SegsCross(st, i, j))
+                            count++;
                 return count;
             }
 
-            // Movable slots that touch at least one crossing — the only pins worth moving.
-            // Sorted by the pin's top layer (descending) so the search tries the top rope first.
-            List<int> CrossingSlots(int[] state)
+            // Movable slots whose rope has at least one crossing segment.
+            List<int> CrossingSlots(int[] st)
             {
                 var slots = new HashSet<int>();
-                for (int i = 0; i < edges.Count; i++)
-                    for (int j = i + 1; j < edges.Count; j++)
+                for (int i = 0; i < segCount; i++)
+                    for (int j = i + 1; j < segCount; j++)
                     {
-                        if (EdgesShareNode(i, j) || !Crosses(state, i, j)) continue;
-                        AddSlot(slots, edges[i].a); AddSlot(slots, edges[i].b);
-                        AddSlot(slots, edges[j].a); AddSlot(slots, edges[j].b);
+                        if (segRopeIdx[i] == segRopeIdx[j] || SegsShareCell(i, j) || !SegsCross(st, i, j)) continue;
+                        AddRopeSlots(slots, segRopeIdx[i]);
+                        AddRopeSlots(slots, segRopeIdx[j]);
                     }
                 var list = new List<int>(slots);
                 list.Sort((s1, s2) =>
@@ -197,7 +227,14 @@ namespace TwistedTangle.Editor.Solver
                 return list;
             }
 
-            void AddSlot(HashSet<int> slots, int node) { if (movableOf[node] >= 0) slots.Add(movableOf[node]); }
+            void AddRopeSlots(HashSet<int> slots, int ropeIdx)
+            {
+                var rope = level.Ropes[ropeIdx];
+                if (nodeIndex.TryGetValue(rope.Path[0].PegCoord, out int na) && movableOf[na] >= 0)
+                    slots.Add(movableOf[na]);
+                if (nodeIndex.TryGetValue(rope.Path[^1].PegCoord, out int nb) && movableOf[nb] >= 0)
+                    slots.Add(movableOf[nb]);
+            }
 
             // --- best-first (A*-ish) search over movable-pin placements -------------------------
             var start = new int[movableNodes.Count];

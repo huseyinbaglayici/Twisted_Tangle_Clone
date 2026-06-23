@@ -6,19 +6,23 @@ using UnityEngine;
 namespace TwistedTangle.Runtime.Data.ValueObjects
 {
     /// <summary>
-    /// One waypoint of a rope path. Sits on a peg cell (<see cref="PegCoord"/>) and records which
-    /// side of the peg the rope winds around (<see cref="Side"/>) for future wrap authoring.
+    /// One waypoint of a rope path. Either an endpoint/pin waypoint (sits on a peg cell) or a free
+    /// bend point (<see cref="IsBendPoint"/> = true) that shapes the rope's visual path without
+    /// requiring a peg at that cell.
     /// </summary>
     [Serializable]
     public struct RopeWaypoint
     {
         public Vector2Int PegCoord;
         public WindSide Side;
+        /// <summary>When true this waypoint is a free bend point, not tied to a peg.</summary>
+        public bool IsBendPoint;
 
-        public RopeWaypoint(Vector2Int pegCoord, WindSide side = WindSide.None)
+        public RopeWaypoint(Vector2Int pegCoord, WindSide side = WindSide.None, bool isBendPoint = false)
         {
             PegCoord = pegCoord;
             Side = side;
+            IsBendPoint = isBendPoint;
         }
     }
 

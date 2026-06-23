@@ -9,6 +9,7 @@ using TwistedTangle.Editor.Generation;
 using TwistedTangle.Runtime.Data.ScriptableObjects;
 using TwistedTangle.Runtime.Data.ValueObjects;
 using TwistedTangle.Editor.Geometry;
+using TwistedTangle.Runtime.Data.Enums;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -1132,8 +1133,18 @@ namespace TwistedTangle.Editor
 
         private void OnCanvasCellDragged(int x, int y)
         {
-            if (_level == null || !_isPainting) return;
+            if (_level == null) return;
             var coord = new Vector2Int(x, y);
+
+            // Dragging while a rope is in progress extends its path.
+            if (_tool == Tool.Rope && _previewRope != null)
+            {
+                AddRopeWaypoint(coord);
+                RefreshCanvas();
+                return;
+            }
+
+            if (!_isPainting) return;
             if (_tool == Tool.Place) PlaceEntity(coord);
             else if (_tool == Tool.Erase) RemoveEntity(coord);
             else return;
@@ -1177,20 +1188,23 @@ namespace TwistedTangle.Editor
 
         private void AddRopeWaypoint(Vector2Int coord)
         {
-            // Ropes connect entities, so a waypoint must land on one.
-            if (_level.Pegs.FindIndex(p => p.Coordinates == coord) < 0) return;
+            bool isFirstPoint = _previewRope == null;
+            bool hasPeg = _level.Pegs.FindIndex(p => p.Coordinates == coord) >= 0;
 
-            if (_previewRope == null)
+            // First waypoint must anchor on a pin.
+            if (isFirstPoint && !hasPeg) return;
+
+            if (isFirstPoint)
             {
                 int layer = _level.Ropes.Count == 0 ? 0 : _level.Ropes.Max(r => r.Layer) + 1;
                 _previewRope = new RopeData(_nextRopeId, _ropeColor, layer);
             }
 
-            // Skip if same cell as the last waypoint (avoids zero-length segments).
+            // Skip duplicate cell.
             if (_previewRope.Path.Count > 0 && _previewRope.Path[^1].PegCoord == coord) return;
 
-            // Enforce reach limit: consecutive waypoints must be within MaxRopeReach (Chebyshev).
-            if (_previewRope.Path.Count > 0)
+            // Reach check only between two consecutive pin waypoints.
+            if (hasPeg && _previewRope.Path.Count > 0 && !_previewRope.Path[^1].IsBendPoint)
             {
                 Vector2Int last = _previewRope.Path[^1].PegCoord;
                 int maxReach = new SolveOptions().MaxRopeReach;
@@ -1201,7 +1215,8 @@ namespace TwistedTangle.Editor
                 }
             }
 
-            _previewRope.Path.Add(new RopeWaypoint(coord));
+            // Auto-detect: cell with a pin → pin waypoint; empty cell → bend point.
+            _previewRope.Path.Add(new RopeWaypoint(coord, WindSide.None, !hasPeg));
         }
 
         private void FinishRope()
@@ -1209,6 +1224,11 @@ namespace TwistedTangle.Editor
             if (_previewRope == null) return;
             if (_previewRope.Path.Count >= 2)
             {
+                if (_previewRope.Path[^1].IsBendPoint)
+                {
+                    ShowNotification(new GUIContent("End the rope on a pin."));
+                    return;
+                }
                 _level.Ropes.Add(_previewRope);
                 _selectedRopeId = _previewRope.RopeId;
                 _nextRopeId++;
