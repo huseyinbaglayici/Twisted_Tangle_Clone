@@ -383,7 +383,7 @@ namespace TwistedTangle.Editor
         /// Returns (false, reason) on bad input; (true, null) on success.
         /// </summary>
         private (bool ok, string error) TryAddPaletteColor(ColorPaletteSO existingPalette,
-            string newPaletteName, string colorName, Color color)
+            string newPaletteName, string colorName, Color color, bool autoGenerate)
         {
             colorName = colorName?.Trim();
             if (string.IsNullOrEmpty(colorName)) return (false, "Color name is required.");
@@ -413,8 +413,16 @@ namespace TwistedTangle.Editor
             var el = entries.GetArrayElementAtIndex(entries.arraySize - 1);
             el.FindPropertyRelative("Name").stringValue = colorName;
             el.FindPropertyRelative("Color").colorValue = color;
-            so.ApplyModifiedProperties();
 
+            if (autoGenerate && palette.VariantTemplate != null)
+            {
+                var repo = new TwistedTangle.Editor.Materials.MaterialVariantRepository(
+                    "Assets/Art/Materials/Game", new TwistedTangle.Editor.Materials.MaterialVariantFactory());
+                var variant = repo.GetOrCreate(palette.VariantTemplate, color);
+                el.FindPropertyRelative("Variant").objectReferenceValue = variant;
+            }
+
+            so.ApplyModifiedProperties();
             EditorUtility.SetDirty(palette);
             AssetDatabase.SaveAssets();
 

@@ -20,24 +20,25 @@ namespace TwistedTangle.Editor
 
         private readonly List<ColorPaletteSO> _palettes;
         private readonly Color _initialColor;
-        // (existingPalette, newPaletteName, colorName, color) -> (ok, error). existingPalette null = create new.
-        private readonly Func<ColorPaletteSO, string, string, Color, (bool ok, string error)> _onSubmit;
+        // (existingPalette, newPaletteName, colorName, color, autoGenerate) -> (ok, error). existingPalette null = create new.
+        private readonly Func<ColorPaletteSO, string, string, Color, bool, (bool ok, string error)> _onSubmit;
 
         private DropdownField _paletteDropdown;
         private TextField _newPaletteName;
         private TextField _colorName;
         private UnityEditor.UIElements.ColorField _colorField;
+        private Toggle _autoGenerate;
         private HelpBox _error;
 
         public PaletteColorPopup(List<ColorPaletteSO> palettes, Color initialColor,
-            Func<ColorPaletteSO, string, string, Color, (bool ok, string error)> onSubmit)
+            Func<ColorPaletteSO, string, string, Color, bool, (bool ok, string error)> onSubmit)
         {
             _palettes = palettes ?? new List<ColorPaletteSO>();
             _initialColor = initialColor;
             _onSubmit = onSubmit;
         }
 
-        public override Vector2 GetWindowSize() => new Vector2(320, 240);
+        public override Vector2 GetWindowSize() => new Vector2(320, 260);
 
         public override void OnGUI(Rect rect) { }
 
@@ -73,6 +74,21 @@ namespace TwistedTangle.Editor
             _colorField = new UnityEditor.UIElements.ColorField("Color") { value = _initialColor };
             root.Add(_colorField);
 
+            _autoGenerate = new Toggle("Auto-generate variant")
+            {
+                value = true,
+                tooltip = "Runs Generate Material Variants for the new color immediately. Requires Variant Template to be set on the palette."
+            };
+            root.Add(_autoGenerate);
+
+            _paletteDropdown.RegisterValueChangedCallback(_ =>
+            {
+                UpdateNewPaletteVisibility();
+                UpdateAutoGenerateAvailability();
+            });
+            UpdateNewPaletteVisibility();
+            UpdateAutoGenerateAvailability();
+
             _error = new HelpBox(string.Empty, HelpBoxMessageType.Error) { style = { display = DisplayStyle.None } };
             root.Add(_error);
 
@@ -80,9 +96,6 @@ namespace TwistedTangle.Editor
             addBtn.AddToClassList("tt-btn");
             addBtn.AddToClassList("tt-btn--save");
             root.Add(addBtn);
-
-            _paletteDropdown.RegisterValueChangedCallback(_ => UpdateNewPaletteVisibility());
-            UpdateNewPaletteVisibility();
 
             root.RegisterCallback<KeyDownEvent>(e =>
             {
@@ -100,12 +113,22 @@ namespace TwistedTangle.Editor
         private void UpdateNewPaletteVisibility() =>
             _newPaletteName.style.display = IsNewPaletteSelected() ? DisplayStyle.Flex : DisplayStyle.None;
 
+        // Disable auto-generate when creating a new palette (no template assigned yet) or no template on existing one.
+        private void UpdateAutoGenerateAvailability()
+        {
+            bool hasTemplate = !IsNewPaletteSelected() &&
+                               _paletteDropdown.index < _palettes.Count &&
+                               _palettes[_paletteDropdown.index].VariantTemplate != null;
+            _autoGenerate.SetEnabled(hasTemplate);
+            if (!hasTemplate) _autoGenerate.value = false;
+        }
+
         private void Submit()
         {
             ColorPaletteSO existing = IsNewPaletteSelected() ? null : _palettes[_paletteDropdown.index];
             string newPaletteName = IsNewPaletteSelected() ? _newPaletteName.value : null;
 
-            var (ok, error) = _onSubmit(existing, newPaletteName, _colorName.value, _colorField.value);
+            var (ok, error) = _onSubmit(existing, newPaletteName, _colorName.value, _colorField.value, _autoGenerate.value);
             if (ok)
             {
                 editorWindow.Close();
