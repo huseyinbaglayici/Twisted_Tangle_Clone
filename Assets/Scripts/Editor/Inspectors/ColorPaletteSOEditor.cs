@@ -14,7 +14,7 @@ namespace TwistedTangle.Editor.Inspectors
     [CustomEditor(typeof(ColorPaletteSO))]
     public class ColorPaletteSOEditor : UnityEditor.Editor
     {
-        private const string MaterialsFolder = "Assets/Art/Materials/Game";
+        private const string MaterialsBasePath = "Assets/Art/Materials/Game";
 
         public override void OnInspectorGUI()
         {
@@ -43,7 +43,8 @@ namespace TwistedTangle.Editor.Inspectors
             if (template == null) return;
 
             // Factory builds the material; repository decides where/how it's stored.
-            var repository = new MaterialVariantRepository(MaterialsFolder, new MaterialVariantFactory());
+            string folder = $"{MaterialsBasePath}/{((ColorPaletteSO)target).name}";
+            var repository = new MaterialVariantRepository(folder, new MaterialVariantFactory());
             var entries = so.FindProperty("entries");
 
             int created = 0;
@@ -60,7 +61,7 @@ namespace TwistedTangle.Editor.Inspectors
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
             EditorUtility.DisplayDialog("Material Variants",
-                $"Generated/updated {created} variant(s) in {MaterialsFolder}.", "OK");
+                $"Generated/updated {created} variant(s) in {folder}.", "OK");
         }
     }
 }

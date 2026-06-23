@@ -417,7 +417,7 @@ namespace TwistedTangle.Editor
             if (autoGenerate && palette.VariantTemplate != null)
             {
                 var repo = new TwistedTangle.Editor.Materials.MaterialVariantRepository(
-                    "Assets/Art/Materials/Game", new TwistedTangle.Editor.Materials.MaterialVariantFactory());
+                    $"Assets/Art/Materials/Game/{palette.name}", new TwistedTangle.Editor.Materials.MaterialVariantFactory());
                 var variant = repo.GetOrCreate(palette.VariantTemplate, color);
                 el.FindPropertyRelative("Variant").objectReferenceValue = variant;
             }

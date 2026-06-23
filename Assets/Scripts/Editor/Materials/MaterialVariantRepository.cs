@@ -26,7 +26,8 @@ namespace TwistedTangle.Editor.Materials
             if (template == null) return null;
             EnsureFolder(_folder);
 
-            string path = $"{_folder}/{template.name}_{ColorUtility.ToHtmlStringRGB(color)}.mat";
+            string paletteName = _folder.Contains('/') ? _folder[(_folder.LastIndexOf('/') + 1)..] : _folder;
+            string path = $"{_folder}/{paletteName}_{ColorUtility.ToHtmlStringRGB(color)}.mat";
             var existing = AssetDatabase.LoadAssetAtPath<Material>(path);
             if (existing != null)
             {
