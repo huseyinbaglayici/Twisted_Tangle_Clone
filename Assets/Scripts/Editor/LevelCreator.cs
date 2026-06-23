@@ -929,22 +929,9 @@ namespace TwistedTangle.Editor
             _paletteContainer.Add(row);
         }
 
-        /// <summary>Rope mode — color picker, palette swatches, and finish/cancel actions.</summary>
+        /// <summary>Rope mode — palette swatches and finish/cancel actions.</summary>
         private void BuildRopePalette()
         {
-            var colorRow = MakeRow();
-            colorRow.AddToClassList("tt-row--wrap");
-            var colorField = new UnityEditor.UIElements.ColorField("Rope color") { value = _ropeColor };
-            colorField.style.minWidth = 170;
-            colorField.RegisterValueChangedCallback(e =>
-            {
-                _ropeColor = e.newValue;
-                if (_previewRope != null) _previewRope.Tint = _ropeColor;
-                RefreshCanvas();
-            });
-            colorRow.Add(colorField);
-            _paletteContainer.Add(colorRow);
-
             if (_swatches.Count > 0)
             {
                 var swRow = MakeRow();
@@ -954,7 +941,6 @@ namespace TwistedTangle.Editor
                     var b = new Button(() =>
                     {
                         _ropeColor = color;
-                        colorField.value = color;
                         if (_previewRope != null) _previewRope.Tint = color;
                         RefreshCanvas();
                     }) { tooltip = name };
