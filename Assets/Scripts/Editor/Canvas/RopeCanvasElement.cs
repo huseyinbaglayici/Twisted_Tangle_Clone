@@ -219,19 +219,15 @@ namespace TwistedTangle.Editor.Canvas
         private Dictionary<(int rope, int seg), List<float>> BuildGapMap()
         {
             var gaps = new Dictionary<(int, int), List<float>>();
-            var overrides = new HashSet<CrossingOverride>(Level.CrossingOverrides);
             var crossings = CrossingSolver.FindCrossings(Level.Ropes);
+            // Same over/under the solver sees: auto-alternated braids + manual flip exceptions.
+            var aOver = CrossingSolver.ResolveOverUnder(Level.Ropes, crossings, Level.CrossingOverrides);
 
-            foreach (var c in crossings)
+            for (int i = 0; i < crossings.Count; i++)
             {
-                var ropeA = Level.Ropes[c.RopeIndexA];
-                var ropeB = Level.Ropes[c.RopeIndexB];
-                bool overridden = overrides.Contains(
-                    CrossingOverride.Create(c.RopeIdA, c.SegA, c.RopeIdB, c.SegB));
-                bool aOver = CrossingSolver.IsAOver(ropeA, ropeB, overridden);
-
-                if (aOver) AddGap(gaps, c.RopeIndexB, c.SegB, c.TB);
-                else AddGap(gaps, c.RopeIndexA, c.SegA, c.TA);
+                var c = crossings[i];
+                if (aOver[i]) AddGap(gaps, c.RopeIndexB, c.SegB, c.TB);  // B goes under
+                else AddGap(gaps, c.RopeIndexA, c.SegA, c.TA);           // A goes under
             }
 
             return gaps;

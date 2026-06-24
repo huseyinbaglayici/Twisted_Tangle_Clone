@@ -19,6 +19,8 @@ namespace TwistedTangle.Editor.Validation
         public int EntityCount;
         public int RopeCount;
         public int CrossingCount;
+        public int TangleResidual;   // crossings left after peeling top ropes (0 = separable)
+        public bool Separable;       // true => the tangle can be lifted apart (TangleResidual == 0)
         public int ColorCount;
         public int OverrideCount;
         public float TotalPathLength;
@@ -129,8 +131,14 @@ namespace TwistedTangle.Editor.Validation
                 if (rope is { Path: { Count: >= 2 } } && !ropesWithCrossing.Contains(rope.RopeId))
                     report.Warnings.Add($"Rope {rope.RopeId} never crosses another rope (trivial).");
 
+            // Peelability: how tangled the level really is once over/under is taken into account.
+            var aOver = CrossingSolver.ResolveOverUnder(level.Ropes, crossings, level.CrossingOverrides);
+            int residual = CrossingSolver.PeelResidual(level.Ropes, crossings, aOver);
+
             // --- metrics + difficulty ----------------------------------------------------------
             report.Metrics = BuildMetrics(level, crossings.Count);
+            report.Metrics.TangleResidual = residual;
+            report.Metrics.Separable = residual == 0;
             return report;
         }
 

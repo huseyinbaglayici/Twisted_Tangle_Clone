@@ -62,6 +62,9 @@ namespace TwistedTangle.Editor
         private IntegerField _levelIdField, _widthField, _heightField, _timeField;
         private RopeCanvasElement _canvas;
 
+        // Max rope reach (Chebyshev) — bounds both authoring (drawing long ropes) and the solver.
+        private const int MaxRopeReach = 3;
+
         private VisualElement _paletteContainer,
             _toolsContainer,
             _ropeListContainer,
@@ -788,7 +791,12 @@ namespace TwistedTangle.Editor
 
             // Nailed/locked pins (entity types tagged "nailed"/"locked") are immovable to the solver.
             var locked = NailedCells();
-            var result = LevelSolver.Solve(_level, new SolveOptions { LockedCells = locked });
+            var result = LevelSolver.Solve(_level, new SolveOptions
+            {
+                LockedCells = locked,
+                MaxRopeReach = MaxRopeReach,
+                CrossingOverrides = new HashSet<CrossingOverride>(_level.CrossingOverrides)
+            });
 
             string headline, cls;
             if (result.Solvable)
@@ -805,7 +813,7 @@ namespace TwistedTangle.Editor
             }
             else
             {
-                headline = "✗ Not solvable within the move budget.";
+                headline = "✗ Not solvable.";
                 cls = "tt-validation__error";
             }
 
@@ -816,6 +824,7 @@ namespace TwistedTangle.Editor
             var metricsRow = MakeRow();
             metricsRow.AddToClassList("tt-row--wrap");
             AddMetric(metricsRow, $"Start crossings: {result.InitialCrossings}");
+            AddMetric(metricsRow, $"Tangle: {result.InitialTangle}");
             AddMetric(metricsRow, $"Moves: {(result.Moves >= 0 ? result.Moves.ToString() : "-")}");
             AddMetric(metricsRow, $"Searched: {result.ExpandedNodes}");
             AddMetric(metricsRow, $"Locked pins: {locked.Count}");
@@ -1082,6 +1091,7 @@ namespace TwistedTangle.Editor
             AddMetric(metricsRow, $"Entities: {m.EntityCount}");
             AddMetric(metricsRow, $"Ropes: {m.RopeCount}");
             AddMetric(metricsRow, $"Crossings: {m.CrossingCount}");
+            AddMetric(metricsRow, $"Tangle: {m.TangleResidual}");
             AddMetric(metricsRow, $"Colors: {m.ColorCount}");
             AddMetric(metricsRow, $"Overrides: {m.OverrideCount}");
             AddMetric(metricsRow, $"Length: {m.TotalPathLength:0.0}");
@@ -1207,10 +1217,9 @@ namespace TwistedTangle.Editor
             if (hasPeg && _previewRope.Path.Count > 0 && !_previewRope.Path[^1].IsBendPoint)
             {
                 Vector2Int last = _previewRope.Path[^1].PegCoord;
-                int maxReach = new SolveOptions().MaxRopeReach;
-                if (Mathf.Max(Mathf.Abs(coord.x - last.x), Mathf.Abs(coord.y - last.y)) > maxReach)
+                if (Mathf.Max(Mathf.Abs(coord.x - last.x), Mathf.Abs(coord.y - last.y)) > MaxRopeReach)
                 {
-                    ShowNotification(new GUIContent($"Too far — max reach is {maxReach}."));
+                    ShowNotification(new GUIContent($"Too far — max reach is {MaxRopeReach}."));
                     return;
                 }
             }
