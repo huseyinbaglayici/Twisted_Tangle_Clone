@@ -473,6 +473,12 @@ namespace TwistedTangle.Editor
             row.Add(MakeButton("Load", () => LoadLevel(_levelIdField.value), "tt-btn--primary"));
             row.Add(MakeButton("Save", SaveCurrentLevel, "tt-btn--save"));
             row.Add(MakeButton("Delete", () => DeleteLevel(_levelIdField.value), "tt-btn--danger"));
+
+            var spacer = new VisualElement();
+            spacer.AddToClassList("tt-spacer");
+            row.Add(spacer);
+            row.Add(MakeButton("Advanced Tools ↗", AdvancedToolsWindow.ShowWindow, null));
+
             s.Add(row);
             return s;
         }

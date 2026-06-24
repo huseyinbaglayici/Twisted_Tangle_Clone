@@ -332,14 +332,12 @@ namespace TwistedTangle.Editor.Solver
                 return list;
             }
 
-            // Peel residual: crossings left after lifting top ropes off (0 = separable/solved).
-            // Optionally collects the tangled-core rope ids that could not be peeled.
-            int TangleResidual(int[] st, HashSet<int> unpeeled = null)
+            // Peel residual for an already-built crossing list (0 = separable).
+            int TangleResidual(List<RopeCrossing> crossings)
             {
-                var crossings = BuildCrossings(st);
                 if (crossings.Count == 0) return 0;
                 var aOver = CrossingSolver.ResolveOverUnder(level.Ropes, crossings, options.CrossingOverrides);
-                return CrossingSolver.PeelResidual(level.Ropes, crossings, aOver, unpeeled);
+                return CrossingSolver.PeelResidual(level.Ropes, crossings, aOver);
             }
 
             // Movable slots: which pins are actually worth moving to resolve crossings?
@@ -400,8 +398,9 @@ namespace TwistedTangle.Editor.Solver
                                  WaypointCell(start, segRopeIdx[si], segWpB[si])))
                     result.OverStretchedRopes++;
 
-            result.InitialCrossings = BuildCrossings(start).Count;
-            result.InitialTangle = TangleResidual(start);
+            var startCrossings = BuildCrossings(start);
+            result.InitialCrossings = startCrossings.Count;
+            result.InitialTangle = TangleResidual(startCrossings);
             if (result.InitialCrossings == 0) { result.Solvable = true; result.Moves = 0; return result; }
             if (movableNodes.Count == 0) return result; // everything locked and still tangled → unsolvable
 
