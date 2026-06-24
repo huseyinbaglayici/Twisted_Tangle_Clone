@@ -90,10 +90,9 @@ namespace TwistedTangle.Editor.Geometry
                 }
             }
 
-            // Pin-crossings: rope A's BODY (an inner waypoint) passes through rope B's anchor pin
-            // (an endpoint). Physically rope A threads over/under the pin rope B is tied to — a real
-            // crossing, even though it is not an interior segment intersection. Over/under is decided
-            // by layer like any other crossing. (Endpoint==endpoint is a shared anchor, not counted.)
+            // Pin-crossings: rope A's inner waypoint (real or virtual) coincides with rope B's endpoint
+            // anchor pin. Even a virtual bend (IsBendPoint=true) routes through that exact cell, so it
+            // is physically blocked by B's pin. Over/under decided by layer like any other crossing.
             for (int i = 0; i < ropes.Count; i++)
             {
                 var a = ropes[i];
@@ -132,6 +131,7 @@ namespace TwistedTangle.Editor.Geometry
                 if (a?.Path == null || a.Path.Count < 3) continue;
                 for (int k = 1; k < a.Path.Count - 1; k++)
                 {
+                    if (a.Path[k].IsBendPoint) continue; // virtual bend — routing-only, not a physical obstacle
                     Vector2 bendPos = Center(a.Path[k].PegCoord);
                     for (int j = 0; j < ropes.Count; j++)
                     {
@@ -172,11 +172,10 @@ namespace TwistedTangle.Editor.Geometry
         /// Per-crossing over/under for a whole tangle, returned index-aligned to <paramref name="crossings"/>
         /// (true = RopeIdA is on top). This is the single source of truth shared by the canvas renderer,
         /// the validator and the solver, so the weave you see is exactly the weave that is solved.
-        ///
-        /// A pair of ropes that cross several times is a braid: the over/under is **auto-alternated**
-        /// (over, under, over…) along the lower-id rope's path, seeded from the layer default at the
-        /// first crossing. This produces real braids with zero manual authoring; a registered
-        /// <see cref="CrossingOverride"/> still flips an individual crossing as an exception.
+        /// Within each rope-pair the crossings alternate: the first (by position along the lower-id rope)
+        /// is seeded by Layer, each subsequent one flips — this produces genuine braid tangles instead of
+        /// always-peelable stacks. A <see cref="CrossingOverride"/> flips a specific crossing as a
+        /// manual exception applied on top of the alternation.
         /// </summary>
         public static bool[] ResolveOverUnder(IReadOnlyList<RopeData> ropes,
             List<RopeCrossing> crossings, ICollection<CrossingOverride> overrides)
@@ -189,40 +188,38 @@ namespace TwistedTangle.Editor.Geometry
             foreach (var r in ropes)
                 if (r != null) ropeById[r.RopeId] = r;
 
-            // Group crossing indices by unordered rope-id pair (lower id first = the "reference" rope).
-            var groups = new Dictionary<(int, int), List<int>>();
+            // Group by unordered rope-id pair; within each group sort along the lower-id rope's path
+            // (seg * big + t) so the alternation follows the weave order physically.
+            var pairGroups = new Dictionary<(int lo, int hi), List<(int crossingIdx, float sortKey)>>();
             for (int c = 0; c < n; c++)
             {
                 var x = crossings[c];
-                var key = x.RopeIdA < x.RopeIdB ? (x.RopeIdA, x.RopeIdB) : (x.RopeIdB, x.RopeIdA);
-                if (!groups.TryGetValue(key, out var list)) groups[key] = list = new List<int>();
-                list.Add(c);
+                int lo = System.Math.Min(x.RopeIdA, x.RopeIdB);
+                int hi = System.Math.Max(x.RopeIdA, x.RopeIdB);
+                var key = (lo, hi);
+                if (!pairGroups.TryGetValue(key, out var list)) pairGroups[key] = list = new List<(int, float)>();
+                float sortKey = x.RopeIdA == lo ? x.SegA * 10000f + x.TA : x.SegB * 10000f + x.TB;
+                list.Add((c, sortKey));
             }
 
-            foreach (var kv in groups)
+            foreach (var kv in pairGroups)
             {
-                int refId = kv.Key.Item1;
-                var list = kv.Value;
+                var group = kv.Value;
+                group.Sort((a, b) => a.sortKey.CompareTo(b.sortKey));
 
-                // Order the pair's crossings as you walk along the reference rope (by segment, then t).
-                list.Sort((c1, c2) =>
-                {
-                    var st1 = RefSegT(crossings[c1], refId);
-                    var st2 = RefSegT(crossings[c2], refId);
-                    int cmp = st1.seg.CompareTo(st2.seg);
-                    return cmp != 0 ? cmp : st1.t.CompareTo(st2.t);
-                });
+                ropeById.TryGetValue(kv.Key.lo, out var rLo);
+                ropeById.TryGetValue(kv.Key.hi, out var rHi);
+                bool loOverHi = IsAOver(rLo, rHi, false);
 
-                bool refOver0 = RefOverByLayer(crossings[list[0]], refId, ropeById);
-                for (int k = 0; k < list.Count; k++)
+                for (int i = 0; i < group.Count; i++)
                 {
-                    int c = list[k];
+                    int c = group[i].crossingIdx;
                     var x = crossings[c];
-                    bool refOver = refOver0 ^ ((k & 1) == 1);          // alternate along the strand
-                    bool val = x.RopeIdA == refId ? refOver : !refOver;
+                    bool thisLoOver = (i % 2 == 0) ? loOverHi : !loOverHi; // alternate per weave order
+                    bool val = x.RopeIdA == kv.Key.lo ? thisLoOver : !thisLoOver;
                     if (overrides != null &&
                         overrides.Contains(CrossingOverride.Create(x.RopeIdA, x.SegA, x.RopeIdB, x.SegB)))
-                        val = !val;                                     // manual exception
+                        val = !val;
                     aOver[c] = val;
                 }
             }
@@ -311,20 +308,6 @@ namespace TwistedTangle.Editor.Geometry
             if (Mathf.Abs(cross) > Eps * Mathf.Sqrt(lenSq)) return false; // not collinear
             u = (g.x * d.x + g.y * d.y) / lenSq;
             return u > Eps && u < 1f - Eps;
-        }
-
-        private static (int seg, float t) RefSegT(RopeCrossing x, int refId) =>
-            x.RopeIdA == refId ? (x.SegA, x.TA) : (x.SegB, x.TB);
-
-        private static bool RefOverByLayer(RopeCrossing x, int refId, Dictionary<int, RopeData> ropeById)
-        {
-            int otherId = x.RopeIdA == refId ? x.RopeIdB : x.RopeIdA;
-            ropeById.TryGetValue(refId, out var refRope);
-            ropeById.TryGetValue(otherId, out var otherRope);
-            if (refRope == null || otherRope == null) return true;
-            return refRope.Layer != otherRope.Layer
-                ? refRope.Layer > otherRope.Layer
-                : refRope.RopeId > otherRope.RopeId;
         }
 
         /// <summary>

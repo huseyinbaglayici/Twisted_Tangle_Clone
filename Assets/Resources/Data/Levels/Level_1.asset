@@ -22,13 +22,13 @@ MonoBehaviour:
   - Coordinates: {x: 2, y: 5}
     TypeId: pin.standart
   - Coordinates: {x: 1, y: 4}
-    TypeId: pin.standart
+    TypeId: pin.nailed
   - Coordinates: {x: 0, y: 4}
     TypeId: pin.standart
   ropes:
   - RopeId: 0
-    Tint: {r: 0.7063372, g: 0, b: 0.8962264, a: 1}
-    Layer: 6
+    Tint: {r: 0, g: 0.9150943, b: 0.8613863, a: 1}
+    Layer: 7
     Path:
     - PegCoord: {x: 0, y: 5}
       Side: 0
@@ -39,9 +39,9 @@ MonoBehaviour:
     - PegCoord: {x: 2, y: 5}
       Side: 0
       IsBendPoint: 0
-  - RopeId: 0
-    Tint: {r: 0, g: 0.9150943, b: 0.8613863, a: 1}
-    Layer: 0
+  - RopeId: 1
+    Tint: {r: 0.7063372, g: 0, b: 0.8962264, a: 1}
+    Layer: 8
     Path:
     - PegCoord: {x: 1, y: 4}
       Side: 0

@@ -1199,8 +1199,22 @@ namespace TwistedTangle.Editor
             else _level.Pegs.Add(new PegData(coord, _selectedEntity.TypeId));
         }
 
-        private void RemoveEntity(Vector2Int coord) =>
+        private void RemoveEntity(Vector2Int coord)
+        {
             _level.Pegs.RemoveAll(p => p.Coordinates == coord);
+            // A rope wrapping a now-deleted peg can no longer wrap → convert to virtual bend.
+            if (_level == null) return;
+            foreach (var rope in _level.Ropes)
+            {
+                if (rope?.Path == null) continue;
+                for (int i = 1; i < rope.Path.Count - 1; i++)
+                {
+                    var wp = rope.Path[i];
+                    if (wp.PegCoord != coord || wp.IsBendPoint) continue;
+                    rope.Path[i] = new RopeWaypoint(wp.PegCoord, wp.Side, true);
+                }
+            }
+        }
 
         private void AddRopeWaypoint(Vector2Int coord)
         {

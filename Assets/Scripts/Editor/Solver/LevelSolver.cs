@@ -340,38 +340,56 @@ namespace TwistedTangle.Editor.Solver
                 return CrossingSolver.PeelResidual(level.Ropes, crossings, aOver);
             }
 
-            // Movable slots: which pins are actually worth moving to resolve crossings?
-            //
-            // Standard seg-seg: either rope's endpoints can change the crossing → add both.
-            // Pin-crossing (TA≈0): A's inner waypoint is fixed — only the SPECIFIC B endpoint
-            //   that is AT the crossing point can resolve it (moving B's other endpoint does nothing).
-            // Bend-on-segment (IsBendOnSegment): A's bend is fixed — only B's endpoints can
-            //   move the segment away from the bend → add all of B's endpoints.
+            // Movable slots: which pins are worth moving?
+            // Only ropes in the unpeelable core contribute — peelable ropes can already be
+            // lifted off, so moving their pins is wasted work.
             List<int> CrossingSlots(int[] st)
             {
                 var crossings = BuildCrossings(st);
-                var involvedIdxs = new HashSet<int>();
-                var slots = new HashSet<int>();
+                if (crossings.Count == 0) return new List<int>();
 
+                var aOver = CrossingSolver.ResolveOverUnder(level.Ropes, crossings, options.CrossingOverrides);
+                var unpeeledIds = new HashSet<int>();
+                CrossingSolver.PeelResidual(level.Ropes, crossings, aOver, unpeeledIds);
+                if (unpeeledIds.Count == 0) return new List<int>();
+
+                var slots = new HashSet<int>();
                 foreach (var c in crossings)
                 {
-                    bool isPinCrossing = c.TA < 1e-3f; // TA==0 set by pin-crossing detection
+                    bool aStuck = unpeeledIds.Contains(c.RopeIdA);
+                    bool bStuck = unpeeledIds.Contains(c.RopeIdB);
+                    if (!aStuck && !bStuck) continue;
+
+                    bool isPinCrossing = c.TA < 1e-3f;
                     if (isPinCrossing)
                     {
-                        // Moving A's endpoints can't shift A's fixed inner waypoint.
-                        // Only the SPECIFIC B endpoint at the crossing matters.
-                        var ropeB = level.Ropes[c.RopeIndexB];
-                        Vector2Int bEp = c.TB < 0.5f ? ropeB.Path[0].PegCoord : ropeB.Path[^1].PegCoord;
-                        if (nodeIndex.TryGetValue(bEp, out int nd) && movableOf[nd] >= 0)
-                            slots.Add(movableOf[nd]);
+                        var ropeA = level.Ropes[c.RopeIndexA];
+                        if (ropeA.Path[c.SegA].IsBendPoint)
+                        {
+                            if (aStuck) AddRopeSlots(slots, c.RopeIndexA);
+                        }
+                        else
+                        {
+                            if (bStuck)
+                            {
+                                var ropeB = level.Ropes[c.RopeIndexB];
+                                Vector2Int bEp = c.TB < 0.5f ? ropeB.Path[0].PegCoord : ropeB.Path[^1].PegCoord;
+                                if (nodeIndex.TryGetValue(bEp, out int nd) && movableOf[nd] >= 0)
+                                    slots.Add(movableOf[nd]);
+                            }
+                        }
                     }
                     else if (c.IsBendOnSegment)
-                        involvedIdxs.Add(c.RopeIndexB); // A's bend fixed, B's segment can move
+                    {
+                        if (bStuck) AddRopeSlots(slots, c.RopeIndexB);
+                    }
                     else
-                    { involvedIdxs.Add(c.RopeIndexA); involvedIdxs.Add(c.RopeIndexB); }
+                    {
+                        if (aStuck) AddRopeSlots(slots, c.RopeIndexA);
+                        if (bStuck) AddRopeSlots(slots, c.RopeIndexB);
+                    }
                 }
 
-                foreach (int ri in involvedIdxs) AddRopeSlots(slots, ri);
                 var list = new List<int>(slots);
                 list.Sort((s1, s2) =>
                     nodeTopLayer[movableNodes[s2]].CompareTo(nodeTopLayer[movableNodes[s1]]));
@@ -401,11 +419,11 @@ namespace TwistedTangle.Editor.Solver
             var startCrossings = BuildCrossings(start);
             result.InitialCrossings = startCrossings.Count;
             result.InitialTangle = TangleResidual(startCrossings);
-            if (result.InitialCrossings == 0) { result.Solvable = true; result.Moves = 0; return result; }
+            if (result.InitialTangle == 0) { result.Solvable = true; result.Moves = 0; return result; }
             if (movableNodes.Count == 0) return result; // everything locked and still tangled → unsolvable
 
             var heap = new MinHeap();
-            heap.Push(new SearchNode { State = start, G = 0, H = result.InitialCrossings });
+            heap.Push(new SearchNode { State = start, G = 0, H = result.InitialTangle });
             var visited = new HashSet<string> { Key(start) };
             int expansions = 0;
 
@@ -445,7 +463,7 @@ namespace TwistedTangle.Editor.Solver
                         {
                             State = next,
                             G = cur.G + 1,
-                            H = BuildCrossings(next).Count,
+                            H = TangleResidual(BuildCrossings(next)),
                             Parent = cur,
                             Move = new SolveMove
                             {
