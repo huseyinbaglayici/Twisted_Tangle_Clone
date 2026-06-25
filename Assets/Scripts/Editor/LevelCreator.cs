@@ -92,7 +92,7 @@ namespace TwistedTangle.Editor
             { Tool.Flip, LevelEditorCommands.ToolFlip },
         };
 
-        [MenuItem("TwistedTangle/Level Creation Tool")]
+        [MenuItem("TwistedTangle/Level Creation Tool", false, 0)]
         public static void ShowWindow()
         {
             var w = GetWindow<LevelCreator>();
@@ -123,6 +123,7 @@ namespace TwistedTangle.Editor
 
             scroll.Add(MakeTitle("Twisted Tangle — Level Creator"));
             scroll.Add(BuildHelpSection());
+            scroll.Add(BuildEditorSetupSection());
             scroll.Add(BuildLevelIoSection());
             scroll.Add(BuildGridSection());
             scroll.Add(BuildAiSection());
@@ -421,7 +422,8 @@ namespace TwistedTangle.Editor
             if (autoGenerate && palette.VariantTemplate != null)
             {
                 var repo = new TwistedTangle.Editor.Materials.MaterialVariantRepository(
-                    $"Assets/Art/Materials/Game/{palette.name}", new TwistedTangle.Editor.Materials.MaterialVariantFactory());
+                    $"Assets/Art/Materials/Game/{palette.name}",
+                    new TwistedTangle.Editor.Materials.MaterialVariantFactory());
                 var variant = repo.GetOrCreate(palette.VariantTemplate, colorName, color);
                 el.FindPropertyRelative("Variant").objectReferenceValue = variant;
             }
@@ -463,6 +465,17 @@ namespace TwistedTangle.Editor
             return foldout;
         }
 
+        private VisualElement BuildEditorSetupSection()
+        {
+            var s = MakeSection("⚙ Editor Setup", expanded: false);
+            var row = MakeRow();
+            row.Add(MakeButton("Advanced Tools ↗", AdvancedToolsWindow.ShowWindow, null));
+            row.Add(MakeButton("Key Bindings ↗", KeyBindingWindow.ShowWindow, null));
+            row.Add(MakeButton("Paths ↗", PathSettingsWindow.ShowWindow, null));
+            s.Add(row);
+            return s;
+        }
+
         private VisualElement BuildLevelIoSection()
         {
             var s = MakeSection("Level (save / load / delete by id)");
@@ -474,12 +487,6 @@ namespace TwistedTangle.Editor
             row.Add(MakeButton("Save", SaveCurrentLevel, "tt-btn--save"));
             row.Add(MakeButton("Delete", () => DeleteLevel(_levelIdField.value), "tt-btn--danger"));
 
-            var spacer = new VisualElement();
-            spacer.AddToClassList("tt-spacer");
-            row.Add(spacer);
-            row.Add(MakeButton("Advanced Tools ↗", AdvancedToolsWindow.ShowWindow, null));
-            row.Add(MakeButton("Key Bindings ↗", KeyBindingWindow.ShowWindow, null));
-            row.Add(MakeButton("Paths ↗", PathSettingsWindow.ShowWindow, null));
             s.Add(row);
             return s;
         }
@@ -993,6 +1000,7 @@ namespace TwistedTangle.Editor
                     b.style.backgroundColor = color;
                     swRow.Add(b);
                 }
+
                 _paletteContainer.Add(swRow);
             }
 
@@ -1259,6 +1267,7 @@ namespace TwistedTangle.Editor
                     ShowNotification(new GUIContent("End the rope on a pin."));
                     return;
                 }
+
                 _level.Ropes.Add(_previewRope);
                 _selectedRopeId = _previewRope.RopeId;
                 _nextRopeId++;
@@ -1621,5 +1630,19 @@ namespace TwistedTangle.Editor
         }
 
         #endregion
+    }
+
+    [InitializeOnLoad]
+    static class LevelCreatorAutoOpen
+    {
+        static LevelCreatorAutoOpen()
+        {
+            if (SessionState.GetBool("LevelCreatorOpened", false)) return;
+            EditorApplication.delayCall += () =>
+            {
+                SessionState.SetBool("LevelCreatorOpened", true);
+                LevelCreator.ShowWindow();
+            };
+        }
     }
 }
