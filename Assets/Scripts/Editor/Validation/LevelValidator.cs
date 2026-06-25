@@ -72,7 +72,7 @@ namespace TwistedTangle.Editor.Validation
 
             // Entity coordinate index + duplicate / unknown-type / out-of-bounds checks.
             var entityCells = new HashSet<Vector2Int>();
-            foreach (var entity in level.Pegs)
+            foreach (var entity in level.GridEntities)
             {
                 if (!entityCells.Add(entity.Coordinates))
                     report.Errors.Add($"Duplicate entity at {entity.Coordinates}.");
@@ -115,7 +115,7 @@ namespace TwistedTangle.Editor.Validation
             }
 
             // --- warnings ----------------------------------------------------------------------
-            foreach (var entity in level.Pegs)
+            foreach (var entity in level.GridEntities)
                 if (entityCells.Contains(entity.Coordinates) && !usedEntities.Contains(entity.Coordinates))
                     report.Warnings.Add($"Entity at {entity.Coordinates} is not used by any rope.");
 
@@ -168,7 +168,7 @@ namespace TwistedTangle.Editor.Validation
 
             return new LevelMetrics
             {
-                EntityCount = level.Pegs.Count,
+                EntityCount = level.GridEntities.Count,
                 RopeCount = level.Ropes.Count,
                 CrossingCount = crossingCount,
                 ColorCount = colorCount,

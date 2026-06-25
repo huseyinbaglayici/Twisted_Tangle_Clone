@@ -790,9 +790,9 @@ namespace TwistedTangle.Editor
         {
             var cells = new HashSet<Vector2Int>();
             if (_level == null) return cells;
-            foreach (var peg in _level.Pegs)
-                if (_entityLookup.TryGetValue(peg.TypeId, out var def) && IsNailed(def))
-                    cells.Add(peg.Coordinates);
+            foreach (var entity in _level.GridEntities)
+                if (_entityLookup.TryGetValue(entity.TypeId, out var def) && IsNailed(def))
+                    cells.Add(entity.Coordinates);
             return cells;
         }
 
@@ -1227,14 +1227,14 @@ namespace TwistedTangle.Editor
         private void PlaceEntity(Vector2Int coord)
         {
             if (_selectedEntity == null) return;
-            int idx = _level.Pegs.FindIndex(p => p.Coordinates == coord);
-            if (idx >= 0) _level.Pegs[idx] = new PegData(coord, _selectedEntity.TypeId);
-            else _level.Pegs.Add(new PegData(coord, _selectedEntity.TypeId));
+            int idx = _level.GridEntities.FindIndex(p => p.Coordinates == coord);
+            if (idx >= 0) _level.GridEntities[idx] = new GridEntityData(coord, _selectedEntity.TypeId);
+            else _level.GridEntities.Add(new GridEntityData(coord, _selectedEntity.TypeId));
         }
 
         private void RemoveEntity(Vector2Int coord)
         {
-            _level.Pegs.RemoveAll(p => p.Coordinates == coord);
+            _level.GridEntities.RemoveAll(p => p.Coordinates == coord);
             // A rope wrapping a now-deleted peg can no longer wrap → convert to virtual bend.
             if (_level == null) return;
             foreach (var rope in _level.Ropes)
@@ -1252,7 +1252,7 @@ namespace TwistedTangle.Editor
         private void AddRopeWaypoint(Vector2Int coord)
         {
             bool isFirstPoint = _previewRope == null;
-            bool hasPeg = _level.Pegs.FindIndex(p => p.Coordinates == coord) >= 0;
+            bool hasPeg = _level.GridEntities.FindIndex(p => p.Coordinates == coord) >= 0;
 
             // First waypoint must anchor on a pin.
             if (isFirstPoint && !hasPeg) return;

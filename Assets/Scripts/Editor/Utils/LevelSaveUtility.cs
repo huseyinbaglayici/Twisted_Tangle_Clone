@@ -74,8 +74,8 @@ namespace TwistedTangle.Editor.Utils
             dst.GridHeight = src.GridHeight;
             dst.TimeSeconds = src.TimeSeconds;
 
-            dst.Pegs.Clear();
-            dst.Pegs.AddRange(src.Pegs); // PegData is a value type — straight copy is a deep copy.
+            dst.GridEntities.Clear();
+            dst.GridEntities.AddRange(src.GridEntities); // GridEntityData is a value type — straight copy is a deep copy.
 
             dst.Ropes.Clear();
             foreach (var rope in src.Ropes)

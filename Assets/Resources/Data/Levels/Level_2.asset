@@ -16,7 +16,7 @@ MonoBehaviour:
   gridWidth: 6
   gridHeight: 6
   timeSeconds: 45
-  pegs:
+  gridEntities:
   - Coordinates: {x: 0, y: 5}
     TypeId: pin.standart
   - Coordinates: {x: 2, y: 5}

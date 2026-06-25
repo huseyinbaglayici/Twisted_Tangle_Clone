@@ -127,9 +127,9 @@ namespace TwistedTangle.Editor.Solver
             var movableCells = new HashSet<Vector2Int>();
             foreach (int n in movableNodes) movableCells.Add(nodeCoords[n]);
             var fixedOccupied = new HashSet<int>();
-            foreach (var peg in level.Pegs)
-                if (!movableCells.Contains(peg.Coordinates))
-                    fixedOccupied.Add(Encode(peg.Coordinates, width));
+            foreach (var entity in level.GridEntities)
+                if (!movableCells.Contains(entity.Coordinates))
+                    fixedOccupied.Add(Encode(entity.Coordinates, width));
 
             // Per-node: top layer (move ordering) and labels (which rope/end).
             var nodeTopLayer = new int[nodeCount];

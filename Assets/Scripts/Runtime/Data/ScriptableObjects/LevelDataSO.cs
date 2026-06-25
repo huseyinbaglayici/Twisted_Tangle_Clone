@@ -19,7 +19,7 @@ namespace TwistedTangle.Runtime.Data.ScriptableObjects
         [SerializeField] private int gridWidth = 5;
         [SerializeField] private int gridHeight = 5;
         [SerializeField] private int timeSeconds = 45;
-        [SerializeField] private List<PegData> pegs = new();
+        [SerializeField] private List<GridEntityData> gridEntities = new();
         [SerializeField] private List<RopeData> ropes = new();
         [SerializeField] private List<CrossingOverride> crossingOverrides = new();
 
@@ -48,7 +48,7 @@ namespace TwistedTangle.Runtime.Data.ScriptableObjects
             set => timeSeconds = value;
         }
 
-        public List<PegData> Pegs => pegs;
+        public List<GridEntityData> GridEntities => gridEntities;
         public List<RopeData> Ropes => ropes;
         public List<CrossingOverride> CrossingOverrides => crossingOverrides;
     }

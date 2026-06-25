@@ -54,9 +54,9 @@ namespace TwistedTangle.Editor.Validation
             var validation = LevelValidator.Validate(level, knownTypeIds);
 
             var locked = new HashSet<Vector2Int>();
-            foreach (var peg in level.Pegs)
-                if (entityLookup.TryGetValue(peg.TypeId, out var def) && IsNailed(def))
-                    locked.Add(peg.Coordinates);
+            foreach (var entity in level.GridEntities)
+                if (entityLookup.TryGetValue(entity.TypeId, out var def) && IsNailed(def))
+                    locked.Add(entity.Coordinates);
 
             var solve = LevelSolver.Solve(level, new SolveOptions
             {

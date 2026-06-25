@@ -35,7 +35,7 @@ namespace TwistedTangle.Editor.Generation
             sb.Append("\nOutput ONLY a JSON object (no markdown code fences, no commentary) in EXACTLY this shape:\n");
             sb.Append("{\n");
             sb.Append("  \"gridWidth\": <int>, \"gridHeight\": <int>, \"timeSeconds\": <int>,\n");
-            sb.Append("  \"pegs\": [ { \"x\": <int>, \"y\": <int>, \"typeId\": \"<one of the allowed ids>\" } ],\n");
+            sb.Append("  \"gridEntities\": [ { \"x\": <int>, \"y\": <int>, \"typeId\": \"<one of the allowed ids>\" } ],\n");
             sb.Append("  \"ropes\": [ { \"ropeId\": <int>, \"color\": \"#RRGGBB\", \"layer\": <int>, \"path\": [ { \"x\": <int>, \"y\": <int> } ] } ]\n");
             sb.Append("}\n");
             return sb.ToString();
@@ -75,9 +75,9 @@ namespace TwistedTangle.Editor.Generation
             level.GridHeight = Mathf.Max(1, dto.gridHeight);
             level.TimeSeconds = Mathf.Max(1, dto.timeSeconds);
 
-            if (dto.pegs != null)
-                foreach (var p in dto.pegs)
-                    level.Pegs.Add(new PegData(new Vector2Int(p.x, p.y), p.typeId));
+            if (dto.gridEntities != null)
+                foreach (var p in dto.gridEntities)
+                    level.GridEntities.Add(new GridEntityData(new Vector2Int(p.x, p.y), p.typeId));
 
             if (dto.ropes != null)
                 foreach (var r in dto.ropes)
@@ -123,12 +123,12 @@ namespace TwistedTangle.Editor.Generation
             if (r.PaletteHex is { Count: > 0 })
                 sb.Append("- Use rope colors from this palette (hex): ").Append(string.Join(", ", r.PaletteHex))
                   .Append(". Prefer a distinct color per rope.\n");
-            sb.Append("- Every rope endpoint and waypoint must land on a peg you also list in 'pegs'. No two pegs share a cell.\n");
+            sb.Append("- Every rope endpoint and waypoint must land on an entity you also list in 'gridEntities'. No two entities share a cell.\n");
             return sb.ToString();
         }
 
         // --- DTOs (JsonUtility-friendly: public fields, [Serializable]) ---
-        [Serializable] private class LevelDto { public int gridWidth; public int gridHeight; public int timeSeconds; public PegDto[] pegs; public RopeDto[] ropes; }
+        [Serializable] private class LevelDto { public int gridWidth; public int gridHeight; public int timeSeconds; public PegDto[] gridEntities; public RopeDto[] ropes; }
         [Serializable] private class PegDto { public int x; public int y; public string typeId; }
         [Serializable] private class RopeDto { public int ropeId; public string color; public int layer; public PointDto[] path; }
         [Serializable] private class PointDto { public int x; public int y; }

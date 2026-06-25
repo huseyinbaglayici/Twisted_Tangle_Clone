@@ -150,13 +150,13 @@ namespace TwistedTangle.Editor.Canvas
             float r = CellSize * 0.30f;
             var endpointColors = BuildEndpointColors();
 
-            foreach (var peg in Level.Pegs)
+            foreach (var entity in Level.GridEntities)
             {
-                Vector2 c = ToPx(CrossingSolver.Center(peg.Coordinates));
-                // Endpoint pins (pin A / pin B) take their rope's color; other pegs use their type color.
-                Color fill = endpointColors.TryGetValue(peg.Coordinates, out var ropeColor)
+                Vector2 c = ToPx(CrossingSolver.Center(entity.Coordinates));
+                // Endpoint pins (pin A / pin B) take their rope's color; other entities use their type color.
+                Color fill = endpointColors.TryGetValue(entity.Coordinates, out var ropeColor)
                     ? ropeColor
-                    : PegColorResolver?.Invoke(peg.TypeId) ?? new Color(0.8f, 0.8f, 0.8f);
+                    : PegColorResolver?.Invoke(entity.TypeId) ?? new Color(0.8f, 0.8f, 0.8f);
 
                 p.fillColor = fill;
                 p.BeginPath();

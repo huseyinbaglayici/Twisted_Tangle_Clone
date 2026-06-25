@@ -8,12 +8,12 @@ namespace TwistedTangle.Runtime.Data.ValueObjects
     /// its stable id, which is what makes entity types data-driven: the editor never hard-codes a type.
     /// </summary>
     [Serializable]
-    public struct PegData
+    public struct GridEntityData
     {
         public Vector2Int Coordinates;
         public string TypeId;
 
-        public PegData(Vector2Int coordinates, string typeId)
+        public GridEntityData(Vector2Int coordinates, string typeId)
         {
             Coordinates = coordinates;
             TypeId = typeId;
