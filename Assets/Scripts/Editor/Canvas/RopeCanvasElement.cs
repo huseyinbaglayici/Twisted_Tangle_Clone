@@ -104,6 +104,7 @@ namespace TwistedTangle.Editor.Canvas
 
         private float RopeWidth => Mathf.Max(4f, CellSize * 0.16f);
         private float GapPx => RopeWidth * 1.9f;
+        private const int SplineSamples = 10; // subdivisions per segment — raise for smoother curves
 
         private Vector2 ToPx(Vector2 centerSpace) =>
             new(centerSpace.x * CellSize, (GridHeight - centerSpace.y) * CellSize);
@@ -248,16 +249,26 @@ namespace TwistedTangle.Editor.Canvas
             p.lineCap = LineCap.Round;
             p.lineJoin = LineJoin.Round;
 
-            for (int seg = 0; seg < rope.Path.Count - 1; seg++)
+            int segCount = rope.Path.Count - 1;
+            for (int seg = 0; seg < segCount; seg++)
             {
-                Vector2 a = ToPx(CrossingSolver.Center(rope.Path[seg].PegCoord));
-                Vector2 b = ToPx(CrossingSolver.Center(rope.Path[seg + 1].PegCoord));
-                float segLen = Vector2.Distance(a, b);
+                Vector2 p1 = ToPx(CrossingSolver.Center(rope.Path[seg].PegCoord));
+                Vector2 p2 = ToPx(CrossingSolver.Center(rope.Path[seg + 1].PegCoord));
+                // Neighbour points for Catmull-Rom tangent — mirror at ends so the curve
+                // starts/ends tangent to the segment direction (no surprise kinks at pins).
+                Vector2 p0 = seg > 0
+                    ? ToPx(CrossingSolver.Center(rope.Path[seg - 1].PegCoord))
+                    : p1 * 2f - p2;
+                Vector2 p3 = seg < segCount - 1
+                    ? ToPx(CrossingSolver.Center(rope.Path[seg + 2].PegCoord))
+                    : p2 * 2f - p1;
+
+                float segLen = Vector2.Distance(p1, p2);
                 if (segLen < 0.001f) continue;
 
                 if (!gaps.TryGetValue((ropeIndex, seg), out var ts) || ts.Count == 0)
                 {
-                    DrawPiece(p, a, b, 0f, 1f);
+                    DrawCatmullSegment(p, p0, p1, p2, p3, 0f, 1f);
                     continue;
                 }
 
@@ -267,20 +278,34 @@ namespace TwistedTangle.Editor.Canvas
                 foreach (float t in ts)
                 {
                     float gapStart = Mathf.Clamp01(t - halfT);
-                    float gapEnd = Mathf.Clamp01(t + halfT);
-                    if (gapStart > cursor) DrawPiece(p, a, b, cursor, gapStart);
+                    float gapEnd   = Mathf.Clamp01(t + halfT);
+                    if (gapStart > cursor) DrawCatmullSegment(p, p0, p1, p2, p3, cursor, gapStart);
                     cursor = Mathf.Max(cursor, gapEnd);
                 }
-                if (cursor < 1f) DrawPiece(p, a, b, cursor, 1f);
+                if (cursor < 1f) DrawCatmullSegment(p, p0, p1, p2, p3, cursor, 1f);
             }
         }
 
-        private static void DrawPiece(Painter2D p, Vector2 a, Vector2 b, float t0, float t1)
+        // Draws a sub-range [t0, t1] of one Catmull-Rom segment as a fine polyline.
+        private static void DrawCatmullSegment(Painter2D p,
+            Vector2 p0, Vector2 p1, Vector2 p2, Vector2 p3, float t0, float t1)
         {
+            float step = (t1 - t0) / SplineSamples;
             p.BeginPath();
-            p.MoveTo(Vector2.LerpUnclamped(a, b, t0));
-            p.LineTo(Vector2.LerpUnclamped(a, b, t1));
+            p.MoveTo(CatmullRom(p0, p1, p2, p3, t0));
+            for (int i = 1; i <= SplineSamples; i++)
+                p.LineTo(CatmullRom(p0, p1, p2, p3, Mathf.Min(t0 + i * step, t1)));
             p.Stroke();
+        }
+
+        private static Vector2 CatmullRom(Vector2 p0, Vector2 p1, Vector2 p2, Vector2 p3, float t)
+        {
+            float t2 = t * t, t3 = t2 * t;
+            return 0.5f * (
+                2f * p1 +
+                (-p0 + p2) * t +
+                (2f * p0 - 5f * p1 + 4f * p2 - p3) * t2 +
+                (-p0 + 3f * p1 - 3f * p2 + p3) * t3);
         }
 
         private void DrawEndpoints(Painter2D p, RopeData rope)
@@ -319,11 +344,19 @@ namespace TwistedTangle.Editor.Canvas
 
             if (PreviewRope.Path.Count >= 2)
             {
-                p.BeginPath();
-                p.MoveTo(ToPx(CrossingSolver.Center(PreviewRope.Path[0].PegCoord)));
-                for (int i = 1; i < PreviewRope.Path.Count; i++)
-                    p.LineTo(ToPx(CrossingSolver.Center(PreviewRope.Path[i].PegCoord)));
-                p.Stroke();
+                int segCount = PreviewRope.Path.Count - 1;
+                for (int seg = 0; seg < segCount; seg++)
+                {
+                    Vector2 p1 = ToPx(CrossingSolver.Center(PreviewRope.Path[seg].PegCoord));
+                    Vector2 p2 = ToPx(CrossingSolver.Center(PreviewRope.Path[seg + 1].PegCoord));
+                    Vector2 p0 = seg > 0
+                        ? ToPx(CrossingSolver.Center(PreviewRope.Path[seg - 1].PegCoord))
+                        : p1 * 2f - p2;
+                    Vector2 p3 = seg < segCount - 1
+                        ? ToPx(CrossingSolver.Center(PreviewRope.Path[seg + 2].PegCoord))
+                        : p2 * 2f - p1;
+                    DrawCatmullSegment(p, p0, p1, p2, p3, 0f, 1f);
+                }
             }
 
             foreach (var wp in PreviewRope.Path)

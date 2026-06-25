@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Sirenix.OdinInspector;
 using TwistedTangle.Runtime.Data.Enums;
 using UnityEngine;
 
@@ -14,7 +15,7 @@ namespace TwistedTangle.Runtime.Data.ValueObjects
     public struct RopeWaypoint
     {
         public Vector2Int PegCoord;
-        public WindSide Side;
+        [EnumToggleButtons] public WindSide Side;
         /// <summary>When true this waypoint is a free bend point, not tied to a peg.</summary>
         public bool IsBendPoint;
 
