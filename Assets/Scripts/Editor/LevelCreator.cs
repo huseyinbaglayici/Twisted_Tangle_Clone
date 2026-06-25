@@ -67,6 +67,7 @@ namespace TwistedTangle.Editor
 
         private VisualElement _paletteContainer,
             _toolsContainer,
+            _editToolsContainer,
             _ropeListContainer,
             _validationContainer,
             _solverContainer;
@@ -127,7 +128,8 @@ namespace TwistedTangle.Editor
             scroll.Add(BuildLevelIoSection());
             scroll.Add(BuildGridSection());
             scroll.Add(BuildAiSection());
-            scroll.Add(BuildToolsSection());
+            scroll.Add(BuildEditToolsSection());
+            scroll.Add(BuildEntityPlacementSection());
             scroll.Add(BuildPaletteSection());
             scroll.Add(BuildEntityCreatorSection());
             scroll.Add(BuildRopeListSection());
@@ -507,9 +509,18 @@ namespace TwistedTangle.Editor
             return s;
         }
 
-        private VisualElement BuildToolsSection()
+        private VisualElement BuildEditToolsSection()
         {
-            var s = MakeSection("Tool");
+            var s = MakeSection("Tools");
+            _editToolsContainer = MakeRow();
+            _editToolsContainer.AddToClassList("tt-row--wrap");
+            s.Add(_editToolsContainer);
+            return s;
+        }
+
+        private VisualElement BuildEntityPlacementSection()
+        {
+            var s = MakeSection("Entity Placement");
             _toolsContainer = MakeRow();
             _toolsContainer.AddToClassList("tt-row--wrap");
             RebuildToolbar();
@@ -523,7 +534,7 @@ namespace TwistedTangle.Editor
             return s;
         }
 
-        /// <summary>Rebuilds the toolbar: Rope (built-in) ▸ one button per base type ▸ Erase, Flip.</summary>
+        /// <summary>Rebuilds both toolbars: Entity Placement (Rope + bases) and Edit Tools (Erase, Flip).</summary>
         private void RebuildToolbar()
         {
             if (_toolsContainer == null) return;
@@ -536,8 +547,13 @@ namespace TwistedTangle.Editor
                 AddBaseButton(b, b.DisplayName, b.EditorColor);
             if (HasUngrouped())
                 AddBaseButton(null, "Ungrouped", new Color(0.5f, 0.5f, 0.5f));
-            AddToolButton(Tool.Erase, "Erase");
-            AddToolButton(Tool.Flip, "Flip Crossing");
+
+            if (_editToolsContainer != null)
+            {
+                _editToolsContainer.Clear();
+                AddEditToolButton(Tool.Erase, "Erase");
+                AddEditToolButton(Tool.Flip, "Flip Crossing");
+            }
 
             UpdateToolActiveStates();
             UpdateShortcutHints();
@@ -555,6 +571,14 @@ namespace TwistedTangle.Editor
             btn.AddToClassList("tt-tool");
             _toolButtons[tool] = btn;
             _toolsContainer.Add(btn);
+        }
+
+        private void AddEditToolButton(Tool tool, string label)
+        {
+            var btn = new Button(() => SetTool(tool)) { text = label };
+            btn.AddToClassList("tt-tool");
+            _toolButtons[tool] = btn;
+            _editToolsContainer.Add(btn);
         }
 
         private void AddBaseButton(EntityBaseTypeSO baseType, string label, Color accent)
