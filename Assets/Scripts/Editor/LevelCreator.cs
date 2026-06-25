@@ -478,7 +478,8 @@ namespace TwistedTangle.Editor
             spacer.AddToClassList("tt-spacer");
             row.Add(spacer);
             row.Add(MakeButton("Advanced Tools ↗", AdvancedToolsWindow.ShowWindow, null));
-
+            row.Add(MakeButton("Key Bindings ↗", KeyBindingWindow.ShowWindow, null));
+            row.Add(MakeButton("Paths ↗", PathSettingsWindow.ShowWindow, null));
             s.Add(row);
             return s;
         }
