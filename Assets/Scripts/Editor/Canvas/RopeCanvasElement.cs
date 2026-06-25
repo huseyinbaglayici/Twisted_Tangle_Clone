@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using TwistedTangle.Runtime.Data.ScriptableObjects;
 using TwistedTangle.Runtime.Data.ValueObjects;
 using TwistedTangle.Editor.Geometry;
@@ -26,13 +27,13 @@ namespace TwistedTangle.Editor.Canvas
         public int GridHeight;
         public LevelDataSO Level;
         public Func<string, Color> PegColorResolver;
-        public RopeData PreviewRope;          // in-progress rope being authored (null if none)
+        public RopeData PreviewRope; // in-progress rope being authored (null if none)
         public int SelectedRopeId = -1;
-        public bool ShowCrossings;            // highlight crossing points (flip tool)
+        public bool ShowCrossings; // highlight crossing points (flip tool)
 
         // --- callbacks to the window ---
         public Action<int, int, Vector2, int> CellClicked; // cellX, cellY, localPos, mouseButton
-        public Action<int, int> CellDragged;               // cellX, cellY (pointer held + moved)
+        public Action<int, int> CellDragged; // cellX, cellY (pointer held + moved)
         public Action Released;
 
         private bool _pointerDown;
@@ -178,20 +179,20 @@ namespace TwistedTangle.Editor.Canvas
 
             var gaps = BuildGapMap();
 
-            // Selected rope first as a soft halo so it reads as selected without changing draw order.
+            var sorted = new List<(RopeData rope, int idx)>();
             for (int i = 0; i < Level.Ropes.Count; i++)
-            {
-                var rope = Level.Ropes[i];
-                if (rope.RopeId == SelectedRopeId && rope.Path.Count >= 2)
-                    StrokeRope(p, rope, i, gaps, new Color(1f, 1f, 1f, 0.35f), RopeWidth + 8f);
-            }
+                sorted.Add((Level.Ropes[i], i));
+            sorted.Sort((a, b) => a.rope.Layer.CompareTo(b.rope.Layer));
 
-            for (int i = 0; i < Level.Ropes.Count; i++)
+            foreach (var entry in sorted)
+                if (entry.rope.RopeId == SelectedRopeId && entry.rope.Path.Count >= 2)
+                    StrokeRope(p, entry.rope, entry.idx, gaps, new Color(1f, 1f, 1f, 0.35f), RopeWidth + 8f);
+
+            foreach (var entry in sorted)
             {
-                var rope = Level.Ropes[i];
-                if (rope.Path.Count < 2) continue;
-                StrokeRope(p, rope, i, gaps, rope.Tint, RopeWidth);
-                DrawEndpoints(p, rope);
+                if (entry.rope.Path.Count < 2) continue;
+                StrokeRope(p, entry.rope, entry.idx, gaps, entry.rope.Tint, RopeWidth);
+                DrawEndpoints(p, entry.rope);
             }
         }
 
@@ -227,8 +228,8 @@ namespace TwistedTangle.Editor.Canvas
             for (int i = 0; i < crossings.Count; i++)
             {
                 var c = crossings[i];
-                if (aOver[i]) AddGap(gaps, c.RopeIndexB, c.SegB, c.TB);  // B goes under
-                else AddGap(gaps, c.RopeIndexA, c.SegA, c.TA);           // A goes under
+                if (aOver[i]) AddGap(gaps, c.RopeIndexB, c.SegB, c.TB); // B goes under
+                else AddGap(gaps, c.RopeIndexA, c.SegA, c.TA); // A goes under
             }
 
             return gaps;
@@ -278,10 +279,11 @@ namespace TwistedTangle.Editor.Canvas
                 foreach (float t in ts)
                 {
                     float gapStart = Mathf.Clamp01(t - halfT);
-                    float gapEnd   = Mathf.Clamp01(t + halfT);
+                    float gapEnd = Mathf.Clamp01(t + halfT);
                     if (gapStart > cursor) DrawCatmullSegment(p, p0, p1, p2, p3, cursor, gapStart);
                     cursor = Mathf.Max(cursor, gapEnd);
                 }
+
                 if (cursor < 1f) DrawCatmullSegment(p, p0, p1, p2, p3, cursor, 1f);
             }
         }
