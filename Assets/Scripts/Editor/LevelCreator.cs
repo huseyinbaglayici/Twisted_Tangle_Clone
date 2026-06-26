@@ -503,9 +503,10 @@ namespace TwistedTangle.Editor
             var panel = new VisualElement();
             panel.AddToClassList("tt-canvas-panel");
 
-            // Grid scroll — min-height:0 prevents large grids from expanding the panel
+            // flexGrow:0 → scroll stays at content size (rope list docks right below grid drawing).
+            // flexShrink:1 + minHeight:0 → large grids shrink the scroll and scroll internally.
             var scroll = new ScrollView(ScrollViewMode.VerticalAndHorizontal);
-            scroll.style.flexGrow   = 1;
+            scroll.style.flexGrow   = 0;
             scroll.style.flexShrink = 1;
             scroll.style.minHeight  = 0f;
 
