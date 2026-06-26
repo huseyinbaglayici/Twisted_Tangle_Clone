@@ -5,13 +5,11 @@ using TwistedTangle.Editor.Input;
 using TwistedTangle.Editor.Utils;
 using TwistedTangle.Editor.Validation;
 using TwistedTangle.Editor.Solver;
-using TwistedTangle.Editor.Generation;
 using TwistedTangle.Runtime.Data.ScriptableObjects;
 using TwistedTangle.Runtime.Data.ValueObjects;
 using TwistedTangle.Editor.Geometry;
 using TwistedTangle.Runtime.Data.Enums;
 using UnityEditor;
-using UnityEditor.UIElements;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -74,18 +72,7 @@ namespace TwistedTangle.Editor
             _solverContainer,
             _validationStatusDot;
 
-        private System.Action _pathsRebuildDelegate; // subscribed to LevelEditorPaths.Changed
 
-        private DropdownField _aiDifficulty;
-        private IntegerField _aiGridWidth;
-        private IntegerField _aiGridHeight;
-        private IntegerField _aiRefLevelId;
-        private LevelDataSO _aiRefLevel;
-        private Label _aiRefLabel;
-        private TextField _aiJsonField;
-        private Label _aiStatus;
-        private VisualElement _aiEntitiesContainer;
-        private readonly HashSet<string> _aiExcludedTypeIds = new(); // entity types the designer unchecked for AI
         private readonly Dictionary<Tool, Button> _toolButtons = new(); // built-in tools
         private readonly List<(EntityBaseTypeSO baseType, Button btn)> _baseButtons = new(); // one per base + Ungrouped
 
@@ -131,13 +118,15 @@ namespace TwistedTangle.Editor
             var app = new VisualElement();
             app.AddToClassList("tt-app-container");
 
-            app.Add(BuildPathsBar());
+            app.Add(BuildEditorSetupBar());
             app.Add(BuildTopBar());
 
             var body = new VisualElement();
             body.AddToClassList("tt-body");
+            var rightPanel = BuildRightPanel();
             body.Add(BuildCanvasPanelWrapper());
-            body.Add(BuildRightPanel());
+            body.Add(BuildRightPanelDivider(rightPanel));
+            body.Add(rightPanel);
             app.Add(body);
 
             root.Add(app);
@@ -152,12 +141,7 @@ namespace TwistedTangle.Editor
             UpdateShortcutHints();
         }
 
-        private void OnDisable()
-        {
-            KeyBindingStore.Changed -= UpdateShortcutHints;
-            if (_pathsRebuildDelegate != null)
-                LevelEditorPaths.Changed -= _pathsRebuildDelegate;
-        }
+        private void OnDisable() => KeyBindingStore.Changed -= UpdateShortcutHints;
 
         #region Data-driven discovery
 
@@ -475,15 +459,15 @@ namespace TwistedTangle.Editor
             return foldout;
         }
 
-        private VisualElement BuildEditorSetupSection()
+        private VisualElement BuildEditorSetupBar()
         {
-            var s = MakeSection("⚙ Editor Setup", expanded: false);
-            var row = MakeRow();
-            row.Add(MakeButton("Advanced Tools ↗", AdvancedToolsWindow.ShowWindow, null));
-            row.Add(MakeButton("Key Bindings ↗", KeyBindingWindow.ShowWindow, null));
-            row.Add(MakeButton("Paths ↗", PathSettingsWindow.ShowWindow, null));
-            s.Add(row);
-            return s;
+            var bar = new VisualElement();
+            bar.AddToClassList("tt-setup-bar");
+            bar.Add(MakeButton("AI Generate ↗",    AiLevelGeneratorWindow.ShowWindow, "tt-btn--primary"));
+            bar.Add(MakeButton("Advanced Tools ↗", AdvancedToolsWindow.ShowWindow,    null));
+            bar.Add(MakeButton("Key Bindings ↗",   KeyBindingWindow.ShowWindow,       null));
+            bar.Add(MakeButton("Paths ↗",          PathSettingsWindow.ShowWindow,     null));
+            return bar;
         }
 
         private VisualElement BuildTopBar()
@@ -541,10 +525,38 @@ namespace TwistedTangle.Editor
             return panel;
         }
 
+        private VisualElement BuildRightPanelDivider(VisualElement rightPanel)
+        {
+            var handle = new VisualElement();
+            handle.AddToClassList("tt-right-divider");
+            float startX = 0f, startW = 0f;
+            handle.RegisterCallback<PointerDownEvent>(e =>
+            {
+                startX = e.position.x;
+                startW = rightPanel.resolvedStyle.width;
+                handle.CapturePointer(e.pointerId);
+                e.StopPropagation();
+            });
+            handle.RegisterCallback<PointerMoveEvent>(e =>
+            {
+                if (!handle.HasPointerCapture(e.pointerId)) return;
+                float delta = startX - e.position.x; // drag left = wider
+                rightPanel.style.width = Mathf.Clamp(startW + delta, 240f, 700f);
+                e.StopPropagation();
+            });
+            handle.RegisterCallback<PointerUpEvent>(e =>
+            {
+                handle.ReleasePointer(e.pointerId);
+                e.StopPropagation();
+            });
+            return handle;
+        }
+
         private VisualElement BuildRightPanel()
         {
             var panel = new VisualElement();
             panel.AddToClassList("tt-right-panel");
+            panel.style.width = 340f; // default — enough to show all content without clipping
 
             // Sections — scrollbar hidden, mouse-wheel scroll only
             var scroll = new ScrollView(ScrollViewMode.Vertical);
@@ -553,11 +565,9 @@ namespace TwistedTangle.Editor
             scroll.Add(BuildEditToolsSection());
             scroll.Add(BuildEntityPlacementSection());
             scroll.Add(BuildPaletteSection());
-            scroll.Add(BuildAiSection());
             scroll.Add(BuildRopeListSection());
             scroll.Add(BuildEntityCreatorSection());
             scroll.Add(BuildHelpSection());
-            scroll.Add(BuildEditorSetupSection());
 
             panel.Add(scroll);
             return panel;
@@ -611,7 +621,6 @@ namespace TwistedTangle.Editor
 
             UpdateToolActiveStates();
             UpdateShortcutHints();
-            RebuildAiEntities(); // keep the AI include/exclude list in sync when entity types change
 
             // Publish the current entity types as bindable commands (so a new type shows up in the Key
             // Bindings window as "Sub-type / Base type"), and keep the runnable command map in sync.
@@ -767,275 +776,10 @@ namespace TwistedTangle.Editor
             return panel;
         }
 
-        private VisualElement BuildPathsBar()
-        {
-            var bar = new VisualElement();
-            bar.AddToClassList("tt-paths-bar");
 
-            var foldout = new Foldout { text = "Paths", value = false };
-            foldout.AddToClassList("tt-paths-foldout");
-
-            var host = new VisualElement();
-            host.AddToClassList("tt-paths-host");
-
-            void Rebuild()
-            {
-                host.Clear();
-                foreach (var def in LevelEditorPaths.All)
-                {
-                    var row = new VisualElement();
-                    row.AddToClassList("tt-paths-row");
-
-                    var lbl = new Label(def.DisplayName);
-                    lbl.AddToClassList("tt-paths-label");
-                    row.Add(lbl);
-
-                    var objType = def.IsFolder ? typeof(DefaultAsset) : typeof(StyleSheet);
-                    string current = LevelEditorPaths.Get(def.Id);
-                    var field = new ObjectField
-                    {
-                        objectType = objType,
-                        allowSceneObjects = false,
-                        value = AssetDatabase.LoadAssetAtPath(current, objType),
-                    };
-                    field.style.flexGrow = 1;
-                    var capturedDef = def;
-                    field.RegisterValueChangedCallback(e =>
-                    {
-                        if (e.newValue == null) LevelEditorPaths.Reset(capturedDef.Id);
-                        else LevelEditorPaths.Set(capturedDef.Id, AssetDatabase.GetAssetPath(e.newValue));
-                    });
-                    row.Add(field);
-                    host.Add(row);
-                }
-            }
-
-            Rebuild();
-            _pathsRebuildDelegate = Rebuild;
-            LevelEditorPaths.Changed += Rebuild;
-
-            foldout.Add(host);
-            bar.Add(foldout);
-            return bar;
-        }
-
-        private VisualElement BuildAiSection()
-        {
-            var s = MakeSection("AI level generation", expanded: false);
-
-            // Row 1: grid size + difficulty + copy button
-            var row1 = MakeRow();
-            row1.AddToClassList("tt-row--wrap");
-            _aiGridWidth = CompactIntField("W", Mathf.Max(1, _widthField?.value ?? 6));
-            _aiGridWidth.AddToClassList("tt-num--narrow");
-            _aiGridWidth.tooltip = "Grid width for AI generation (independent from the editor grid above).";
-            _aiGridHeight = CompactIntField("H", Mathf.Max(1, _heightField?.value ?? 6));
-            _aiGridHeight.AddToClassList("tt-num--narrow");
-            _aiGridHeight.tooltip = "Grid height for AI generation.";
-            _aiDifficulty = new DropdownField("Difficulty", new List<string> { "Easy", "Medium", "Hard" }, 1);
-            _aiDifficulty.labelElement.style.minWidth = 0;
-            _aiDifficulty.labelElement.style.width = StyleKeyword.Auto;
-            _aiDifficulty.style.minWidth = StyleKeyword.Auto;
-            _aiDifficulty.style.flexShrink = 0;
-            var copyBtn = MakeButton("1 · Copy prompt", CopyAiPrompt, "tt-btn--primary");
-            copyBtn.tooltip = "Copies a ready prompt (rules + your settings + JSON shape). Paste it into any AI chat.";
-            row1.Add(_aiGridWidth);
-            row1.Add(_aiGridHeight);
-            row1.Add(_aiDifficulty);
-            row1.Add(copyBtn);
-            s.Add(row1);
-
-            // Row 2: reference level
-            var row2 = MakeRow();
-            row2.AddToClassList("tt-row--wrap");
-            _aiRefLevelId = CompactIntField("Ref level", 0);
-            _aiRefLevelId.Q<Label>().style.minWidth = 0;
-            _aiRefLevelId.Q<Label>().style.width = StyleKeyword.Auto;
-            _aiRefLevelId.tooltip = "Optional: enter an existing level ID and click Load. The AI will generate a level with a similar feel.";
-            var loadRefBtn = MakeButton("Load", LoadAiReference, null);
-            loadRefBtn.tooltip = "Load the level with this ID as a style reference for the AI prompt.";
-            row2.Add(_aiRefLevelId);
-            row2.Add(loadRefBtn);
-            s.Add(row2);
-            _aiRefLabel = new Label("No reference — AI generates freely.");
-            _aiRefLabel.AddToClassList("tt-hint");
-            s.Add(_aiRefLabel);
-
-            var entFoldout = new Foldout { text = "Entity types for the prompt", value = false };
-            entFoldout.Add(MakeButton("↻ Refresh list", RefreshAiEntities, "tt-tool"));
-            _aiEntitiesContainer = new VisualElement();
-            entFoldout.Add(_aiEntitiesContainer);
-            s.Add(entFoldout);
-            RebuildAiEntities();
-
-            s.Add(new Label("Paste the AI's JSON answer below and Import:"));
-
-            _aiJsonField = new TextField { multiline = true };
-            _aiJsonField.style.minHeight = 90;
-            s.Add(_aiJsonField);
-
-            var actions = MakeRow();
-            var importBtn = MakeButton("2 · Import JSON", ImportAiJson, "tt-btn--save");
-            importBtn.tooltip = "Paste the AI's JSON answer in the box above, then click to load it as a level.";
-            actions.Add(importBtn);
-            s.Add(actions);
-
-            _aiStatus = new Label("1 · Copy prompt  →  paste into AI chat  →  paste JSON back  →  2 · Import JSON");
-            s.Add(_aiStatus);
-            return s;
-        }
-
-        /// <summary>
-        /// Rebuilds the entity include/exclude list grouped by base type.
-        /// Mandatory types (no nailed/locked tag) are always included and their toggle is disabled.
-        /// Optional types (nailed/locked) can be toggled.
-        /// </summary>
-        private void RebuildAiEntities()
-        {
-            if (_aiEntitiesContainer == null) return;
-            _aiEntitiesContainer.Clear();
-            if (_entityDefs.Count == 0)
-            {
-                _aiEntitiesContainer.Add(new Label("No entity types yet."));
-                return;
-            }
-
-            // Group by base type display name; null base type → "Ungrouped"
-            var groups = new Dictionary<string, (Color accent, List<EntityDefinitionSO> defs)>();
-            var groupOrder = new List<string>();
-
-            foreach (var def in _entityDefs)
-            {
-                string groupName = def.BaseType != null ? def.BaseType.DisplayName : "Ungrouped";
-                Color accent = def.BaseType != null ? def.BaseType.EditorColor : new Color(0.5f, 0.5f, 0.5f);
-                if (!groups.ContainsKey(groupName))
-                {
-                    groups[groupName] = (accent, new List<EntityDefinitionSO>());
-                    groupOrder.Add(groupName);
-                }
-                groups[groupName].defs.Add(def);
-            }
-
-            foreach (string groupName in groupOrder)
-            {
-                var (accent, defs) = groups[groupName];
-
-                // Group header
-                var header = new Label(groupName);
-                header.AddToClassList("tt-ai-group-header");
-                header.style.borderLeftColor = accent;
-                _aiEntitiesContainer.Add(header);
-
-                // Mandatory items first (no nailed/locked tag), then optional
-                var sorted = defs
-                    .OrderBy(d => IsNailed(d) ? 1 : 0)
-                    .ThenBy(d => d.DisplayName);
-
-                foreach (var def in sorted)
-                {
-                    string id = def.TypeId;
-                    bool mandatory = !IsNailed(def);
-
-                    var item = MakeRow();
-                    item.AddToClassList("tt-ai-entity-row");
-
-                    var toggle = new Toggle { value = true };
-                    toggle.style.marginRight = 4;
-
-                    if (mandatory)
-                    {
-                        // Always on, not toggleable — levels need at least one movable pin type
-                        _aiExcludedTypeIds.Remove(id);
-                        toggle.SetEnabled(false);
-                        toggle.tooltip = "Required — levels need at least one movable pin type.";
-                    }
-                    else
-                    {
-                        toggle.value = !_aiExcludedTypeIds.Contains(id);
-                        toggle.RegisterValueChangedCallback(e =>
-                        {
-                            if (e.newValue) _aiExcludedTypeIds.Remove(id);
-                            else _aiExcludedTypeIds.Add(id);
-                        });
-                    }
-
-                    item.Add(toggle);
-                    var nameLabel = new Label(def.DisplayName);
-                    if (mandatory) nameLabel.AddToClassList("tt-ai-entity-required");
-                    item.Add(nameLabel);
-                    _aiEntitiesContainer.Add(item);
-                }
-            }
-        }
-
-        /// <summary>Loads the level at the given reference ID and stores it as style inspiration for the prompt.</summary>
-        private void LoadAiReference()
-        {
-            int id = _aiRefLevelId?.value ?? 0;
-            if (id <= 0)
-            {
-                _aiRefLevel = null;
-                _aiRefLabel.text = "No reference — AI generates freely.";
-                return;
-            }
-            var asset = LevelSaveUtility.GetSelectedLevel(id, LevelEditorPaths.Levels);
-            if (asset == null)
-            {
-                _aiRefLevel = null;
-                _aiRefLabel.text = $"Level {id} not found.";
-                return;
-            }
-            _aiRefLevel = asset;
-            _aiRefLabel.text = $"Reference: Level {id}  ·  {asset.GridWidth}x{asset.GridHeight}  ·  {asset.Ropes.Count} rope(s)";
-        }
-
-        /// <summary>Re-scans entity assets (e.g. after one is added outside the tool) and refreshes the UI.</summary>
-        private void RefreshAiEntities()
-        {
-            RefreshBaseTypes();
-            RefreshEntityDefinitions();
-            RebuildToolbar(); // also rebuilds the AI entity toggles
-            RebuildPalette();
-        }
-
-        /// <summary>Builds a generation request from the current AI section inputs.</summary>
-        private LevelGenerationRequest CurrentAiRequest() => new()
-        {
-            GridWidth = Mathf.Max(1, _aiGridWidth?.value ?? _widthField.value),
-            GridHeight = Mathf.Max(1, _aiGridHeight?.value ?? _heightField.value),
-            TimeSeconds = Mathf.Max(1, _timeField.value),
-            Difficulty = _aiDifficulty?.value ?? "Medium",
-            EntityTypeIds = _entityDefs.Where(d => !_aiExcludedTypeIds.Contains(d.TypeId)).Select(d => d.TypeId)
-                .ToList(),
-            NailedTypeIds = _entityDefs.Where(d => IsNailed(d) && !_aiExcludedTypeIds.Contains(d.TypeId))
-                .Select(d => d.TypeId).ToList(),
-            PaletteHex = _swatches.Select(sw => "#" + ColorUtility.ToHtmlStringRGB(sw.color)).ToList(),
-            ReferenceLevelDescription = _aiRefLevel != null ? LevelAiGenerator.DescribeLevel(_aiRefLevel) : null
-        };
-
-        /// <summary>Copies a ready-to-paste prompt (rules + context + JSON shape) to the clipboard for any AI chat.</summary>
-        private void CopyAiPrompt()
-        {
-            EditorGUIUtility.systemCopyBuffer = LevelAiGenerator.BuildManualPrompt(CurrentAiRequest());
-            _aiStatus.text = "✓ Prompt copied. Paste it into your AI chat, then paste its JSON answer below.";
-        }
-
-        /// <summary>Parses the pasted level JSON into a level and loads it for review.</summary>
-        private void ImportAiJson()
-        {
-            if (LevelAiGenerator.TryParseLevelJson(_aiJsonField.value, out var level, out var error))
-            {
-                LoadGeneratedLevel(level);
-                _aiStatus.text = "✓ Imported. Review, then Validate + Solve before saving.";
-            }
-            else
-            {
-                _aiStatus.text = "✗ " + error;
-            }
-        }
 
         /// <summary>Loads a generated/imported level into the editor for review (does not save).</summary>
-        private void LoadGeneratedLevel(LevelDataSO level)
+        public void LoadGeneratedLevel(LevelDataSO level)
         {
             level.LevelId = _levelIdField.value;
             _level = level;
@@ -1062,7 +806,7 @@ namespace TwistedTangle.Editor
         }
 
         /// <summary>True if an entity type is marked immovable via a "nailed" or "locked" tag.</summary>
-        private static bool IsNailed(EntityDefinitionSO def)
+        public static bool IsNailed(EntityDefinitionSO def)
         {
             foreach (var tag in def.Tags)
                 if (string.Equals(tag, "nailed", System.StringComparison.OrdinalIgnoreCase) ||

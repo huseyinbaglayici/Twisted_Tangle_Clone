@@ -51,24 +51,63 @@
     overflow: hidden;
 }
 
-/* Right panel: fixed width, slightly lighter tint for depth */
+/* Right panel: width set in C# (resizable), slightly lighter tint for depth */
 .tt-right-panel {
-    width: 290px;
     flex-shrink: 0;
+    min-width: 240px;
     background-color: #242424;
-    border-left-width: 1px;
-    border-left-color: rgba(255, 255, 255, 0.08);
 }
 
-/* Sections scroll — hide scrollbar chrome, allow mouse-wheel only */
+/* Drag divider between canvas and right panel */
+.tt-right-divider {
+    width: 4px;
+    flex-shrink: 0;
+    cursor: ew-resize;
+    background-color: rgba(255, 255, 255, 0.06);
+    transition-property: background-color;
+    transition-duration: 0.1s;
+}
+
+.tt-right-divider:hover {
+    background-color: rgba(0, 194, 255, 0.35);
+}
+
+/* Sections scroll — thin subtle scrollbar, hidden horizontal */
 .tt-right-scroll > .unity-scroll-view__content-container {
     padding: 6px;
 }
-.tt-right-scroll > .unity-scroll-view__vertical-scroller {
-    display: none;
-}
 .tt-right-scroll > .unity-scroll-view__horizontal-scroller {
     display: none;
+}
+
+/* Thin track */
+.tt-right-scroll > .unity-scroll-view__vertical-scroller {
+    width: 6px;
+    background-color: transparent;
+}
+/* Hide the arrow buttons */
+.tt-right-scroll > .unity-scroll-view__vertical-scroller > .unity-scroller__low-button,
+.tt-right-scroll > .unity-scroll-view__vertical-scroller > .unity-scroller__high-button {
+    display: none;
+}
+/* Track itself */
+.tt-right-scroll > .unity-scroll-view__vertical-scroller > .unity-base-slider__tracker {
+    background-color: rgba(255, 255, 255, 0.04);
+    border-radius: 3px;
+    margin: 0;
+}
+/* Draggable thumb */
+.tt-right-scroll > .unity-scroll-view__vertical-scroller > .unity-base-slider__dragger-border {
+    display: none;
+}
+.tt-right-scroll > .unity-scroll-view__vertical-scroller > .unity-base-slider__dragger {
+    background-color: rgba(255, 255, 255, 0.20);
+    border-radius: 3px;
+    border-width: 0;
+    min-height: 24px;
+}
+.tt-right-scroll > .unity-scroll-view__vertical-scroller > .unity-base-slider__dragger:hover {
+    background-color: rgba(255, 255, 255, 0.35);
 }
 
 /* ── Canvas bottom panels (Validate / Solve) — floating overlays ─────────── */
@@ -115,46 +154,16 @@
     display: none;
 }
 
-/* ── Paths bar (above topbar) ────────────────────────────────────────────── */
+/* ── Editor setup bar (above topbar) ─────────────────────────────────────── */
 
-.tt-paths-bar {
+.tt-setup-bar {
+    flex-direction: row;
     flex-shrink: 0;
+    align-items: center;
+    padding: 3px 8px;
     background-color: #161616;
     border-bottom-width: 1px;
     border-bottom-color: rgba(255, 255, 255, 0.08);
-}
-
-.tt-paths-foldout {
-    padding: 0 6px;
-}
-
-.tt-paths-foldout > .unity-foldout__toggle {
-    height: 24px;
-    margin-bottom: 0;
-}
-
-.tt-paths-foldout > .unity-foldout__toggle > .unity-toggle__input > .unity-label {
-    font-size: 11px;
-    color: rgba(255, 255, 255, 0.50);
-    -unity-font-style: normal;
-}
-
-.tt-paths-host {
-    padding: 2px 0 4px 0;
-}
-
-.tt-paths-row {
-    flex-direction: row;
-    align-items: center;
-    margin-bottom: 2px;
-    padding: 0 4px;
-}
-
-.tt-paths-label {
-    min-width: 110px;
-    width: 110px;
-    font-size: 11px;
-    color: rgba(255, 255, 255, 0.55);
 }
 
 /* ── Sections ────────────────────────────────────────────────────────────── */
