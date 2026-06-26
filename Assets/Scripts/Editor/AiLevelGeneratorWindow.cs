@@ -49,10 +49,13 @@ namespace TwistedTangle.Editor
             var uss = AssetDatabase.LoadAssetAtPath<StyleSheet>(LevelEditorPaths.Uss);
             if (uss != null) root.styleSheets.Add(uss);
 
+            root.style.backgroundColor = new Color(0.102f, 0.102f, 0.102f);
+
             Refresh();
             LoadPrefs(); // restore field values + excluded set before building UI
 
             var scroll = new ScrollView(ScrollViewMode.Vertical);
+            scroll.AddToClassList("tt-right-scroll");
             scroll.style.flexGrow      = 1;
             scroll.style.paddingTop    = 8;
             scroll.style.paddingBottom = 8;
@@ -123,11 +126,9 @@ namespace TwistedTangle.Editor
 
             var gridRow = MakeRow();
             gridRow.AddToClassList("tt-row--wrap");
-            _gridWidth   = CompactInt("W",       EditorPrefs.GetInt(P("W"),    6));
-            _gridHeight  = CompactInt("H",       EditorPrefs.GetInt(P("H"),    6));
-            _timeSeconds = CompactInt("Time(s)", EditorPrefs.GetInt(P("Time"), 45));
-            _gridWidth.AddToClassList("tt-num--narrow");
-            _gridHeight.AddToClassList("tt-num--narrow");
+            _gridWidth   = CompactInt("Width",    EditorPrefs.GetInt(P("W"),    6));
+            _gridHeight  = CompactInt("Height",   EditorPrefs.GetInt(P("H"),    6));
+            _timeSeconds = CompactInt("Time(s)",  EditorPrefs.GetInt(P("Time"), 45));
             gridRow.Add(_gridWidth);
             gridRow.Add(_gridHeight);
             gridRow.Add(_timeSeconds);

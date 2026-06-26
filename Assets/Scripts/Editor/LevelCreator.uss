@@ -62,10 +62,8 @@
 .tt-right-divider {
     width: 4px;
     flex-shrink: 0;
-    cursor: ew-resize;
+    cursor: resize-horizontal;
     background-color: rgba(255, 255, 255, 0.06);
-    transition-property: background-color;
-    transition-duration: 0.1s;
 }
 
 .tt-right-divider:hover {
@@ -156,8 +154,6 @@
     cursor: resize-vertical;
     border-bottom-width: 1px;
     border-bottom-color: rgba(255, 255, 255, 0.15);
-    transition-property: background-color;
-    transition-duration: 0.1s;
 }
 
 .tt-canvas-bottom__handle:hover {
@@ -331,24 +327,37 @@
 
 /* ── Numeric fields ──────────────────────────────────────────────────────── */
 
-/* Compact numeric field so Width/Height/Id pack tightly without a big gap */
 .tt-num {
     flex-grow: 0;
     margin-right: 10px;
 }
 
+/* Label — matches section header color */
 .tt-num .unity-base-field__label {
     min-width: 0;
     width: 58px;
     margin-right: 2px;
+    color: #CFCFCF;
+    -unity-font-style: normal;
 }
 
-.tt-num .unity-base-field__input {
+/* Input box — dark to match the rest of the editor */
+.tt-num .unity-base-text-field__input {
     min-width: 0;
     width: 56px;
+    background-color: #2C2C2C;
+    border-color: rgba(255, 255, 255, 0.15);
+    border-radius: 3px;
+    color: #E8E8E8;
+    -unity-font-style: normal;
 }
 
-/* Narrow variant for very short labels (W, H, Id …) */
+.tt-num .unity-base-text-field__input:focus {
+    border-color: #00C2FF;
+    border-width: 1px;
+}
+
+/* Narrow variant kept for backwards compat */
 .tt-num--narrow .unity-base-field__label {
     width: 16px;
 }

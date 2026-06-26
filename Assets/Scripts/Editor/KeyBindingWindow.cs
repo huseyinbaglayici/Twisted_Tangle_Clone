@@ -34,8 +34,14 @@ namespace TwistedTangle.Editor
             var uss = AssetDatabase.LoadAssetAtPath<StyleSheet>(LevelEditorPaths.Uss);
             if (uss != null) root.styleSheets.Add(uss);
 
+            root.style.backgroundColor = new Color(0.102f, 0.102f, 0.102f); // #1A1A1A
+
             var scroll = new ScrollView();
-            scroll.AddToClassList("tt-main-scroll");
+            scroll.AddToClassList("tt-right-scroll");
+            scroll.style.flexGrow = 1;
+            scroll.style.paddingLeft  = 8;
+            scroll.style.paddingRight = 8;
+            scroll.style.paddingTop   = 8;
 
             var title = new Label("Twisted Tangle — Key Bindings");
             title.AddToClassList("tt-title");

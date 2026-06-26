@@ -475,7 +475,7 @@ namespace TwistedTangle.Editor
             var bar = new VisualElement();
             bar.AddToClassList("tt-topbar");
 
-            _levelIdField = CompactIntField("Id", 1);
+            _levelIdField = CompactIntField("Level ID", 1);
             bar.Add(_levelIdField);
             bar.Add(MakeButton("Load",   () => LoadLevel(_levelIdField.value), "tt-btn--primary"));
             bar.Add(MakeButton("Save",   SaveCurrentLevel,                      "tt-btn--save"));
@@ -485,10 +485,8 @@ namespace TwistedTangle.Editor
             sep.AddToClassList("tt-topbar__sep");
             bar.Add(sep);
 
-            _widthField  = CompactIntField("W",      6);
-            _widthField.AddToClassList("tt-num--narrow");
-            _heightField = CompactIntField("H",      6);
-            _heightField.AddToClassList("tt-num--narrow");
+            _widthField  = CompactIntField("Width",   6);
+            _heightField = CompactIntField("Height",  6);
             _timeField   = CompactIntField("Time(s)", 45);
             bar.Add(_widthField);
             bar.Add(_heightField);
