@@ -11,6 +11,7 @@ using TwistedTangle.Runtime.Data.ValueObjects;
 using TwistedTangle.Editor.Geometry;
 using TwistedTangle.Runtime.Data.Enums;
 using UnityEditor;
+using UnityEditor.UIElements;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -70,7 +71,10 @@ namespace TwistedTangle.Editor
             _editToolsContainer,
             _ropeListContainer,
             _validationContainer,
-            _solverContainer;
+            _solverContainer,
+            _validationStatusDot;
+
+        private System.Action _pathsRebuildDelegate; // subscribed to LevelEditorPaths.Changed
 
         private DropdownField _aiDifficulty;
         private IntegerField _aiGridWidth;
@@ -103,7 +107,7 @@ namespace TwistedTangle.Editor
         {
             var w = GetWindow<LevelCreator>();
             w.titleContent = new GUIContent("Tangle Level Creator");
-            w.minSize = new Vector2(560, 600);
+            w.minSize = new Vector2(700, 500);
         }
 
         public void CreateGUI()
@@ -123,26 +127,20 @@ namespace TwistedTangle.Editor
             _selectedEntity = SubTypesOf(_selectedBaseType).FirstOrDefault();
             _tool = (_baseTypes.Count > 0 || HasUngrouped()) ? Tool.Place : Tool.Rope;
 
-            // Single outer scroll so the whole window scrolls when it's short — not just the grid.
-            var scroll = new ScrollView(ScrollViewMode.VerticalAndHorizontal);
-            scroll.AddToClassList("tt-main-scroll");
+            // Two-panel layout: paths bar (collapsible) + top bar + body (canvas left, controls right).
+            var app = new VisualElement();
+            app.AddToClassList("tt-app-container");
 
-            scroll.Add(MakeTitle("Twisted Tangle — Level Creator"));
-            scroll.Add(BuildHelpSection());
-            scroll.Add(BuildEditorSetupSection());
-            scroll.Add(BuildLevelIoSection());
-            scroll.Add(BuildGridSection());
-            scroll.Add(BuildAiSection());
-            scroll.Add(BuildEditToolsSection());
-            scroll.Add(BuildEntityPlacementSection());
-            scroll.Add(BuildPaletteSection());
-            scroll.Add(BuildEntityCreatorSection());
-            scroll.Add(BuildRopeListSection());
-            scroll.Add(BuildValidationSection());
-            scroll.Add(BuildSolverSection());
-            scroll.Add(BuildCanvasSection());
+            app.Add(BuildPathsBar());
+            app.Add(BuildTopBar());
 
-            root.Add(scroll);
+            var body = new VisualElement();
+            body.AddToClassList("tt-body");
+            body.Add(BuildCanvasPanelWrapper());
+            body.Add(BuildRightPanel());
+            app.Add(body);
+
+            root.Add(app);
 
             BuildCommandTable();
             root.focusable = true;
@@ -154,7 +152,12 @@ namespace TwistedTangle.Editor
             UpdateShortcutHints();
         }
 
-        private void OnDisable() => KeyBindingStore.Changed -= UpdateShortcutHints;
+        private void OnDisable()
+        {
+            KeyBindingStore.Changed -= UpdateShortcutHints;
+            if (_pathsRebuildDelegate != null)
+                LevelEditorPaths.Changed -= _pathsRebuildDelegate;
+        }
 
         #region Data-driven discovery
 
@@ -483,35 +486,81 @@ namespace TwistedTangle.Editor
             return s;
         }
 
-        private VisualElement BuildLevelIoSection()
+        private VisualElement BuildTopBar()
         {
-            var s = MakeSection("Level (save / load / delete by id)");
-            var row = MakeRow();
+            var bar = new VisualElement();
+            bar.AddToClassList("tt-topbar");
 
-            _levelIdField = CompactIntField("Level Id", 1);
-            row.Add(_levelIdField);
-            row.Add(MakeButton("Load", () => LoadLevel(_levelIdField.value), "tt-btn--primary"));
-            row.Add(MakeButton("Save", SaveCurrentLevel, "tt-btn--save"));
-            row.Add(MakeButton("Delete", () => DeleteLevel(_levelIdField.value), "tt-btn--danger"));
+            _levelIdField = CompactIntField("Id", 1);
+            bar.Add(_levelIdField);
+            bar.Add(MakeButton("Load",   () => LoadLevel(_levelIdField.value), "tt-btn--primary"));
+            bar.Add(MakeButton("Save",   SaveCurrentLevel,                      "tt-btn--save"));
+            bar.Add(MakeButton("Delete", () => DeleteLevel(_levelIdField.value),"tt-btn--danger"));
 
-            s.Add(row);
-            return s;
+            var sep = new VisualElement();
+            sep.AddToClassList("tt-topbar__sep");
+            bar.Add(sep);
+
+            _widthField  = CompactIntField("W",      6);
+            _widthField.AddToClassList("tt-num--narrow");
+            _heightField = CompactIntField("H",      6);
+            _heightField.AddToClassList("tt-num--narrow");
+            _timeField   = CompactIntField("Time(s)", 45);
+            bar.Add(_widthField);
+            bar.Add(_heightField);
+            bar.Add(_timeField);
+            bar.Add(MakeButton("Generate Grid", GenerateGrid, "tt-btn--primary"));
+
+            return bar;
         }
 
-        private VisualElement BuildGridSection()
+        private VisualElement BuildCanvasPanelWrapper()
         {
-            var s = MakeSection("Grid & time");
-            var row = MakeRow();
+            var panel = new VisualElement();
+            panel.AddToClassList("tt-canvas-panel");
 
-            _widthField = CompactIntField("Width", 6);
-            _heightField = CompactIntField("Height", 6);
-            _timeField = CompactIntField("Time (s)", 45);
-            row.Add(_widthField);
-            row.Add(_heightField);
-            row.Add(_timeField);
-            row.Add(MakeButton("Generate Grid", GenerateGrid, "tt-btn--primary"));
-            s.Add(row);
-            return s;
+            var scroll = new ScrollView(ScrollViewMode.VerticalAndHorizontal);
+            scroll.style.flexGrow = 1;
+
+            var host = new VisualElement();
+            host.AddToClassList("tt-canvas-host");
+
+            _canvas = new RopeCanvasElement { PegColorResolver = ResolveEntityColor };
+            _canvas.AddToClassList("tt-canvas");
+            _canvas.CellClicked = OnCanvasCellClicked;
+            _canvas.CellDragged = OnCanvasCellDragged;
+            _canvas.Released = () => RefreshPanels();
+
+            host.Add(_canvas);
+            scroll.Add(host);
+            panel.Add(scroll);
+
+            // Floating overlay panels — position: absolute so they never affect canvas layout
+            panel.Add(BuildFloatingBottomPanel(isRight: false));
+            panel.Add(BuildFloatingBottomPanel(isRight: true));
+            return panel;
+        }
+
+        private VisualElement BuildRightPanel()
+        {
+            var panel = new VisualElement();
+            panel.AddToClassList("tt-right-panel");
+
+            // Sections — scrollbar hidden, mouse-wheel scroll only
+            var scroll = new ScrollView(ScrollViewMode.Vertical);
+            scroll.AddToClassList("tt-right-scroll");
+
+            scroll.Add(BuildEditToolsSection());
+            scroll.Add(BuildEntityPlacementSection());
+            scroll.Add(BuildPaletteSection());
+            scroll.Add(BuildAiSection());
+            scroll.Add(BuildRopeListSection());
+            scroll.Add(BuildEntityCreatorSection());
+            scroll.Add(BuildHelpSection());
+            scroll.Add(BuildEditorSetupSection());
+
+            panel.Add(scroll);
+            return panel;
         }
 
         private VisualElement BuildEditToolsSection()
@@ -650,15 +699,124 @@ namespace TwistedTangle.Editor
             return s;
         }
 
-        private VisualElement BuildValidationSection()
+        private VisualElement BuildFloatingBottomPanel(bool isRight)
         {
-            var s = MakeSection("Validation & metrics", expanded: false);
-            var row = MakeRow();
-            row.Add(MakeButton("Validate", RebuildValidation, "tt-btn--primary"));
-            s.Add(row);
-            _validationContainer = new VisualElement();
-            s.Add(_validationContainer);
-            return s;
+            // position: absolute — completely outside the flex flow, zero effect on canvas size
+            var panel = new VisualElement();
+            panel.AddToClassList("tt-canvas-bottom__half");
+            if (isRight) panel.AddToClassList("tt-canvas-bottom__half--right");
+            panel.style.position = Position.Absolute;
+            panel.style.bottom = 0;
+            panel.style.width = Length.Percent(50);
+            panel.style.height = 160f;
+            if (!isRight) panel.style.left = 0;
+            else          panel.style.right = 0;
+
+            // Drag handle at top — drag up to grow, drag down to shrink
+            var handle = new VisualElement();
+            handle.AddToClassList("tt-canvas-bottom__handle");
+            float startY = 0f, startH = 0f;
+            handle.RegisterCallback<PointerDownEvent>(e =>
+            {
+                startY = e.position.y;
+                startH = panel.resolvedStyle.height;
+                handle.CapturePointer(e.pointerId);
+                e.StopPropagation();
+            });
+            handle.RegisterCallback<PointerMoveEvent>(e =>
+            {
+                if (!handle.HasPointerCapture(e.pointerId)) return;
+                panel.style.height = Mathf.Clamp(startH + (startY - e.position.y), 60f, 500f);
+                e.StopPropagation();
+            });
+            handle.RegisterCallback<PointerUpEvent>(e =>
+            {
+                handle.ReleasePointer(e.pointerId);
+                e.StopPropagation();
+            });
+            panel.Add(handle);
+
+            if (!isRight)
+            {
+                var header = MakeRow();
+                _validationStatusDot = new VisualElement();
+                _validationStatusDot.AddToClassList("tt-status-dot");
+                header.Add(_validationStatusDot);
+                header.Add(MakeButton("Validate", RebuildValidation, "tt-btn--primary"));
+                panel.Add(header);
+                var scroll = new ScrollView(ScrollViewMode.Vertical);
+                scroll.AddToClassList("tt-canvas-bottom__scroll");
+                scroll.style.flexGrow = 1;
+                _validationContainer = new VisualElement();
+                scroll.Add(_validationContainer);
+                panel.Add(scroll);
+            }
+            else
+            {
+                var header = MakeRow();
+                header.Add(MakeButton("Solve", RunSolve, "tt-btn--primary"));
+                panel.Add(header);
+                var scroll = new ScrollView(ScrollViewMode.Vertical);
+                scroll.AddToClassList("tt-canvas-bottom__scroll");
+                scroll.style.flexGrow = 1;
+                _solverContainer = new VisualElement();
+                scroll.Add(_solverContainer);
+                panel.Add(scroll);
+            }
+
+            return panel;
+        }
+
+        private VisualElement BuildPathsBar()
+        {
+            var bar = new VisualElement();
+            bar.AddToClassList("tt-paths-bar");
+
+            var foldout = new Foldout { text = "Paths", value = false };
+            foldout.AddToClassList("tt-paths-foldout");
+
+            var host = new VisualElement();
+            host.AddToClassList("tt-paths-host");
+
+            void Rebuild()
+            {
+                host.Clear();
+                foreach (var def in LevelEditorPaths.All)
+                {
+                    var row = new VisualElement();
+                    row.AddToClassList("tt-paths-row");
+
+                    var lbl = new Label(def.DisplayName);
+                    lbl.AddToClassList("tt-paths-label");
+                    row.Add(lbl);
+
+                    var objType = def.IsFolder ? typeof(DefaultAsset) : typeof(StyleSheet);
+                    string current = LevelEditorPaths.Get(def.Id);
+                    var field = new ObjectField
+                    {
+                        objectType = objType,
+                        allowSceneObjects = false,
+                        value = AssetDatabase.LoadAssetAtPath(current, objType),
+                    };
+                    field.style.flexGrow = 1;
+                    var capturedDef = def;
+                    field.RegisterValueChangedCallback(e =>
+                    {
+                        if (e.newValue == null) LevelEditorPaths.Reset(capturedDef.Id);
+                        else LevelEditorPaths.Set(capturedDef.Id, AssetDatabase.GetAssetPath(e.newValue));
+                    });
+                    row.Add(field);
+                    host.Add(row);
+                }
+            }
+
+            Rebuild();
+            _pathsRebuildDelegate = Rebuild;
+            LevelEditorPaths.Changed += Rebuild;
+
+            foldout.Add(host);
+            bar.Add(foldout);
+            return bar;
         }
 
         private VisualElement BuildAiSection()
@@ -727,7 +885,11 @@ namespace TwistedTangle.Editor
             return s;
         }
 
-        /// <summary>One include/exclude toggle per entity type (all on by default). Rebuilt when types change.</summary>
+        /// <summary>
+        /// Rebuilds the entity include/exclude list grouped by base type.
+        /// Mandatory types (no nailed/locked tag) are always included and their toggle is disabled.
+        /// Optional types (nailed/locked) can be toggled.
+        /// </summary>
         private void RebuildAiEntities()
         {
             if (_aiEntitiesContainer == null) return;
@@ -738,21 +900,71 @@ namespace TwistedTangle.Editor
                 return;
             }
 
+            // Group by base type display name; null base type → "Ungrouped"
+            var groups = new Dictionary<string, (Color accent, List<EntityDefinitionSO> defs)>();
+            var groupOrder = new List<string>();
+
             foreach (var def in _entityDefs)
             {
-                string id = def.TypeId;
-                var item = MakeRow();
-                item.style.alignItems = Align.Center;
-                var toggle = new Toggle { value = !_aiExcludedTypeIds.Contains(id) };
-                toggle.style.marginRight = 4;
-                toggle.RegisterValueChangedCallback(e =>
+                string groupName = def.BaseType != null ? def.BaseType.DisplayName : "Ungrouped";
+                Color accent = def.BaseType != null ? def.BaseType.EditorColor : new Color(0.5f, 0.5f, 0.5f);
+                if (!groups.ContainsKey(groupName))
                 {
-                    if (e.newValue) _aiExcludedTypeIds.Remove(id);
-                    else _aiExcludedTypeIds.Add(id);
-                });
-                item.Add(toggle);
-                item.Add(new Label(def.DisplayName));
-                _aiEntitiesContainer.Add(item);
+                    groups[groupName] = (accent, new List<EntityDefinitionSO>());
+                    groupOrder.Add(groupName);
+                }
+                groups[groupName].defs.Add(def);
+            }
+
+            foreach (string groupName in groupOrder)
+            {
+                var (accent, defs) = groups[groupName];
+
+                // Group header
+                var header = new Label(groupName);
+                header.AddToClassList("tt-ai-group-header");
+                header.style.borderLeftColor = accent;
+                _aiEntitiesContainer.Add(header);
+
+                // Mandatory items first (no nailed/locked tag), then optional
+                var sorted = defs
+                    .OrderBy(d => IsNailed(d) ? 1 : 0)
+                    .ThenBy(d => d.DisplayName);
+
+                foreach (var def in sorted)
+                {
+                    string id = def.TypeId;
+                    bool mandatory = !IsNailed(def);
+
+                    var item = MakeRow();
+                    item.AddToClassList("tt-ai-entity-row");
+
+                    var toggle = new Toggle { value = true };
+                    toggle.style.marginRight = 4;
+
+                    if (mandatory)
+                    {
+                        // Always on, not toggleable — levels need at least one movable pin type
+                        _aiExcludedTypeIds.Remove(id);
+                        toggle.SetEnabled(false);
+                        toggle.tooltip = "Required — levels need at least one movable pin type.";
+                    }
+                    else
+                    {
+                        toggle.value = !_aiExcludedTypeIds.Contains(id);
+                        toggle.RegisterValueChangedCallback(e =>
+                        {
+                            if (e.newValue) _aiExcludedTypeIds.Remove(id);
+                            else _aiExcludedTypeIds.Add(id);
+                        });
+                    }
+
+                    item.Add(toggle);
+                    var nameLabel = new Label(def.DisplayName);
+                    if (mandatory) nameLabel.AddToClassList("tt-ai-entity-required");
+                    item.Add(nameLabel);
+                    _aiEntitiesContainer.Add(item);
+                }
             }
         }
 
@@ -859,16 +1071,6 @@ namespace TwistedTangle.Editor
             return false;
         }
 
-        private VisualElement BuildSolverSection()
-        {
-            var s = MakeSection("Solver (untangle check)", expanded: false);
-            var row = MakeRow();
-            row.Add(MakeButton("Solve", RunSolve, "tt-btn--primary"));
-            s.Add(row);
-            _solverContainer = new VisualElement();
-            s.Add(_solverContainer);
-            return s;
-        }
 
         /// <summary>Runs the auto-solver on the current level and shows whether/how it untangles.</summary>
         private void RunSolve()
@@ -946,21 +1148,6 @@ namespace TwistedTangle.Editor
             }
         }
 
-        private VisualElement BuildCanvasSection()
-        {
-            // No inner scroll — the canvas has an explicit size and the outer scroll handles it.
-            var host = new VisualElement();
-            host.AddToClassList("tt-canvas-host");
-
-            _canvas = new RopeCanvasElement { PegColorResolver = ResolveEntityColor };
-            _canvas.AddToClassList("tt-canvas");
-            _canvas.CellClicked = OnCanvasCellClicked;
-            _canvas.CellDragged = OnCanvasCellDragged;
-            _canvas.Released = () => RefreshPanels();
-
-            host.Add(_canvas);
-            return host;
-        }
 
         #endregion
 
@@ -1107,6 +1294,7 @@ namespace TwistedTangle.Editor
             {
                 var captured = rope;
                 var row = MakeRow();
+                row.AddToClassList("tt-rope-row");
 
                 var swatch = new VisualElement();
                 swatch.AddToClassList("tt-peg-swatch");
@@ -1193,6 +1381,13 @@ namespace TwistedTangle.Editor
             var diff = new Label($"Difficulty: {m.Difficulty} (score {m.DifficultyScore:0.0})");
             diff.AddToClassList($"tt-difficulty--{m.Difficulty}");
             _validationContainer.Add(diff);
+
+            if (_validationStatusDot != null)
+            {
+                _validationStatusDot.EnableInClassList("tt-status-dot--ok",    report.IsValid);
+                _validationStatusDot.EnableInClassList("tt-status-dot--error", !report.IsValid);
+                _validationStatusDot.EnableInClassList("tt-status-dot--warn",  false);
+            }
         }
 
         private static void AddMetric(VisualElement row, string text)

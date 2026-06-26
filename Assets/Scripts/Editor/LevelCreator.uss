@@ -5,22 +5,181 @@
     flex-grow: 1;
 }
 
-.tt-title {
-    font-size: 20px;
-    -unity-font-style: bold;
-    color: #FF9F00;
-    margin-top: 10px;
-    margin-bottom: 6px;
-    margin-left: 4px;
+/* ── Application shell ───────────────────────────────────────────────────── */
+
+.tt-app-container {
+    flex-direction: column;
+    flex-grow: 1;
+    background-color: #1A1A1A;
 }
 
-.tt-section {
-    margin-bottom: 8px;
+/* Top bar: always-visible horizontal strip for Level I/O + Grid params */
+.tt-topbar {
+    flex-direction: row;
+    align-items: center;
+    flex-shrink: 0;
+    height: 44px;
+    padding-left: 8px;
+    padding-right: 8px;
+    background-color: #1A1A1A;
+    border-bottom-width: 1px;
+    border-bottom-color: rgba(255, 255, 255, 0.12);
+    flex-wrap: wrap;
+}
+
+/* Vertical rule between Level I/O group and Grid group */
+.tt-topbar__sep {
+    width: 1px;
+    height: 24px;
+    background-color: rgba(255, 255, 255, 0.15);
+    margin-left: 8px;
+    margin-right: 12px;
+}
+
+/* Body: canvas panel (left) + right panel side by side */
+.tt-body {
+    flex-direction: row;
+    flex-grow: 1;
+}
+
+/* Left: canvas fill zone — position:relative so absolute-positioned overlay panels anchor here */
+.tt-canvas-panel {
+    flex-grow: 1;
+    flex-direction: column;
+    position: relative;
+    background-color: #1E1E1E;
+    overflow: hidden;
+}
+
+/* Right panel: fixed width, slightly lighter tint for depth */
+.tt-right-panel {
+    width: 290px;
+    flex-shrink: 0;
+    background-color: #242424;
+    border-left-width: 1px;
+    border-left-color: rgba(255, 255, 255, 0.08);
+}
+
+/* Sections scroll — hide scrollbar chrome, allow mouse-wheel only */
+.tt-right-scroll > .unity-scroll-view__content-container {
     padding: 6px;
+}
+.tt-right-scroll > .unity-scroll-view__vertical-scroller {
+    display: none;
+}
+.tt-right-scroll > .unity-scroll-view__horizontal-scroller {
+    display: none;
+}
+
+/* ── Canvas bottom panels (Validate / Solve) — floating overlays ─────────── */
+
+/* Grab bar — drag up/down to resize each panel independently */
+.tt-canvas-bottom__handle {
+    height: 6px;
+    flex-shrink: 0;
+    background-color: rgba(255, 255, 255, 0.06);
+    cursor: resize-vertical;
+    border-bottom-width: 1px;
+    border-bottom-color: rgba(255, 255, 255, 0.15);
+    transition-property: background-color;
+    transition-duration: 0.1s;
+}
+
+.tt-canvas-bottom__handle:hover {
+    background-color: rgba(0, 194, 255, 0.35);
+    border-bottom-color: rgba(0, 194, 255, 0.6);
+}
+
+.tt-canvas-bottom__half {
+    flex-direction: column;
+    padding: 0 6px 4px 6px;
+    overflow: hidden;
+    background-color: rgba(26, 26, 26, 0.92);
+    border-top-width: 1px;
+    border-top-color: rgba(255, 255, 255, 0.12);
+}
+
+.tt-canvas-bottom__half--right {
+    border-left-width: 1px;
+    border-left-color: rgba(255, 255, 255, 0.08);
+}
+
+/* Output scroll inside each panel — hidden scrollbar chrome */
+.tt-canvas-bottom__scroll {
+    flex-grow: 1;
+}
+.tt-canvas-bottom__scroll > .unity-scroll-view__vertical-scroller {
+    display: none;
+}
+.tt-canvas-bottom__scroll > .unity-scroll-view__horizontal-scroller {
+    display: none;
+}
+
+/* ── Paths bar (above topbar) ────────────────────────────────────────────── */
+
+.tt-paths-bar {
+    flex-shrink: 0;
+    background-color: #161616;
+    border-bottom-width: 1px;
+    border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+
+.tt-paths-foldout {
+    padding: 0 6px;
+}
+
+.tt-paths-foldout > .unity-foldout__toggle {
+    height: 24px;
+    margin-bottom: 0;
+}
+
+.tt-paths-foldout > .unity-foldout__toggle > .unity-toggle__input > .unity-label {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.50);
+    -unity-font-style: normal;
+}
+
+.tt-paths-host {
+    padding: 2px 0 4px 0;
+}
+
+.tt-paths-row {
+    flex-direction: row;
+    align-items: center;
+    margin-bottom: 2px;
+    padding: 0 4px;
+}
+
+.tt-paths-label {
+    min-width: 110px;
+    width: 110px;
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.55);
+}
+
+/* ── Sections ────────────────────────────────────────────────────────────── */
+
+.tt-section {
+    margin-bottom: 6px;
+    padding: 4px;
     border-radius: 4px;
-    background-color: rgba(255, 255, 255, 0.03);
+    background-color: rgba(255, 255, 255, 0.02);
     border-left-width: 2px;
     border-left-color: rgba(255, 159, 0, 0.5);
+}
+
+/* Tighter, more distinct section header */
+.tt-section > .unity-foldout__toggle {
+    background-color: rgba(255, 255, 255, 0.05);
+    border-radius: 3px;
+    margin-bottom: 2px;
+    padding-left: 4px;
+}
+
+.tt-section > .unity-foldout__toggle > .unity-toggle__input > .unity-label {
+    -unity-font-style: bold;
+    color: #D4D4D4;
+    font-size: 11px;
 }
 
 .tt-section__header {
@@ -28,6 +187,8 @@
     margin-bottom: 4px;
     color: #CFCFCF;
 }
+
+/* ── Rows ────────────────────────────────────────────────────────────────── */
 
 .tt-row {
     flex-direction: row;
@@ -42,9 +203,11 @@
     flex-grow: 1;
 }
 
+/* ── Buttons ─────────────────────────────────────────────────────────────── */
+
 .tt-btn {
     height: 26px;
-    border-radius: 4px;
+    border-radius: 5px;
     -unity-font-style: bold;
     margin-right: 4px;
     margin-top: 2px;
@@ -59,6 +222,7 @@
     height: 36px;
     background-color: #39B33F;
     color: #FFFFFF;
+    border-radius: 5px;
 }
 
 .tt-btn--danger {
@@ -68,14 +232,14 @@
 
 /* Tool / palette toggle buttons */
 .tt-tool {
-    height: 30px;
-    min-width: 64px;
+    height: 28px;
+    min-width: 60px;
     margin-right: 4px;
     margin-top: 2px;
-    border-radius: 4px;
+    border-radius: 5px;
     border-width: 1px;
     border-color: rgba(255, 255, 255, 0.15);
-    background-color: rgba(255, 255, 255, 0.05);
+    background-color: rgba(255, 255, 255, 0.06);
 }
 
 .tt-tool--active {
@@ -84,16 +248,32 @@
     background-color: rgba(255, 159, 0, 0.15);
 }
 
+/* ── Canvas ──────────────────────────────────────────────────────────────── */
+
+.tt-canvas-host {
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    background-color: #1E1E1E;
+    min-height: 200px;
+}
+
+.tt-canvas {
+    align-self: center;
+}
+
+/* ── Swatches ────────────────────────────────────────────────────────────── */
+
 .tt-peg-swatch {
-    width: 14px;
-    height: 14px;
-    border-radius: 7px;
+    width: 16px;
+    height: 16px;
+    border-radius: 8px;
     margin-right: 6px;
     border-width: 1px;
     border-color: rgba(0, 0, 0, 0.5);
+    flex-shrink: 0;
 }
 
-/* Clickable rope-color palette swatch */
 .tt-swatch {
     width: 26px;
     height: 22px;
@@ -103,6 +283,8 @@
     border-width: 1px;
     border-color: rgba(0, 0, 0, 0.5);
 }
+
+/* ── Numeric fields ──────────────────────────────────────────────────────── */
 
 /* Compact numeric field so Width/Height/Id pack tightly without a big gap */
 .tt-num {
@@ -116,33 +298,17 @@
     margin-right: 2px;
 }
 
-/* Narrow variant for very short labels (W, H, Id …) */
-.tt-num--narrow .unity-base-field__label {
-    width: 16px;
-}
-
 .tt-num .unity-base-field__input {
     min-width: 0;
     width: 56px;
 }
 
-.tt-main-scroll {
-    flex-grow: 1;
+/* Narrow variant for very short labels (W, H, Id …) */
+.tt-num--narrow .unity-base-field__label {
+    width: 16px;
 }
 
-.tt-canvas-host {
-    margin-top: 6px;
-    border-top-width: 1px;
-    border-top-color: rgba(255, 255, 255, 0.1);
-    background-color: #1E1E1E;
-    align-items: center;
-    min-height: 120px;
-}
-
-.tt-canvas {
-    align-self: center;
-    margin: 12px;
-}
+/* ── Validation & metrics ────────────────────────────────────────────────── */
 
 .tt-validation__ok {
     color: #6FCF6F;
@@ -157,14 +323,49 @@
     color: #E0B341;
 }
 
+/* Metric chips: pill-shaped tags instead of plain text */
 .tt-metric {
     color: #BFBFBF;
-    margin-right: 12px;
+    font-size: 11px;
+    background-color: rgba(255, 255, 255, 0.07);
+    border-radius: 10px;
+    padding-left: 6px;
+    padding-right: 6px;
+    padding-top: 2px;
+    padding-bottom: 2px;
+    margin-right: 4px;
+    margin-bottom: 4px;
 }
 
-.tt-difficulty--Easy { color: #6FCF6F; -unity-font-style: bold; }
+/* Small colored dot indicating validation state */
+.tt-status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 4px;
+    margin-right: 6px;
+    background-color: #888888;
+    flex-shrink: 0;
+}
+
+.tt-status-dot--ok    { background-color: #6FCF6F; }
+.tt-status-dot--error { background-color: #E55353; }
+.tt-status-dot--warn  { background-color: #E0B341; }
+
+.tt-difficulty--Easy   { color: #6FCF6F; -unity-font-style: bold; }
 .tt-difficulty--Medium { color: #E0B341; -unity-font-style: bold; }
-.tt-difficulty--Hard { color: #E55353; -unity-font-style: bold; }
+.tt-difficulty--Hard   { color: #E55353; -unity-font-style: bold; }
+
+/* ── Rope list ───────────────────────────────────────────────────────────── */
+
+/* Compact consistent-height row per rope */
+.tt-rope-row {
+    height: 30px;
+    align-items: center;
+    border-bottom-width: 1px;
+    border-bottom-color: rgba(255, 255, 255, 0.05);
+}
+
+/* ── Palette ─────────────────────────────────────────────────────────────── */
 
 /* Palette selector dropdown in rope mode — sits inline, doesn't stretch full-width */
 .tt-palette-selector {
@@ -183,8 +384,37 @@
     max-width: 240px;
 }
 
-/* Key Bindings: a base type's sub-types, set apart as a nested, secondary group.
-   Cyan left accent (vs. the orange section accent) + indent + faint fill read as "child of". */
+/* ── AI section ──────────────────────────────────────────────────────────── */
+
+.tt-ai-group-header {
+    -unity-font-style: bold;
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.75);
+    margin-top: 6px;
+    margin-bottom: 2px;
+    padding-left: 6px;
+    border-left-width: 2px;
+}
+
+.tt-ai-entity-row {
+    margin-left: 10px;
+    align-items: center;
+}
+
+.tt-ai-entity-required {
+    color: rgba(255, 255, 255, 0.9);
+}
+
+/* Muted helper text under inputs */
+.tt-hint {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.45);
+    margin-top: 2px;
+    margin-bottom: 4px;
+}
+
+/* ── Key Bindings sub-groups ─────────────────────────────────────────────── */
+
 .tt-subgroup {
     margin-left: 14px;
     margin-top: 2px;
@@ -199,23 +429,13 @@
     border-bottom-right-radius: 4px;
 }
 
-/* The foldout's own "Sub-types" toggle label — quieter than a top-level section header */
 .tt-subgroup .unity-foldout__text {
     font-size: 11px;
     color: rgba(255, 255, 255, 0.55);
     -unity-font-style: italic;
 }
 
-/* Sub-type command names — smaller and dimmer than top-level rows */
 .tt-subname {
     font-size: 11px;
     color: rgba(255, 255, 255, 0.65);
-}
-
-/* Muted helper text under inputs (reference level status, hints) */
-.tt-hint {
-    font-size: 11px;
-    color: rgba(255, 255, 255, 0.45);
-    margin-top: 2px;
-    margin-bottom: 4px;
 }
