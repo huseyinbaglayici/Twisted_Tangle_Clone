@@ -110,6 +110,42 @@
     background-color: rgba(255, 255, 255, 0.35);
 }
 
+/* ── Rope bar (below grid, above floating panels) ───────────────────────────── */
+
+.tt-rope-bar {
+    height: 110px;
+    border-top-width: 1px;
+    border-top-color: rgba(255, 255, 255, 0.15);
+    border-bottom-width: 1px;
+    border-bottom-color: rgba(255, 255, 255, 0.08);
+    background-color: rgba(20, 20, 20, 0.95);
+}
+
+.tt-rope-bar__scroll > .unity-scroll-view__content-container {
+    padding: 4px 8px;
+}
+
+.tt-rope-bar__scroll > .unity-scroll-view__horizontal-scroller {
+    display: none;
+}
+
+.tt-rope-bar__scroll > .unity-scroll-view__vertical-scroller {
+    width: 6px;
+    background-color: transparent;
+}
+
+.tt-rope-bar__scroll > .unity-scroll-view__vertical-scroller > .unity-scroller__low-button,
+.tt-rope-bar__scroll > .unity-scroll-view__vertical-scroller > .unity-scroller__high-button {
+    display: none;
+}
+
+.tt-rope-bar__scroll > .unity-scroll-view__vertical-scroller > .unity-base-slider__dragger {
+    background-color: rgba(255, 255, 255, 0.18);
+    border-radius: 3px;
+    border-width: 0;
+    min-height: 20px;
+}
+
 /* ── Canvas bottom panels (Validate / Solve) — floating overlays ─────────── */
 
 /* Grab bar — drag up/down to resize each panel independently */

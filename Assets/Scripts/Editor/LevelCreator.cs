@@ -503,8 +503,11 @@ namespace TwistedTangle.Editor
             var panel = new VisualElement();
             panel.AddToClassList("tt-canvas-panel");
 
+            // Grid scroll — min-height:0 prevents large grids from expanding the panel
             var scroll = new ScrollView(ScrollViewMode.VerticalAndHorizontal);
-            scroll.style.flexGrow = 1;
+            scroll.style.flexGrow   = 1;
+            scroll.style.flexShrink = 1;
+            scroll.style.minHeight  = 0f;
 
             var host = new VisualElement();
             host.AddToClassList("tt-canvas-host");
@@ -519,10 +522,35 @@ namespace TwistedTangle.Editor
             scroll.Add(host);
             panel.Add(scroll);
 
-            // Floating overlay panels — position: absolute so they never affect canvas layout
+            // Rope bar — sits directly below the grid, fixed height, scrollable internally
+            panel.Add(BuildRopeBar());
+
+            // Spacer — reserves the space the floating panels occupy so rope bar is never hidden
+            var spacer = new VisualElement();
+            spacer.style.flexShrink = 0;
+            spacer.style.height     = 160f;
+            panel.Add(spacer);
+
+            // Floating overlay panels — position:absolute at bottom, independent resize, untouched
             panel.Add(BuildFloatingBottomPanel(isRight: false));
             panel.Add(BuildFloatingBottomPanel(isRight: true));
             return panel;
+        }
+
+        private VisualElement BuildRopeBar()
+        {
+            var bar = new VisualElement();
+            bar.AddToClassList("tt-rope-bar");
+            bar.style.flexShrink = 0;
+
+            var scroll = new ScrollView(ScrollViewMode.Vertical);
+            scroll.AddToClassList("tt-rope-bar__scroll");
+            scroll.style.flexGrow = 1;
+
+            _ropeListContainer = new VisualElement();
+            scroll.Add(_ropeListContainer);
+            bar.Add(scroll);
+            return bar;
         }
 
         private VisualElement BuildRightPanelDivider(VisualElement rightPanel)
@@ -565,7 +593,6 @@ namespace TwistedTangle.Editor
             scroll.Add(BuildEditToolsSection());
             scroll.Add(BuildEntityPlacementSection());
             scroll.Add(BuildPaletteSection());
-            scroll.Add(BuildRopeListSection());
             scroll.Add(BuildEntityCreatorSection());
             scroll.Add(BuildHelpSection());
 
