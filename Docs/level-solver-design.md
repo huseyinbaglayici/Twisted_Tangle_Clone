@@ -1,188 +1,251 @@
 # Twisted Tangle — Level Solver & AI Generation Design
 
-> **What this is.** The single source of truth for two editor-time tools in this project:
-> 1. an **auto-solver** that tells a designer whether a level is untangle-able and roughly how hard, and
-> 2. an **AI level-generation** flow (the project's centerpiece) where a designer hands the AI some basic
->    content and gets back a playable level to review, fix, and commit.
->
-> **Scope & intent.** This is a **portfolio project**, not production. The goal is to learn and correctly
-> demonstrate the AI level-generation integration at a **basic, industry-standard** level — kept simple on
-> purpose. Everything runs **at editor time**; nothing here is called by the game at runtime, and there is
-> no bulk/rapid generation.
->
-> **Audience of this doc.** The engineer/agent building these tools, and the designer using them.
-> Status tags: ✅ done · 🟡 planned · ⚠️ open question.
+Two editor-time tools:
+1. **Auto-solver** — tells a designer whether a level is solvable and how hard.
+2. **AI level-generation** — designer provides context, gets back a playable level as JSON, then verifies and commits it.
+
+Everything runs at editor time. Nothing here is called at runtime. AI generation is the main goal; the solver exists to validate what the AI produces.
 
 ---
 
-## 1. The Model (game rules the solver assumes)
+## 1. The Model
 
-A level is a small grid of **holes**. **Pins** sit on holes. A **rope** connects exactly two pins and is
-treated as a **straight segment** between them. The puzzle is solved when **no two ropes cross**.
+A level is a grid of **holes**. **Pins** sit on holes. A **rope** connects exactly two endpoint pins and is stored as a polyline (`RopeData.Path`). The path's first and last entries are the movable endpoint pins; any middle entries are either real inner pegs (physical pins the rope wraps around) or virtual bend points (routing-only, no physical pin).
 
-### 1.1 Board & pieces
-- Pins live only on discrete grid holes. A rope connects exactly two pins.
-- A pin may belong to several ropes (an "octopus" pin; degree is small in practice).
-- `pinA`/`pinB` is **just a label** (the rope's first/last authored waypoint). The two ends are symmetric —
-  the solver treats them identically. We reason **rope-centric**: a rope is solved when it crosses nothing.
-- A rope is stored as a polyline (`RopeData.Path`) whose middle waypoints describe its authored path
-  (wrap pins or free bend points). The solver uses **all consecutive waypoint segments** for crossing
-  detection. Only the two endpoint pins are movable; bend points and middle pins stay fixed during the
-  search.
+### 1.1 Waypoint types
+
+A `RopeWaypoint` has a grid coordinate and an `IsBendPoint` flag:
+
+- `IsBendPoint = false` — a **real physical peg**. The rope physically touches this pin. It contributes to crossing detection and blocks other ropes.
+- `IsBendPoint = true` — a **virtual bend point**. Routing-only; no physical pin at this cell. It does not block other ropes and is excluded from bend-on-segment crossing detection.
+
+This distinction drives several solver decisions downstream.
 
 ### 1.2 Moving a pin
-A move grabs one pin and drops it on an **empty hole**, subject to two hard rules and one soft preference:
 
-- **Reach (hard).** Every rope attached to the moved pin must keep its two pins within **3 units**.
-  Distance is direction-independent → **Chebyshev / king-move**: `max(|dx|, |dy|) ≤ 3`.
-  *(Metric is isolated in one helper; swappable to Euclidean/Manhattan if needed.)*
-- **No solid ropes (hard).** Ropes do not block each other mid-move; only the **final** crossing state
-  decides resolution. (So you may park a rope in a crossing state on the way to untangling.)
-- **Layer = soft preference, not a rule.** A bottom rope *can* be moved too, but a player generally starts
-  from the **top**. The solver therefore tries higher-`Layer` ropes first, so solutions read top-down.
-  Over/under uses the global `Layer` (ties broken by rope id); per-crossing overrides are ignored for now.
+A move relocates one **movable endpoint pin** to an empty hole. Two hard constraints:
 
-Because of the reach limit, relocating a rope far away is done by walking its two pins in turn (**inchworm**).
+- **Reach.** Every rope attached to the moved pin must keep its adjacent waypoint within `max(|dx|, |dy|) <= 3` (Chebyshev). For a **straight rope** (2-waypoint path), both endpoints must be within reach of each other. For a **bent rope**, each endpoint must be within reach of its immediately adjacent inner waypoint — the endpoint-to-endpoint distance can legitimately exceed 3 if a bend sits between them.
+- **No solid ropes.** Ropes do not block each other mid-move. Only the final state's crossing configuration decides resolution.
 
-### 1.3 Win condition & limit
-- **Win:** no two ropes cross.
-- **Limit:** a move count (this project surfaces it as a **timer** in the UI). ⚠️ The time↔move-budget
-  mapping is still open; the solver reports a move count and the budget is derived from it.
+Layer is a **soft preference**, not a constraint. The solver tries higher-layer pins first, so solutions read top-down. It does not prevent moving a low-layer pin.
 
-### 1.4 Locked / needle pins (core)
-- A **locked pin cannot be moved** (fixed position; the solver never relocates it).
-- Designers place locked pins as **anchors/context**: "these x, y, z are fixed — build the level around them."
-  AI generation takes them as fixed input; the solver treats them as fixed nodes.
-- They directly affect solvability — locked pins can force unavoidable crossings, making a level unsolvable.
-- Concrete current form: a **needle pin** (fully immovable; a difficulty modifier). Movement-restriction is a
-  family of future difficulty features, so movability is modeled generically (extensible to per-pin allowed
-  cells later).
-- ✅ **Representation (implemented) — type-based:** a pin is nailed/locked when its `EntityDefinitionSO.Tags`
-  contains `"nailed"` or `"locked"` (the existing `tags` field). The editor collects pegs of tagged types and
-  passes them to the solver as `LockedCells` (`LevelCreator.NailedCells()`); the AI prompt lists those typeIds as
-  immovable. The default `pin.nailed` is now created with the `"nailed"` tag (existing `pin.nailed` assets need the
-  tag added in the Inspector). A rope may have 0, 1, or 2 nailed endpoints; the solver handles all three (a
-  two-nailed rope is cleared only by moving other ropes away — else it reports unsolvable).
+### 1.3 Locked pins
 
-### 1.5 Other special pins (later phase) 🟡
-- **Octopus** — one pin carries multiple ropes (degree 2); already handled as a normal node.
-- **Key / Lock** — untangling the key's ropes opens the lock → a sequencing constraint.
-- **Barrier** — a static obstacle a rope may not cross → a forbidden region in the crossing test.
+A pin is locked when its `EntityDefinitionSO.Tags` contains `"nailed"` or `"locked"`. The editor collects these via `LevelCreator.NailedCells()` and passes them to the solver as `SolveOptions.LockedCells`. The solver never generates moves for locked pins.
+
+A rope with two locked endpoints can only be cleared by moving **other ropes** away. If that is geometrically impossible, the level is unsolvable.
 
 ---
 
-## 2. The Solver
+## 2. Crossings
 
-### 2.1 Formal model
+Three categories of crossing exist, all detected in `CrossingSolver` and replicated inside `LevelSolver.BuildCrossings`.
+
+### 2.1 Segment-segment
+
+Two rope segments from different ropes intersect strictly in their interiors (both parameters in (0,1)). Segments that only touch at a shared pin endpoint are not counted. This is the standard case.
+
+### 2.2 Pin-crossing (`IsPinCrossing = true`)
+
+Rope A's inner waypoint (real or virtual) shares its grid cell with rope B's **endpoint pin**. Even a virtual bend routes through that exact cell, so it is physically blocked by B's pin.
+
+**Special case — virtual bend in the same direction:** if the inner waypoint is a virtual bend (`IsBendPoint = true`) and both ropes leave the shared cell in the same direction (cross product < 0.1 and dot product > 0), they run alongside each other and this is not a topological crossing.
+
+Pin-crossings are **unresolvable by peeling** — both rope A and rope B are marked as stuck in the peel model (both `underCount` values are incremented). A pin must physically move to break the shared-cell constraint.
+
+### 2.3 Bend-on-segment (`IsBendOnSegment = true`)
+
+Rope A's inner waypoint is a **real physical peg** (`IsBendPoint = false`) that lies strictly on the interior of one of rope B's segments. Virtual bends are skipped here — they have no physical presence.
+
+For this type, only rope B's endpoint pins are candidate moves (moving rope A's endpoints cannot fix it, because the inner waypoint is fixed).
+
+---
+
+## 3. Over/Under and Peelability
+
+### 3.1 ResolveOverUnder
+
+`CrossingSolver.ResolveOverUnder` assigns an over/under value to every crossing. For each **rope-pair**, crossings are sorted along the lower-id rope's path, then **alternated**: the first crossing is seeded by Layer (higher layer = on top, ties broken by rope id); each subsequent crossing in the pair flips. Manual `CrossingOverride` entries flip individual crossings on top of this alternation.
+
+This alternation model is what creates genuine braid tangles. Without it, every tangle would be trivially peelable (a stack).
+
+### 3.2 PeelResidual — the real win condition
+
+`CrossingSolver.PeelResidual` simulates the game mechanic: repeatedly lift any rope that is on top at all of its remaining active crossings (or has no crossings). Each time a rope is peeled, it removes its crossings from the active set and decrements the `underCount` of its crossing partners.
+
+**Return value:** number of crossings still active when no more ropes can be peeled. Zero means the tangle is **fully separable** — the level is solved.
+
+A single clean over-crossing (rope A strictly on top of rope B, no other entanglement) peels immediately: PeelResidual = 0. This is considered solved even though a geometric crossing exists.
+
+Pin-crossings are never resolvable by peeling — both participating ropes are treated as stuck (`underCount` incremented for both sides regardless of which is geometrically "over").
+
+The optional `unpeeled` output parameter receives the set of rope ids still stuck when peeling stalls — this is used by the solver to identify which pins are worth moving.
+
+---
+
+## 4. The Solver
+
+**File:** `Assets/Scripts/Editor/Solver/LevelSolver.cs`
+
+### 4.1 Formal model
+
 ```
-State = assignment of each movable pin → a hole
-Move  = relocate one movable pin to an empty hole, if it is reach-legal (1.2)
-Goal  = zero crossings
-Cost  = number of moves
+State  = int[] where state[movableSlot] = encoded cell index of that pin
+Move   = relocate one movable pin to an empty hole, reach-legal per §1.2
+Goal   = PeelResidual(BuildCrossings(state)) == 0
+Cost   = number of moves
 ```
-Ropes (edges) are fixed; only pin positions change. Crossings are **derived** from positions, never stored.
-States are hashed so the search never revisits a configuration.
 
-### 2.2 Why it stays tractable
-- **Straight ropes ⇒ any two ropes cross at most once**, so the tangle is just a *set of pairwise
-  crossings* (not knot theory).
-- Only pins **involved in a crossing** are worth moving → small branching.
-- Plenty of empty holes ⇒ a crossing-free arrangement almost always exists; the difficulty is the move count.
+Ropes are fixed. Only endpoint pin positions change. Crossings are recomputed from positions on demand; they are never stored in the state.
 
-### 2.3 Algorithm (best-first search)
-1. Build a graph: nodes = endpoint pins, edges = ropes.
-2. Best-first (A*-ish) search. Heuristic `h = current crossing count`; `f = g + h`.
-3. Generate moves **top-layer first**; the priority queue breaks ties by insertion order, so an
-   equally-good solution that starts from the top rope is the one returned.
-4. Each candidate move must land on an empty hole and pass the reach check.
-5. A visited-set skips repeats; a move budget + an expansion cap keep it bounded.
+### 4.2 State encoding
 
-Atomic operation: a **segment–segment intersection test** (reused from `CrossingSolver.SegmentsIntersect`).
+Each movable endpoint pin has a **slot index**. The state array has one entry per movable pin: `state[slot] = y * gridWidth + x`. Locked pins are excluded from the state; their cells are pre-computed into `fixedOccupied`. A state's hash key is the comma-joined array string.
 
-> Note: a formal **planarity pre-check** (reject non-planar graphs outright) is a possible optimization but
-> is **not** implemented — the bounded search already answers "solvable within budget?", which is enough at
-> this scope.
+### 4.3 Move candidates — CrossingSlots
 
-### 2.4 Outputs
-- **Solvable?** — a solution was found within the move/expansion budget. If the cap was hit, the result is
-  *inconclusive* rather than a definite "no".
-- **Solution steps** — each step names the rope and its from→to hole (e.g. `Rope 2: (2,5) → (0,0)`).
-- **Diagnostics** — initial crossings, ropes that start over the reach limit, nodes expanded.
+At each search node, the solver does not consider all movable pins. It calls `CrossingSlots(state)`:
 
-### 2.5 Difficulty (kept deliberately simple)
-A plain **move-count bucket**, the most common industry proxy: `≤2 → Easy`, `3–5 → Medium`, `≥6 → Hard`
-(thresholds are one-liners and tunable). No calibration or multi-signal formula — that would be
-over-engineering for this project. Richer signals (branching, locked-pin pressure) can be added later if a
-real need shows up.
+1. Build crossings for the current state.
+2. Call `PeelResidual` with the `unpeeled` output to get the set of rope ids still stuck.
+3. For each crossing where at least one rope is stuck:
+   - **Segment-segment:** add movable endpoints of both stuck ropes.
+   - **Pin-crossing with a virtual bend:** add movable endpoints of both stuck ropes (either rerouting solves it).
+   - **Pin-crossing with a real inner peg:** add only the movable endpoint of the stuck rope B (rope B's endpoint is the one that must move away from the shared cell).
+   - **Bend-on-segment:** add only rope B's movable endpoints.
+4. Sort result by descending layer (higher-layer pins first).
 
----
+This filters the candidate set to only the pins that can actually break the unpeelable core, keeping branching small.
 
-## 3. AI Level Generation Integration (the centerpiece) 🟡
+### 4.4 Algorithm
 
-The reason the solver exists: let a designer generate a level with AI in the editor, then verify and fix it.
+Best-first (A*-ish) search:
 
-### 3.1 Flow
-1. Designer provides **basic content/context**: grid size, available entity types & palette, any **locked
-   pins** to build around, and a **target difficulty**.
-2. The editor builds a prompt ("Copy prompt"); the designer pastes it into **any AI chat** (Claude, Gemini,
-   ChatGPT, …), then copies the AI's JSON answer back ("Import JSON").
-3. The pasted JSON is parsed into a `LevelDataSO` and loaded into the editor.
-4. The **solver** reports solvable? + difficulty; structural **validation** catches malformed output.
-5. The designer edits as needed and **commits** the level.
+- `h = TangleResidual(BuildCrossings(state))` — peel residual of the current state, not raw crossing count.
+- `f = g + h`.
+- Priority queue is a binary min-heap. Ties are broken by insertion order (FIFO within same priority), so an equally-good solution that starts from a top-layer rope is returned first.
+- Each candidate: target cell must be empty (not in `fixedOccupied` or current movable positions); must pass the reach check.
+- Visited set rejects states already seen.
+- Search terminates when `h == 0` (goal) or when `g >= MaxMoves` or expansion count hits `MaxExpansions`.
 
-Human-in-the-loop, one level at a time. No runtime generation, no bulk runs.
+### 4.5 Reach check details
 
-### 3.2 Output contract
-The model's JSON must map cleanly onto the existing data model: `gridWidth/Height`, `timeSeconds`,
-`pegs[]` (coord + type id), and `ropes[]` (ordered pin path + color + layer). The generation prompt carries
-the same rules this doc defines, so generated levels respect reach, locked pins, etc.
+`ReachOk(state, node, targetCell)` checks two neighbor lists built at construction time:
 
-### 3.3 Decisions (settled)
-- **Provider-agnostic, manual, free:** the system isn't tied to any AI vendor. Editor **"Copy prompt"** →
-  paste into **any AI chat** (Claude, Gemini, ChatGPT, …) → paste the JSON answer back → **"Import JSON"**.
-  No API key, no cost. (A live in-editor API call was intentionally dropped to stay vendor-neutral and free —
-  the prompt + JSON parser are all that's needed, and they work the same with any model.)
-- **Reliable JSON:** the prompt inlines the exact JSON shape; parsed with Unity's `JsonUtility` (no Newtonsoft),
-  tolerating ```json fences / surrounding prose.
-- **Validation loop:** parse → `LevelValidator` + `LevelSolver` → show solvable?/difficulty → designer edits → commit.
-- **Difficulty targeting:** pass Easy/Medium/Hard in the prompt; accept/reject via the solver's move-count bucket.
-- **Entity selection (v1):** an include/exclude toggle per entity type (all on by default); only checked types
-  go into the prompt. The list auto-rebuilds when types change, plus a Refresh button for externally-added assets.
-  **v2 (later):** per-entity appearance frequency (Rare/Some/Many) — it strongly affects difficulty, so kept separate.
-- **Nailed pins:** types tagged `"nailed"`/`"locked"` are sent to the AI as immovable and to the solver as `LockedCells`.
+- `reachNodes[node]` — other movable endpoint pins this node must stay within reach of. For a straight rope this is the other endpoint (dynamic, from state); for a bent rope this is skipped at the endpoint level (the adjacent inner waypoint is the reach anchor).
+- `reachFixed[node]` — static cell encodings (locked endpoints or inner waypoints) this node must stay within reach of.
+
+Bent ropes: each endpoint's reach anchor is its immediately adjacent inner waypoint (`rope.Path[1]` for the first endpoint, `rope.Path[^2]` for the last), added to `reachFixed` or `reachNodes` depending on whether that waypoint is itself movable.
+
+### 4.6 Outputs (`SolveResult`)
+
+| Field | Meaning |
+|---|---|
+| `Solvable` | A solution was found within budget |
+| `Moves` | Length of the found solution (best-first; not guaranteed minimal) |
+| `InitialCrossings` | Raw crossing count before search |
+| `InitialTangle` | Peel residual before search (the real tangle depth) |
+| `OverStretchedRopes` | Ropes whose **adjacent-waypoint** segment already exceeds reach in the authored layout |
+| `ExpandedNodes` | Nodes expanded |
+| `HitExpansionLimit` | If true, the result is inconclusive rather than a definite "unsolvable" |
+| `Solution` | List of `SolveMove` (from-cell, to-cell, which rope) |
+
+`OverStretchedRopes` counts per-segment violations (not endpoint-to-endpoint), consistent with how reach is checked during search.
 
 ---
 
-## 4. Implementation Status
+## 5. Difficulty
 
-- ✅ `Assets/Scripts/Editor/Solver/LevelSolver.cs` — graph build, reach-limited best-first search,
-  layer-preference tie-break, tiny min-heap. Returns solvable? / moves / crossings / over-stretched ropes /
-  named solution steps.
-- ✅ `Assets/Scripts/Editor/LevelCreator.cs` — a **Solve** button (Solver section) showing the result, the
-  simple difficulty bucket, and the named untangle steps.
-- ✅ `Assets/Scripts/Editor/Validation/LevelValidator.cs` (pre-existing) — structural validation + its own
-  static difficulty score. May later defer its difficulty to the solver's move-based one.
-- 🟡 AI level-generation flow (section 3) — not started; the next major piece.
+Two independent difficulty systems:
+
+### 5.1 Solver difficulty (move-count bucket)
+
+Used in the Solve panel (`LevelCreator.RunSolve`). Based on the solution length:
+
+```
+<= 2 moves  → Easy
+<= 5 moves  → Medium
+>  5 moves  → Hard
+```
+
+Simple and tunable. Shown only when the solver finds a solution.
+
+### 5.2 Validator difficulty (weighted score)
+
+Used in `LevelValidator.BuildMetrics`. A formula over static properties of the level (no search needed):
+
+```
+score = crossings×1.0 + ropes×0.5 + colors×1.5 + totalPathLength×0.2 + overrides×1.0
+score <  10  → Easy
+score <  24  → Medium
+score >= 24  → Hard
+```
+
+Color variety is the strongest signal (weight 1.5). Shown in the Validation panel alongside structural errors. Separate from solver difficulty; the two can disagree.
 
 ---
 
-## 5. Open Items
-1. ⚠️ **Reach metric** — Chebyshev assumed; confirm vs Euclidean/Manhattan (one-line change).
-2. ⚠️ **Locked-ness representation** — `PegData.Locked` flag vs a "fixed" entity type. Solver is decoupled
-   (takes a locked set as a parameter).
-3. ⚠️ **Time ↔ move-budget mapping** (1.3).
-4. 🟡 **Per-crossing overrides / layer cycles** — would enable true deadlock detection; ignored for now.
-5. ⚠️ **Rope wraps (assumption A)** — solver uses straight endpoint-to-endpoint edges; revisit if authored
-   wraps ever affect play.
-6. 🟡 **AI generation phase** (section 3) — the main open design.
+## 6. AI Level Generation Integration
+
+### 6.1 Flow
+
+1. Designer sets grid size, selects entity types, picks difficulty, optionally places locked pins.
+2. "1 · Copy prompt" — `LevelAiGenerator.BuildManualPrompt` builds a self-contained text prompt with rules + exact JSON shape.
+3. Designer pastes into any AI chat (Claude, Gemini, ChatGPT, …), copies the JSON response back.
+4. "2 · Import JSON" — `LevelAiGenerator.TryParseLevelJson` extracts the JSON object (tolerates code fences and surrounding prose), parses with `JsonUtility` into a `LevelDataSO`.
+5. Solver runs, validation runs, designer edits as needed, then commits.
+
+No API key, no vendor dependency, one level at a time.
+
+### 6.2 Output contract (JSON shape)
+
+```json
+{
+  "gridWidth": <int>, "gridHeight": <int>, "timeSeconds": <int>,
+  "gridEntities": [ { "x": <int>, "y": <int>, "typeId": "<allowed id>" } ],
+  "ropes": [ { "ropeId": <int>, "color": "#RRGGBB", "layer": <int>,
+               "path": [ { "x": <int>, "y": <int> } ] } ]
+}
+```
+
+Every rope endpoint and waypoint must match an entity in `gridEntities`. The AI prompt includes the reach rule (`max(|dx|,|dy|) <= 3` per segment), the nailed-pin constraint, and the solvability requirement. Parsed with `JsonUtility` (no Newtonsoft); field names must match the DTO exactly.
+
+### 6.3 Settled decisions
+
+- **Provider-agnostic:** copy-paste prompt, no live API call.
+- **Entity selection:** include/exclude toggle per entity type; only checked types enter the prompt. Auto-rebuilds on asset change plus a manual Refresh button.
+- **Nailed pins:** types tagged `"nailed"`/`"locked"` appear in the prompt as immovable and are passed to the solver as `LockedCells`.
+- **Difficulty targeting:** Easy/Medium/Hard string in the prompt; validated post-import by solver move count.
+- **v2 (not started):** per-entity frequency (Rare/Some/Many) in the prompt.
 
 ---
 
-## 6. Sources (real-game research)
+## 7. Implementation Status
+
+| File | Status |
+|---|---|
+| `Assets/Scripts/Editor/Solver/LevelSolver.cs` | Done |
+| `Assets/Scripts/Editor/Geometry/CrossingSolver.cs` | Done |
+| `Assets/Scripts/Editor/Validation/LevelValidator.cs` | Done |
+| `Assets/Scripts/Editor/Generation/LevelAiGenerator.cs` | Done (prompt builder + JSON parser) |
+| `Assets/Scripts/Editor/LevelCreator.cs` | Done (Solve button, AI section wired) |
+
+---
+
+## 8. Open Items
+
+1. **Reach metric** — Chebyshev assumed; confirm or switch to Euclidean/Manhattan (one-line change in `WithinReach`).
+2. **Time ↔ move-budget mapping** — solver reports move count; how that maps to `TimeSeconds` is not yet defined.
+3. **Per-crossing overrides / layer cycles** — `CrossingOverrides` are passed to the solver but full deadlock detection via layer cycles is not implemented.
+4. **Rope wrap semantics** — solver uses straight endpoint-to-adjacent-waypoint segments; revisit if authored wraps affect game feel.
+
+---
+
+## 9. Sources
+
 - Twisted Tangle — App Store: https://apps.apple.com/us/app/twisted-tangle/id6447757125
 - Twisted Tangle — CrazyGames: https://www.crazygames.com/game/twisted-tangle-nmt
 - Rollic Help Center — How to play: https://rollic.helpshift.com/hc/en/11-twisted-tangle/faq/254-how-to-play-twisted-tangle/
 
-Finding: you drag a rope's end to another hole (it reattaches); the goal is that no ropes cross; the limit is
-moves/time. No source mentions a length limit or solid ropes — the **3-unit reach limit and the layer
-preference are this project's design choices**, not the original game's mechanics.
+The 3-unit reach limit, the layer preference, and the peel-residual win condition are this project's design choices, not the original game's mechanics.
