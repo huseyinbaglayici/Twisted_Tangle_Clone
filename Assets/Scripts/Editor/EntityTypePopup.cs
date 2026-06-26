@@ -13,13 +13,19 @@ namespace TwistedTangle.Editor
     /// Transient form (anchored under "+ New Entity Type") for authoring a new entity sub-type. You pick an
     /// existing base type from the dropdown — or "＋ New base type…" to create one inline — then name the
     /// sub-type. It submits through a callback supplied by the owner: on success it closes, on failure it
-    /// shows the error inline and stays open.
+    /// shows the error inline and stays open. State persists across popup sessions via EditorPrefs.
     /// </summary>
     public class EntityTypePopup : PopupWindowContent
     {
         private const string NewBaseChoice = "＋ New base type…";
 
+        // EditorPrefs keys — no project scoping needed, these are trivial form defaults
+        private const string PrefBase = "TwistedTangle.EntityPopup.BaseIdx";
+        private const string PrefSub = "TwistedTangle.EntityPopup.SubName";
+        private const string PrefColor = "TwistedTangle.EntityPopup.Color";
+
         private readonly List<EntityBaseTypeSO> _bases;
+
         // (existingBase, newBaseName, subName, color, prefab) -> (ok, error). existingBase null = create a new base.
         private readonly Func<EntityBaseTypeSO, string, string, Color, GameObject, (bool ok, string error)> _onSubmit;
 
@@ -36,10 +42,12 @@ namespace TwistedTangle.Editor
             _onSubmit = onSubmit;
         }
 
-        public override Vector2 GetWindowSize() => new Vector2(360, 300);
+        public override Vector2 GetWindowSize() => new Vector2(360, 238);
 
         // UI is built with UI Toolkit in OnOpen; IMGUI hook stays empty.
-        public override void OnGUI(Rect rect) { }
+        public override void OnGUI(Rect rect)
+        {
+        }
 
         public override void OnOpen()
         {
@@ -56,11 +64,15 @@ namespace TwistedTangle.Editor
             title.AddToClassList("tt-section__header");
             root.Add(title);
 
+            // Restore saved base index (clamp to valid range)
+            int savedBase = EditorPrefs.GetInt(PrefBase, 0);
             var choices = _bases.Select(b => b.DisplayName).ToList();
             choices.Add(NewBaseChoice);
-            _baseDropdown = new DropdownField("Base type", choices, _bases.Count > 0 ? 0 : choices.Count - 1)
+            int safeIdx = Mathf.Clamp(savedBase, 0, choices.Count - 1);
+
+            _baseDropdown = new DropdownField("Base type", choices, safeIdx)
             {
-                tooltip = "Which base this sub-type belongs to (Pin, Lock, …). Choose “＋ New base type…” to add one."
+                tooltip = "Which base this sub-type belongs to (Pin, Lock, …). Choose ＋ New base type… to add one."
             };
             root.Add(_baseDropdown);
 
@@ -69,11 +81,18 @@ namespace TwistedTangle.Editor
 
             _subName = new TextField("Sub-type name")
             {
+                value = EditorPrefs.GetString(PrefSub, string.Empty),
                 tooltip = "e.g. \"Standard\", \"Nailed\", \"Explodeable\"."
             };
             root.Add(_subName);
 
-            _color = new UnityEditor.UIElements.ColorField("Editor color") { value = new Color(0.85f, 0.85f, 0.85f) };
+            // Restore saved color
+            Color savedColor = new Color(0.85f, 0.85f, 0.85f);
+            string savedHex = EditorPrefs.GetString(PrefColor, string.Empty);
+            if (!string.IsNullOrEmpty(savedHex))
+                ColorUtility.TryParseHtmlString("#" + savedHex, out savedColor);
+
+            _color = new UnityEditor.UIElements.ColorField("Editor color") { value = savedColor };
             root.Add(_color);
 
             _prefab = new UnityEditor.UIElements.ObjectField("Prefab")
@@ -90,7 +109,10 @@ namespace TwistedTangle.Editor
             var create = new Button(Submit) { text = "Create" };
             create.AddToClassList("tt-btn");
             create.AddToClassList("tt-btn--save");
+            create.style.marginTop = 4;
             root.Add(create);
+
+            root.Add(BuildResetFooter());
 
             _baseDropdown.RegisterValueChangedCallback(_ => UpdateNewBaseVisibility());
             UpdateNewBaseVisibility();
@@ -107,6 +129,61 @@ namespace TwistedTangle.Editor
             _subName.schedule.Execute(() => _subName.Focus());
         }
 
+        public override void OnClose() => SavePrefs();
+
+        private VisualElement BuildResetFooter()
+        {
+            var footer = new VisualElement();
+            footer.style.flexShrink      = 0;
+            footer.style.flexDirection   = FlexDirection.Row;
+            footer.style.alignItems      = Align.Center;
+            footer.style.justifyContent  = Justify.SpaceBetween;
+            footer.style.paddingLeft     = 0;
+            footer.style.paddingRight    = 0;
+            footer.style.paddingTop      = 6;
+            footer.style.paddingBottom   = 0;
+            footer.style.marginTop       = 4;
+            footer.style.borderTopWidth  = 1;
+            footer.style.borderTopColor  = new Color(1f, 1f, 1f, 0.1f);
+
+            var hint = new Label("Reset form fields");
+            hint.style.fontSize = 11;
+            hint.style.color    = new Color(1f, 1f, 1f, 0.45f);
+            footer.Add(hint);
+
+            var btn = new Button(ResetPrefs) { text = "Reset", tooltip = "Clear saved form state and restore defaults." };
+            btn.AddToClassList("tt-btn");
+            btn.AddToClassList("tt-btn--danger");
+            footer.Add(btn);
+
+            return footer;
+        }
+
+        // ── Persistence ───────────────────────────────────────────────────────
+
+        private void SavePrefs()
+        {
+            EditorPrefs.SetInt(PrefBase, _baseDropdown?.index ?? 0);
+            EditorPrefs.SetString(PrefSub, _subName?.value ?? string.Empty);
+            EditorPrefs.SetString(PrefColor,
+                _color != null ? ColorUtility.ToHtmlStringRGB(_color.value) : string.Empty);
+        }
+
+        private void ResetPrefs()
+        {
+            EditorPrefs.DeleteKey(PrefBase);
+            EditorPrefs.DeleteKey(PrefSub);
+            EditorPrefs.DeleteKey(PrefColor);
+
+            // Apply defaults to live fields immediately
+            if (_baseDropdown != null) _baseDropdown.index = _bases.Count > 0 ? 0 : 0;
+            if (_subName != null) _subName.value = string.Empty;
+            if (_color != null) _color.value = new Color(0.85f, 0.85f, 0.85f);
+            if (_error != null) _error.style.display = DisplayStyle.None;
+        }
+
+        // ── UI logic ──────────────────────────────────────────────────────────
+
         private bool IsNewBaseSelected() => _baseDropdown.index >= _bases.Count;
 
         private void UpdateNewBaseVisibility() =>
@@ -114,10 +191,12 @@ namespace TwistedTangle.Editor
 
         private void Submit()
         {
+            SavePrefs(); // persist current state before potential close
             EntityBaseTypeSO existingBase = IsNewBaseSelected() ? null : _bases[_baseDropdown.index];
             string newBaseName = IsNewBaseSelected() ? _newBaseName.value : null;
 
-            var (ok, error) = _onSubmit(existingBase, newBaseName, _subName.value, _color.value, _prefab.value as GameObject);
+            var (ok, error) = _onSubmit(existingBase, newBaseName, _subName.value, _color.value,
+                _prefab.value as GameObject);
             if (ok)
             {
                 editorWindow.Close();
