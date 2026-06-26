@@ -27,6 +27,10 @@ namespace TwistedTangle.Editor.Geometry
         /// <summary>True when RopeA's fixed bend point lies on RopeB's segment.
         /// Moving RopeA's endpoints cannot resolve this — only RopeB's endpoints can.</summary>
         public bool IsBendOnSegment;
+
+        /// <summary>True when the crossing is at a rope waypoint that coincides with another rope's
+        /// endpoint pin. These require physical pin moves — they cannot be resolved by peeling.</summary>
+        public bool IsPinCrossing;
     }
 
     /// <summary>
@@ -112,11 +116,25 @@ namespace TwistedTangle.Editor.Geometry
                         bool atEnd = b.Path[^1].PegCoord == pinCoord;
                         if (!atStart && !atEnd) continue;
 
+                        // Virtual bend: skip when both ropes leave the shared cell in the same
+                        // direction — they run alongside each other, not a topological crossing.
+                        if (a.Path[k].IsBendPoint)
+                        {
+                            Vector2 aOut = Center(a.Path[k + 1].PegCoord) - Center(pinCoord);
+                            Vector2 bNextPos = atStart ? Center(b.Path[1].PegCoord) : Center(b.Path[^2].PegCoord);
+                            Vector2 bOut = bNextPos - Center(pinCoord);
+                            float cross = aOut.x * bOut.y - aOut.y * bOut.x;
+                            if (Mathf.Abs(cross) < 0.1f && Vector2.Dot(aOut, bOut) > 0f) continue;
+                        }
+
+                        // Gap on the segment LEADING INTO the pin (k-1, t=1) so the break
+                        // appears just before the pin rather than under its circle (t=0 on k).
                         result.Add(new RopeCrossing
                         {
-                            RopeIndexA = i, RopeIdA = a.RopeId, SegA = k, TA = 0f,
+                            RopeIndexA = i, RopeIdA = a.RopeId, SegA = k - 1, TA = 1f,
                             RopeIndexB = j, RopeIdB = b.RopeId, SegB = atStart ? 0 : b.Path.Count - 2, TB = atStart ? 0f : 1f,
-                            Point = Center(pinCoord)
+                            Point = Center(pinCoord),
+                            IsPinCrossing = true
                         });
                     }
                 }
@@ -263,8 +281,18 @@ namespace TwistedTangle.Editor.Geometry
                 Ensure(x.RopeIdA); Ensure(x.RopeIdB);
                 ropeCrossings[x.RopeIdA].Add(c);
                 ropeCrossings[x.RopeIdB].Add(c);
-                int underId = aOver[c] ? x.RopeIdB : x.RopeIdA;
-                underCount[underId]++;
+                // Pin-crossings cannot be resolved by peeling — both ropes are locked until
+                // the player physically moves a pin to break the shared-coordinate constraint.
+                if (crossings[c].IsPinCrossing)
+                {
+                    underCount[x.RopeIdA]++;
+                    underCount[x.RopeIdB]++;
+                }
+                else
+                {
+                    int underId = aOver[c] ? x.RopeIdB : x.RopeIdA;
+                    underCount[underId]++;
+                }
             }
 
             var ids = new List<int>(ropeCrossings.Keys);

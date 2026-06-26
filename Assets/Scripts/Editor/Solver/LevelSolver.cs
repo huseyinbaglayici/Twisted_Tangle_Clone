@@ -286,11 +286,23 @@ namespace TwistedTangle.Editor.Solver
                             bool atStart = WaypointCell(st, rj, 0) == pinCell;
                             bool atEnd = WaypointCell(st, rj, ropeB.Path.Count - 1) == pinCell;
                             if (!atStart && !atEnd) continue;
+                            // Virtual bend: skip when both ropes leave the shared cell in the same
+                            // direction — they run alongside each other, not a topological crossing.
+                            if (ropeA.Path[k].IsBendPoint)
+                            {
+                                Vector2 aOut = WaypointPos(st, ri, k + 1) - WaypointPos(st, ri, k);
+                                int bNextWp = atStart ? 1 : ropeB.Path.Count - 2;
+                                int bBaseWp = atStart ? 0 : ropeB.Path.Count - 1;
+                                Vector2 bOut = WaypointPos(st, rj, bNextWp) - WaypointPos(st, rj, bBaseWp);
+                                float cross = aOut.x * bOut.y - aOut.y * bOut.x;
+                                if (Mathf.Abs(cross) < 0.1f && Vector2.Dot(aOut, bOut) > 0f) continue;
+                            }
                             list.Add(new RopeCrossing
                             {
-                                RopeIndexA = ri, RopeIdA = ropeA.RopeId, SegA = k, TA = 0f,
+                                RopeIndexA = ri, RopeIdA = ropeA.RopeId, SegA = k - 1, TA = 1f,
                                 RopeIndexB = rj, RopeIdB = ropeB.RopeId,
-                                SegB = atStart ? 0 : ropeB.Path.Count - 2, TB = atStart ? 0f : 1f
+                                SegB = atStart ? 0 : ropeB.Path.Count - 2, TB = atStart ? 0f : 1f,
+                                IsPinCrossing = true
                             });
                         }
                     }
@@ -360,13 +372,17 @@ namespace TwistedTangle.Editor.Solver
                     bool bStuck = unpeeledIds.Contains(c.RopeIdB);
                     if (!aStuck && !bStuck) continue;
 
-                    bool isPinCrossing = c.TA < 1e-3f;
-                    if (isPinCrossing)
+                    if (c.IsPinCrossing)
                     {
                         var ropeA = level.Ropes[c.RopeIndexA];
-                        if (ropeA.Path[c.SegA].IsBendPoint)
+                        // Inner waypoint is at SegA + 1 (SegA = k-1, so inner waypoint = k = SegA+1).
+                        if (ropeA.Path[c.SegA + 1].IsBendPoint)
                         {
+                            // Virtual bend: move either rope's movable endpoints to reroute.
+                            // AddRopeSlots already skips locked pins (movableOf < 0), so the
+                            // nailed endpoint that caused this crossing is filtered automatically.
                             if (aStuck) AddRopeSlots(slots, c.RopeIndexA);
+                            if (bStuck) AddRopeSlots(slots, c.RopeIndexB);
                         }
                         else
                         {
@@ -376,6 +392,8 @@ namespace TwistedTangle.Editor.Solver
                                 Vector2Int bEp = c.TB < 0.5f ? ropeB.Path[0].PegCoord : ropeB.Path[^1].PegCoord;
                                 if (nodeIndex.TryGetValue(bEp, out int nd) && movableOf[nd] >= 0)
                                     slots.Add(movableOf[nd]);
+                                else if (aStuck)
+                                    AddRopeSlots(slots, c.RopeIndexA);
                             }
                         }
                     }

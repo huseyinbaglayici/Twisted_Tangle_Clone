@@ -888,8 +888,8 @@ namespace TwistedTangle.Editor
             int step = 1;
             foreach (var m in result.Solution)
             {
-                string who = string.IsNullOrEmpty(m.PinDesc) ? "Pin" : m.PinDesc;
-                _solverContainer.Add(new Label($"{step++}. {who}: ({m.From.x},{m.From.y}) → ({m.To.x},{m.To.y})"));
+                string who = string.IsNullOrEmpty(m.PinDesc) ? "" : $"  [{m.PinDesc}]";
+                _solverContainer.Add(new Label($"{step++}. ({m.From.x},{m.From.y}) → ({m.To.x},{m.To.y}){who}"));
             }
         }
 

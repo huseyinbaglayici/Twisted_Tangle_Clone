@@ -28,7 +28,7 @@ MonoBehaviour:
   ropes:
   - RopeId: 0
     Tint: {r: 0, g: 0.9150943, b: 0.8613863, a: 1}
-    Layer: 7
+    Layer: 0
     Path:
     - PegCoord: {x: 0, y: 5}
       Side: 0
@@ -41,7 +41,7 @@ MonoBehaviour:
       IsBendPoint: 0
   - RopeId: 1
     Tint: {r: 0.7063372, g: 0, b: 0.8962264, a: 1}
-    Layer: 8
+    Layer: 1
     Path:
     - PegCoord: {x: 1, y: 4}
       Side: 0
