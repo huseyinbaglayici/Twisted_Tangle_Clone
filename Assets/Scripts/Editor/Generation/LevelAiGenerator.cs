@@ -13,10 +13,11 @@ namespace TwistedTangle.Editor.Generation
         public int GridWidth = 6;
         public int GridHeight = 6;
         public int TimeSeconds = 45;
-        public string Difficulty = "Medium";        // Easy | Medium | Hard
-        public List<string> EntityTypeIds = new();   // allowed peg types
-        public List<string> NailedTypeIds = new();    // immovable pin types (the solver can't move these)
-        public List<string> PaletteHex = new();       // allowed rope colors as #RRGGBB
+        public string Difficulty = "Medium";                // Easy | Medium | Hard
+        public List<string> EntityTypeIds = new();          // allowed peg types
+        public List<string> NailedTypeIds = new();          // immovable pin types (the solver can't move these)
+        public List<string> PaletteHex = new();             // allowed rope colors as #RRGGBB
+        public string ReferenceLevelDescription = null;     // null = generate freely; non-null = style inspiration
     }
 
     /// <summary>
@@ -27,6 +28,29 @@ namespace TwistedTangle.Editor.Generation
     /// </summary>
     public static class LevelAiGenerator
     {
+        /// <summary>
+        /// Serializes a level into a short human-readable description for use as a reference prompt section.
+        /// Returns null if the level is null.
+        /// </summary>
+        public static string DescribeLevel(LevelDataSO level)
+        {
+            if (level == null) return null;
+            var sb = new StringBuilder();
+            sb.Append($"Grid {level.GridWidth}x{level.GridHeight}, time {level.TimeSeconds}s, {level.Ropes.Count} rope(s)\n");
+            foreach (var rope in level.Ropes)
+            {
+                if (rope?.Path == null || rope.Path.Count < 2) continue;
+                var start = rope.Path[0].PegCoord;
+                var end = rope.Path[^1].PegCoord;
+                string color = "#" + ColorUtility.ToHtmlStringRGB(rope.Tint);
+                sb.Append($"  Rope {rope.RopeId} ({color}, layer {rope.Layer}): ({start.x},{start.y})");
+                for (int i = 1; i < rope.Path.Count - 1; i++)
+                    sb.Append($" → via ({rope.Path[i].PegCoord.x},{rope.Path[i].PegCoord.y})");
+                sb.Append($" → ({end.x},{end.y})\n");
+            }
+            return sb.ToString();
+        }
+
         /// <summary>A self-contained prompt to paste into any AI chat: the rules + the exact JSON shape to return.</summary>
         public static string BuildManualPrompt(LevelGenerationRequest r)
         {
@@ -124,6 +148,11 @@ namespace TwistedTangle.Editor.Generation
                 sb.Append("- Use rope colors from this palette (hex): ").Append(string.Join(", ", r.PaletteHex))
                   .Append(". Prefer a distinct color per rope.\n");
             sb.Append("- Every rope endpoint and waypoint must land on an entity you also list in 'gridEntities'. No two entities share a cell.\n");
+            if (!string.IsNullOrEmpty(r.ReferenceLevelDescription))
+            {
+                sb.Append("\nReference level (use as inspiration for rope count, crossing density, and layout style — do NOT copy pin positions exactly):\n");
+                sb.Append(r.ReferenceLevelDescription);
+            }
             return sb.ToString();
         }
 

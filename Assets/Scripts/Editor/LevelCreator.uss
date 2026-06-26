@@ -116,6 +116,11 @@
     margin-right: 2px;
 }
 
+/* Narrow variant for very short labels (W, H, Id …) */
+.tt-num--narrow .unity-base-field__label {
+    width: 16px;
+}
+
 .tt-num .unity-base-field__input {
     min-width: 0;
     width: 56px;
@@ -205,4 +210,12 @@
 .tt-subname {
     font-size: 11px;
     color: rgba(255, 255, 255, 0.65);
+}
+
+/* Muted helper text under inputs (reference level status, hints) */
+.tt-hint {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.45);
+    margin-top: 2px;
+    margin-bottom: 4px;
 }

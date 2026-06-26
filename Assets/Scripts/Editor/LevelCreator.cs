@@ -73,6 +73,11 @@ namespace TwistedTangle.Editor
             _solverContainer;
 
         private DropdownField _aiDifficulty;
+        private IntegerField _aiGridWidth;
+        private IntegerField _aiGridHeight;
+        private IntegerField _aiRefLevelId;
+        private LevelDataSO _aiRefLevel;
+        private Label _aiRefLabel;
         private TextField _aiJsonField;
         private Label _aiStatus;
         private VisualElement _aiEntitiesContainer;
@@ -660,16 +665,43 @@ namespace TwistedTangle.Editor
         {
             var s = MakeSection("AI level generation", expanded: false);
 
-            var row = MakeRow();
-            row.AddToClassList("tt-row--wrap");
+            // Row 1: grid size + difficulty + copy button
+            var row1 = MakeRow();
+            row1.AddToClassList("tt-row--wrap");
+            _aiGridWidth = CompactIntField("W", Mathf.Max(1, _widthField?.value ?? 6));
+            _aiGridWidth.AddToClassList("tt-num--narrow");
+            _aiGridWidth.tooltip = "Grid width for AI generation (independent from the editor grid above).";
+            _aiGridHeight = CompactIntField("H", Mathf.Max(1, _heightField?.value ?? 6));
+            _aiGridHeight.AddToClassList("tt-num--narrow");
+            _aiGridHeight.tooltip = "Grid height for AI generation.";
             _aiDifficulty = new DropdownField("Difficulty", new List<string> { "Easy", "Medium", "Hard" }, 1);
-            _aiDifficulty.style.minWidth = 140;
-            row.Add(_aiDifficulty);
+            _aiDifficulty.labelElement.style.minWidth = 0;
+            _aiDifficulty.labelElement.style.width = StyleKeyword.Auto;
+            _aiDifficulty.style.minWidth = StyleKeyword.Auto;
+            _aiDifficulty.style.flexShrink = 0;
             var copyBtn = MakeButton("1 · Copy prompt", CopyAiPrompt, "tt-btn--primary");
-            copyBtn.tooltip =
-                "Copies a ready prompt (rules + your grid/difficulty + the JSON shape). Paste it into any AI chat.";
-            row.Add(copyBtn);
-            s.Add(row);
+            copyBtn.tooltip = "Copies a ready prompt (rules + your settings + JSON shape). Paste it into any AI chat.";
+            row1.Add(_aiGridWidth);
+            row1.Add(_aiGridHeight);
+            row1.Add(_aiDifficulty);
+            row1.Add(copyBtn);
+            s.Add(row1);
+
+            // Row 2: reference level
+            var row2 = MakeRow();
+            row2.AddToClassList("tt-row--wrap");
+            _aiRefLevelId = CompactIntField("Ref level", 0);
+            _aiRefLevelId.Q<Label>().style.minWidth = 0;
+            _aiRefLevelId.Q<Label>().style.width = StyleKeyword.Auto;
+            _aiRefLevelId.tooltip = "Optional: enter an existing level ID and click Load. The AI will generate a level with a similar feel.";
+            var loadRefBtn = MakeButton("Load", LoadAiReference, null);
+            loadRefBtn.tooltip = "Load the level with this ID as a style reference for the AI prompt.";
+            row2.Add(_aiRefLevelId);
+            row2.Add(loadRefBtn);
+            s.Add(row2);
+            _aiRefLabel = new Label("No reference — AI generates freely.");
+            _aiRefLabel.AddToClassList("tt-hint");
+            s.Add(_aiRefLabel);
 
             var entFoldout = new Foldout { text = "Entity types for the prompt", value = false };
             entFoldout.Add(MakeButton("↻ Refresh list", RefreshAiEntities, "tt-tool"));
@@ -678,7 +710,7 @@ namespace TwistedTangle.Editor
             s.Add(entFoldout);
             RebuildAiEntities();
 
-            s.Add(new Label("Paste the prompt into an AI chat, then paste its JSON answer below and Import:"));
+            s.Add(new Label("Paste the AI's JSON answer below and Import:"));
 
             _aiJsonField = new TextField { multiline = true };
             _aiJsonField.style.minHeight = 90;
@@ -690,8 +722,7 @@ namespace TwistedTangle.Editor
             actions.Add(importBtn);
             s.Add(actions);
 
-            _aiStatus = new Label(
-                "Paste the prompt into any AI chat, then paste its JSON back. Uses the grid/time set above.");
+            _aiStatus = new Label("1 · Copy prompt  →  paste into AI chat  →  paste JSON back  →  2 · Import JSON");
             s.Add(_aiStatus);
             return s;
         }
@@ -725,6 +756,27 @@ namespace TwistedTangle.Editor
             }
         }
 
+        /// <summary>Loads the level at the given reference ID and stores it as style inspiration for the prompt.</summary>
+        private void LoadAiReference()
+        {
+            int id = _aiRefLevelId?.value ?? 0;
+            if (id <= 0)
+            {
+                _aiRefLevel = null;
+                _aiRefLabel.text = "No reference — AI generates freely.";
+                return;
+            }
+            var asset = LevelSaveUtility.GetSelectedLevel(id, LevelEditorPaths.Levels);
+            if (asset == null)
+            {
+                _aiRefLevel = null;
+                _aiRefLabel.text = $"Level {id} not found.";
+                return;
+            }
+            _aiRefLevel = asset;
+            _aiRefLabel.text = $"Reference: Level {id}  ·  {asset.GridWidth}x{asset.GridHeight}  ·  {asset.Ropes.Count} rope(s)";
+        }
+
         /// <summary>Re-scans entity assets (e.g. after one is added outside the tool) and refreshes the UI.</summary>
         private void RefreshAiEntities()
         {
@@ -734,18 +786,19 @@ namespace TwistedTangle.Editor
             RebuildPalette();
         }
 
-        /// <summary>Builds a generation request from the current editor inputs (grid, time, difficulty, types, palette).</summary>
+        /// <summary>Builds a generation request from the current AI section inputs.</summary>
         private LevelGenerationRequest CurrentAiRequest() => new()
         {
-            GridWidth = Mathf.Max(1, _widthField.value),
-            GridHeight = Mathf.Max(1, _heightField.value),
+            GridWidth = Mathf.Max(1, _aiGridWidth?.value ?? _widthField.value),
+            GridHeight = Mathf.Max(1, _aiGridHeight?.value ?? _heightField.value),
             TimeSeconds = Mathf.Max(1, _timeField.value),
             Difficulty = _aiDifficulty?.value ?? "Medium",
             EntityTypeIds = _entityDefs.Where(d => !_aiExcludedTypeIds.Contains(d.TypeId)).Select(d => d.TypeId)
                 .ToList(),
             NailedTypeIds = _entityDefs.Where(d => IsNailed(d) && !_aiExcludedTypeIds.Contains(d.TypeId))
                 .Select(d => d.TypeId).ToList(),
-            PaletteHex = _swatches.Select(sw => "#" + ColorUtility.ToHtmlStringRGB(sw.color)).ToList()
+            PaletteHex = _swatches.Select(sw => "#" + ColorUtility.ToHtmlStringRGB(sw.color)).ToList(),
+            ReferenceLevelDescription = _aiRefLevel != null ? LevelAiGenerator.DescribeLevel(_aiRefLevel) : null
         };
 
         /// <summary>Copies a ready-to-paste prompt (rules + context + JSON shape) to the clipboard for any AI chat.</summary>
