@@ -60,6 +60,14 @@ namespace TwistedTangle.Editor
         // --- ui ---
         private IntegerField _levelIdField, _widthField, _heightField, _timeField;
         private RopeCanvasElement _canvas;
+        private VisualElement _canvasHost;
+        private Label _zoomLabel;
+        private float _zoom = 1f;
+        private const float ZoomMin = 0.25f;
+        private const float ZoomMax = 4f;
+        private const float ZoomStep = 0.1f;
+        private bool _isPanning;
+        private Vector2 _panStart;
 
         // Max rope reach (Chebyshev) — bounds both authoring (drawing long ropes) and the solver.
         private const int MaxRopeReach = 3;
@@ -508,8 +516,8 @@ namespace TwistedTangle.Editor
             scroll.style.flexShrink = 1;
             scroll.style.minHeight  = 0f;
 
-            var host = new VisualElement();
-            host.AddToClassList("tt-canvas-host");
+            _canvasHost = new VisualElement();
+            _canvasHost.AddToClassList("tt-canvas-host");
 
             _canvas = new RopeCanvasElement { PegColorResolver = ResolveEntityColor };
             _canvas.AddToClassList("tt-canvas");
@@ -517,9 +525,91 @@ namespace TwistedTangle.Editor
             _canvas.CellDragged = OnCanvasCellDragged;
             _canvas.Released = () => RefreshPanels();
 
-            host.Add(_canvas);
-            scroll.Add(host);
+            _canvasHost.Add(_canvas);
+            scroll.Add(_canvasHost);
             panel.Add(scroll);
+
+            scroll.RegisterCallback<WheelEvent>(e =>
+            {
+                float oldZoom = _zoom;
+                _zoom = Mathf.Clamp(_zoom - e.delta.y * ZoomStep, ZoomMin, ZoomMax);
+                if (Mathf.Approximately(oldZoom, _zoom)) { e.StopPropagation(); return; }
+
+                if (e.ctrlKey)
+                {
+                    // Ctrl+scroll: zoom toward center, pan stays at zero (canvas stays centered).
+                    _canvas.transform.position = Vector3.zero;
+                }
+                else
+                {
+                    // Plain scroll: zoom toward mouse cursor.
+                    // q = mouse in canvas local space (includes current transform) — kept fixed.
+                    Vector2 q      = _canvas.WorldToLocal(e.mousePosition);
+                    Vector3 oldPos = _canvas.transform.position;
+                    _canvas.transform.position = new Vector3(
+                        oldPos.x + q.x * (oldZoom - _zoom),
+                        oldPos.y + q.y * (oldZoom - _zoom),
+                        0f);
+                }
+
+                _canvas.transform.scale = new Vector3(_zoom, _zoom, 1f);
+                UpdateZoomLabel();
+                e.StopPropagation();
+            }, TrickleDown.TrickleDown);
+
+            // Middle-mouse pan
+            scroll.RegisterCallback<PointerDownEvent>(e =>
+            {
+                if (e.button != 2) return;
+                _isPanning = true;
+                _panStart  = e.position;
+                scroll.CapturePointer(e.pointerId);
+                e.StopPropagation();
+            }, TrickleDown.TrickleDown);
+
+            scroll.RegisterCallback<PointerMoveEvent>(e =>
+            {
+                if (!_isPanning) return;
+                Vector2 delta  = (Vector2)e.position - _panStart;
+                _panStart      = e.position;
+                Vector3 oldPos = _canvas.transform.position;
+                _canvas.transform.position = new Vector3(oldPos.x + delta.x, oldPos.y + delta.y, 0f);
+                e.StopPropagation();
+            }, TrickleDown.TrickleDown);
+
+            scroll.RegisterCallback<PointerUpEvent>(e =>
+            {
+                if (e.button != 2 || !_isPanning) return;
+                _isPanning = false;
+                scroll.ReleasePointer(e.pointerId);
+                e.StopPropagation();
+            }, TrickleDown.TrickleDown);
+
+            // Zoom overlay — top-right corner of the canvas panel
+            var zoomRow = new VisualElement();
+            zoomRow.style.position      = Position.Absolute;
+            zoomRow.style.top           = 6f;
+            zoomRow.style.right         = 6f;
+            zoomRow.style.flexDirection = FlexDirection.Row;
+            zoomRow.style.alignItems    = Align.Center;
+
+            _zoomLabel = new Label("100%");
+            _zoomLabel.style.color    = new Color(0.75f, 0.75f, 0.75f);
+            _zoomLabel.style.fontSize = 11f;
+            _zoomLabel.style.marginRight = 4f;
+            _zoomLabel.style.unityTextAlign = TextAnchor.MiddleRight;
+            _zoomLabel.style.minWidth = 38f;
+
+            var resetZoomBtn = new Button(ResetZoom) { text = "1:1" };
+            resetZoomBtn.AddToClassList("tt-tool");
+            resetZoomBtn.tooltip      = "Reset zoom";
+            resetZoomBtn.style.width  = 36f;
+            resetZoomBtn.style.height = 24f;
+            resetZoomBtn.style.fontSize = 11f;
+
+            zoomRow.Add(_zoomLabel);
+            zoomRow.Add(resetZoomBtn);
+            panel.Add(zoomRow);
 
             // Rope bar — sits directly below the grid, fixed height, scrollable internally
             panel.Add(BuildRopeBar());
@@ -1482,6 +1572,21 @@ namespace TwistedTangle.Editor
         {
             RebuildRopeList();
             RebuildValidation();
+        }
+
+        private void ResetZoom()
+        {
+            _zoom = 1f;
+            if (_canvas == null) return;
+            _canvas.transform.scale    = Vector3.one;
+            _canvas.transform.position = Vector3.zero;
+            UpdateZoomLabel();
+        }
+
+        private void UpdateZoomLabel()
+        {
+            if (_zoomLabel != null)
+                _zoomLabel.text = $"{Mathf.RoundToInt(_zoom * 100f)}%";
         }
 
         private void RefreshCanvas()
