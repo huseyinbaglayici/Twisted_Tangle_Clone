@@ -1384,8 +1384,15 @@ namespace TwistedTangle.Editor
             // Skip duplicate cell.
             if (_previewRope.Path.Count > 0 && _previewRope.Path[^1].PegCoord == coord) return;
 
-            // Reach check only between two consecutive pin waypoints.
-            if (hasPeg && _previewRope.Path.Count > 0 && !_previewRope.Path[^1].IsBendPoint)
+            // Max 3 bend points (5 waypoints total: 2 endpoints + 3 bends).
+            if (_previewRope.Path.Count >= 5)
+            {
+                ShowNotification(new GUIContent("Max 3 bend points reached."));
+                return;
+            }
+
+            // Every segment (pin or bend) must stay within reach.
+            if (_previewRope.Path.Count > 0)
             {
                 Vector2Int last = _previewRope.Path[^1].PegCoord;
                 if (Mathf.Max(Mathf.Abs(coord.x - last.x), Mathf.Abs(coord.y - last.y)) > MaxRopeReach)
@@ -1395,7 +1402,6 @@ namespace TwistedTangle.Editor
                 }
             }
 
-            // Auto-detect: cell with a pin → pin waypoint; empty cell → bend point.
             _previewRope.Path.Add(new RopeWaypoint(coord, WindSide.None, !hasPeg));
         }
 
