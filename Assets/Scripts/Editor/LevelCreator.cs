@@ -48,6 +48,7 @@ namespace TwistedTangle.Editor
         private Color _ropeColor = new(0.90f, 0.20f, 0.20f);
         private RopeData _previewRope;
         private int _selectedRopeId = -1;
+        private readonly Stack<List<RopeWaypoint>> _waypointHistory = new();
 
         // --- data-driven content ---
         private readonly List<EntityBaseTypeSO> _baseTypes = new();
@@ -1402,7 +1403,26 @@ namespace TwistedTangle.Editor
                 }
             }
 
+            _waypointHistory.Push(new List<RopeWaypoint>(_previewRope.Path));
             _previewRope.Path.Add(new RopeWaypoint(coord, WindSide.None, !hasPeg));
+        }
+
+        private void UndoLastWaypoint()
+        {
+            if (_previewRope == null) return;
+            if (_waypointHistory.Count == 0)
+            {
+                // İlk waypoint bile eklenmemişse rope'u iptal et.
+                CancelRope();
+                return;
+            }
+            _previewRope.Path = _waypointHistory.Pop();
+            if (_previewRope.Path.Count == 0)
+            {
+                _previewRope = null;
+                _waypointHistory.Clear();
+            }
+            RefreshCanvas();
         }
 
         private void FinishRope()
@@ -1423,12 +1443,14 @@ namespace TwistedTangle.Editor
             }
 
             _previewRope = null;
+            _waypointHistory.Clear();
             RefreshAll();
         }
 
         private void CancelRope()
         {
             _previewRope = null;
+            _waypointHistory.Clear();
             RefreshAll();
         }
 
@@ -1671,6 +1693,14 @@ namespace TwistedTangle.Editor
 
             // Don't hijack plain (unmodified) keys while the user is typing in a numeric/text field.
             if (!combo.Ctrl && !combo.Alt && IsEditingText()) return;
+
+            // Rope çizimi aktifken Ctrl+Z son waypoint'i geri alır (Unity undo'suna düşmez).
+            if (_previewRope != null && combo.Ctrl && e.keyCode == KeyCode.Z)
+            {
+                UndoLastWaypoint();
+                e.StopPropagation();
+                return;
+            }
 
             var id = KeyBindingStore.FindCommandFor(combo);
             if (id == null || !_commands.TryGetValue(id, out var action)) return;
