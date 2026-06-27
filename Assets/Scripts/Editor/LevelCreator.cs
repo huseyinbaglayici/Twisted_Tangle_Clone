@@ -144,12 +144,20 @@ namespace TwistedTangle.Editor
             root.RegisterCallback<KeyDownEvent>(OnShortcutKeyDown);
             KeyBindingStore.Changed -= UpdateShortcutHints;
             KeyBindingStore.Changed += UpdateShortcutHints;
+            Undo.undoRedoPerformed -= OnUndoRedo;
+            Undo.undoRedoPerformed += OnUndoRedo;
 
             RefreshAll();
             UpdateShortcutHints();
         }
 
-        private void OnDisable() => KeyBindingStore.Changed -= UpdateShortcutHints;
+        private void OnDisable()
+        {
+            KeyBindingStore.Changed -= UpdateShortcutHints;
+            Undo.undoRedoPerformed -= OnUndoRedo;
+        }
+
+        private void OnUndoRedo() => RefreshAll();
 
         #region Data-driven discovery
 
@@ -1335,6 +1343,7 @@ namespace TwistedTangle.Editor
         private void PlaceEntity(Vector2Int coord)
         {
             if (_selectedEntity == null) return;
+            Undo.RecordObject(_level, "Place Entity");
             int idx = _level.GridEntities.FindIndex(p => p.Coordinates == coord);
             if (idx >= 0) _level.GridEntities[idx] = new GridEntityData(coord, _selectedEntity.TypeId);
             else _level.GridEntities.Add(new GridEntityData(coord, _selectedEntity.TypeId));
@@ -1342,9 +1351,10 @@ namespace TwistedTangle.Editor
 
         private void RemoveEntity(Vector2Int coord)
         {
+            if (_level == null) return;
+            Undo.RecordObject(_level, "Remove Entity");
             _level.GridEntities.RemoveAll(p => p.Coordinates == coord);
             // A rope wrapping a now-deleted peg can no longer wrap → convert to virtual bend.
-            if (_level == null) return;
             foreach (var rope in _level.Ropes)
             {
                 if (rope?.Path == null) continue;
@@ -1400,6 +1410,7 @@ namespace TwistedTangle.Editor
                     return;
                 }
 
+                Undo.RecordObject(_level, "Add Rope");
                 _level.Ropes.Add(_previewRope);
                 _selectedRopeId = _previewRope.RopeId;
                 _nextRopeId++;
@@ -1417,6 +1428,7 @@ namespace TwistedTangle.Editor
 
         private void DeleteRope(RopeData rope)
         {
+            Undo.RecordObject(_level, "Delete Rope");
             _level.Ropes.Remove(rope);
             _level.CrossingOverrides.RemoveAll(o => o.RopeIdA == rope.RopeId || o.RopeIdB == rope.RopeId);
             if (_selectedRopeId == rope.RopeId) _selectedRopeId = -1;
@@ -1425,12 +1437,14 @@ namespace TwistedTangle.Editor
         private void BringToFront(RopeData rope)
         {
             if (_level.Ropes.Count <= 1) return;
+            Undo.RecordObject(_level, "Rope To Front");
             rope.Layer = _level.Ropes.Max(r => r.Layer) + 1;
         }
 
         private void SendToBack(RopeData rope)
         {
             if (_level.Ropes.Count <= 1) return;
+            Undo.RecordObject(_level, "Rope To Back");
             rope.Layer = _level.Ropes.Min(r => r.Layer) - 1;
         }
 
@@ -1458,6 +1472,7 @@ namespace TwistedTangle.Editor
 
             if (!found) return;
 
+            Undo.RecordObject(_level, "Flip Crossing");
             var key = CrossingOverride.Create(nearest.RopeIdA, nearest.SegA, nearest.RopeIdB, nearest.SegB);
             if (!_level.CrossingOverrides.Remove(key)) _level.CrossingOverrides.Add(key);
         }
