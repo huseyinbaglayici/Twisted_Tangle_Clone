@@ -53,7 +53,9 @@ namespace TwistedTangle.Editor.Solver
     /// pin to an empty hole; when a pin moves the whole rope follows it (bend points shift with the
     /// endpoints, "drag &amp; follow"), so the rope's shape — and which other ropes it crosses — changes.
     /// "Solved" = no rope crosses any other rope (<see cref="CrossingSolver.FindCrossings"/> is empty).
-    /// Layer is only a *preference* for move ordering so solutions read top-down. Runs in the editor only.
+    /// Layer (via <see cref="CrossingSolver.ResolveOverUnder"/>, including braid alternation and
+    /// CrossingOverrides) determines which rope is physically movable at each crossing — only the top
+    /// rope can be peeled; the bottom rope is blocked beneath it. Runs in the editor only.
     /// </summary>
     public static class LevelSolver
     {
@@ -180,18 +182,22 @@ namespace TwistedTangle.Editor.Solver
                 if (movableOf[nb] >= 0) slots.Add(movableOf[nb]);
             }
 
-            // Move candidates: only the movable endpoints of ropes that currently cross something —
-            // moving any other pin cannot reduce the crossing count. Layer-sorted (top first).
+            // Move candidates: only the movable endpoint of the TOP rope at each crossing.
+            // The bottom rope is physically blocked — it cannot pass through the top rope.
+            // ResolveOverUnder handles braid alternation (same pair alternates over/under) and
+            // CrossingOverrides, so this respects the exact weave the designer authored.
             List<int> CrossingSlots(List<RopeData> stateRopes)
             {
                 var crossings = CrossingSolver.FindCrossings(stateRopes);
                 if (crossings.Count == 0) return new List<int>();
+                var aOver = CrossingSolver.ResolveOverUnder(stateRopes, crossings, options.CrossingOverrides);
                 var slots = new HashSet<int>();
-                foreach (var c in crossings)
+                for (int c = 0; c < crossings.Count; c++)
                 {
-                    if (c.RopeIndexA == c.RopeIndexB) continue; // self-crossing: moving a pin won't help here
-                    AddRopeSlots(slots, c.RopeIndexA);
-                    AddRopeSlots(slots, c.RopeIndexB);
+                    var x = crossings[c];
+                    if (x.RopeIndexA == x.RopeIndexB) continue; // self-crossing: skip
+                    // Only the top rope at this crossing can be peeled off
+                    AddRopeSlots(slots, aOver[c] ? x.RopeIndexA : x.RopeIndexB);
                 }
                 var list = new List<int>(slots);
                 list.Sort((s1, s2) =>

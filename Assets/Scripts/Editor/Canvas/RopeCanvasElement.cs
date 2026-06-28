@@ -103,9 +103,9 @@ namespace TwistedTangle.Editor.Canvas
 
         #region Rendering
 
-        private float RopeWidth => Mathf.Max(4f, CellSize * 0.16f);
-        private float GapPx => RopeWidth * 1.9f;
-        private const int SplineSamples = 10; // subdivisions per segment — raise for smoother curves
+        private float RopeWidth => Mathf.Max(6f, CellSize * 0.17f);
+        private float GapPx => RopeWidth * 2.6f;
+        private const int SplineSamples = 16; // subdivisions per segment — raise for smoother curves
 
         private Vector2 ToPx(Vector2 centerSpace) =>
             new(centerSpace.x * CellSize, (GridHeight - centerSpace.y) * CellSize);
@@ -165,11 +165,13 @@ namespace TwistedTangle.Editor.Canvas
                 p.Arc(c, r, Angle.Degrees(0f), Angle.Degrees(360f));
                 p.Fill();
 
-                p.lineWidth = 2f;
-                p.strokeColor = new Color(0f, 0f, 0f, 0.6f);
+                // Outer border
+                p.lineWidth = 3.5f;
+                p.strokeColor = new Color(0.06f, 0.06f, 0.06f, 0.88f);
                 p.BeginPath();
                 p.Arc(c, r, Angle.Degrees(0f), Angle.Degrees(360f));
                 p.Stroke();
+
             }
         }
 
@@ -178,6 +180,7 @@ namespace TwistedTangle.Editor.Canvas
             if (Level == null || Level.Ropes.Count == 0) return;
 
             var gaps = BuildGapMap();
+            var noGaps = new Dictionary<(int, int), List<float>>();
 
             var sorted = new List<(RopeData rope, int idx)>();
             for (int i = 0; i < Level.Ropes.Count; i++)
@@ -186,11 +189,13 @@ namespace TwistedTangle.Editor.Canvas
 
             foreach (var entry in sorted)
                 if (entry.rope.RopeId == SelectedRopeId && entry.rope.Path.Count >= 2)
-                    StrokeRope(p, entry.rope, entry.idx, gaps, new Color(1f, 1f, 1f, 0.35f), RopeWidth + 8f);
+                    StrokeRope(p, entry.rope, entry.idx, noGaps, new Color(1f, 1f, 1f, 0.4f), RopeWidth + 10f);
 
             foreach (var entry in sorted)
             {
                 if (entry.rope.Path.Count < 2) continue;
+                StrokeRope(p, entry.rope, entry.idx, noGaps,
+                    new Color(0.06f, 0.06f, 0.06f, 0.6f), RopeWidth + 7f);
                 StrokeRope(p, entry.rope, entry.idx, gaps, entry.rope.Tint, RopeWidth);
                 DrawEndpoints(p, entry.rope);
             }
@@ -310,14 +315,84 @@ namespace TwistedTangle.Editor.Canvas
                 (-p0 + 3f * p1 - 3f * p2 + p3) * t3);
         }
 
+
+        private void DrawExitGrommets(Painter2D p, RopeData rope)
+        {
+            if (rope.Path.Count < 2) return;
+            float pegR = CellSize * 0.30f;
+            Color color = rope.Tint;
+
+            Vector2 aC = ToPx(CrossingSolver.Center(rope.Path[0].PegCoord));
+            Vector2 aDir = (ToPx(CrossingSolver.Center(rope.Path[1].PegCoord)) - aC).normalized;
+            DrawSocketArc(p, aC, aDir, pegR, color);
+
+            Vector2 bC = ToPx(CrossingSolver.Center(rope.Path[^1].PegCoord));
+            Vector2 bDir = (ToPx(CrossingSolver.Center(rope.Path[^2].PegCoord)) - bC).normalized;
+            DrawSocketArc(p, bC, bDir, pegR, color);
+        }
+
+        private void DrawSocketArc(Painter2D p, Vector2 pinCenter, Vector2 exitDir, float pegR, Color color)
+        {
+            float innerR = pegR * 0.38f;
+            Vector2 sockCenter = pinCenter + exitDir * pegR;
+            float sockR = RopeWidth * 0.5f;
+            Vector2 bridgeStart = pinCenter + exitDir * innerR;
+
+            float angle = Mathf.Atan2(exitDir.y, exitDir.x) * Mathf.Rad2Deg;
+            // Back half cap: faces AWAY from rope — rope side is left open
+            Angle startA = Angle.Degrees(angle + 90f);
+            Angle endA   = Angle.Degrees(angle - 90f);
+
+            // Dark border cylinder
+            p.lineWidth = RopeWidth + 5f;
+            p.strokeColor = new Color(0.05f, 0.05f, 0.05f, 1f);
+            p.BeginPath();
+            p.MoveTo(bridgeStart);
+            p.LineTo(sockCenter);
+            p.Stroke();
+
+            // Colored cylinder
+            p.lineWidth = RopeWidth;
+            p.strokeColor = color;
+            p.BeginPath();
+            p.MoveTo(bridgeStart);
+            p.LineTo(sockCenter);
+            p.Stroke();
+
+            // Back half cap — dark border
+            p.fillColor = new Color(0.05f, 0.05f, 0.05f, 1f);
+            p.BeginPath();
+            p.MoveTo(sockCenter);
+            p.Arc(sockCenter, sockR + 2.5f, startA, endA);
+            p.Fill();
+
+            // Back half cap — rope color
+            p.fillColor = color;
+            p.BeginPath();
+            p.MoveTo(sockCenter);
+            p.Arc(sockCenter, sockR, startA, endA);
+            p.Fill();
+        }
+
         private void DrawEndpoints(Painter2D p, RopeData rope)
         {
             if (rope.Path.Count < 1) return;
             Color color = rope.Tint;
-            float r = RopeWidth * 0.9f;
+            float r = RopeWidth * 1.1f;
 
             DrawDot(p, ToPx(CrossingSolver.Center(rope.Path[0].PegCoord)), r, color);
             DrawDot(p, ToPx(CrossingSolver.Center(rope.Path[^1].PegCoord)), r, color);
+
+            // Inner grip ring on rope endpoints
+            float pegR = CellSize * 0.30f;
+            p.lineWidth = 1.5f;
+            p.strokeColor = new Color(0f, 0f, 0f, 0.82f);
+            p.BeginPath();
+            p.Arc(ToPx(CrossingSolver.Center(rope.Path[0].PegCoord)), pegR * 0.38f, Angle.Degrees(0f), Angle.Degrees(360f));
+            p.Stroke();
+            p.BeginPath();
+            p.Arc(ToPx(CrossingSolver.Center(rope.Path[^1].PegCoord)), pegR * 0.38f, Angle.Degrees(0f), Angle.Degrees(360f));
+            p.Stroke();
 
             // Hollow ring at each bend point.
             float br = RopeWidth * 0.45f;
@@ -332,6 +407,7 @@ namespace TwistedTangle.Editor.Canvas
                 p.Stroke();
             }
         }
+
 
         private void DrawPreview(Painter2D p)
         {
