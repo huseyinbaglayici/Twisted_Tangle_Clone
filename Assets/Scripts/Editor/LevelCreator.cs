@@ -1366,7 +1366,10 @@ namespace TwistedTangle.Editor
         private void OnCanvasCellClicked(int x, int y, Vector2 local, int button)
         {
             if (_level == null) return;
-            var coord = new Vector2Int(x, y);
+            // x, y are sub-grid coords; derive coarse for non-rope tools
+            var subCoord   = new Vector2Int(x, y);
+            var coarseCoord = new Vector2Int(x / CrossingSolver.SubDiv, y / CrossingSolver.SubDiv);
+            var coord = coarseCoord;
 
             switch (_tool)
             {
@@ -1379,7 +1382,7 @@ namespace TwistedTangle.Editor
                     break;
                 case Tool.Rope:
                     if (button == 1) FinishRope();
-                    else AddRopeWaypoint(coord);
+                    else AddRopeWaypoint(subCoord);
                     break;
                 case Tool.Flip:
                     FlipNearestCrossing(local);
@@ -1393,12 +1396,14 @@ namespace TwistedTangle.Editor
         private void OnCanvasCellDragged(int x, int y)
         {
             if (_level == null) return;
-            var coord = new Vector2Int(x, y);
+            var subCoord    = new Vector2Int(x, y);
+            var coarseCoord = new Vector2Int(x / CrossingSolver.SubDiv, y / CrossingSolver.SubDiv);
+            var coord = coarseCoord;
 
             // Dragging while a rope is in progress extends its path.
             if (_tool == Tool.Rope && _previewRope != null)
             {
-                AddRopeWaypoint(coord);
+                AddRopeWaypoint(subCoord);
                 RefreshCanvas();
                 return;
             }
@@ -1461,10 +1466,13 @@ namespace TwistedTangle.Editor
             }
         }
 
-        private void AddRopeWaypoint(Vector2Int coord)
+        private void AddRopeWaypoint(Vector2Int subCoord)
         {
             bool isFirstPoint = _previewRope == null;
-            bool hasPeg = _level.GridEntities.FindIndex(p => p.Coordinates == coord) >= 0;
+            // If the coarse cell has a pin, snap to pin center so the whole cell acts as the pin hit area.
+            var coarseCoord = new Vector2Int(subCoord.x / CrossingSolver.SubDiv, subCoord.y / CrossingSolver.SubDiv);
+            bool hasPeg = _level.GridEntities.FindIndex(e => e.Coordinates == coarseCoord) >= 0;
+            if (hasPeg) subCoord = CrossingSolver.PinToSub(coarseCoord);
 
             // First waypoint must anchor on a pin.
             if (isFirstPoint && !hasPeg) return;
@@ -1475,29 +1483,30 @@ namespace TwistedTangle.Editor
                 _previewRope = new RopeData(_nextRopeId, _ropeColor, layer);
             }
 
-            // Skip duplicate cell.
-            if (_previewRope.Path.Count > 0 && _previewRope.Path[^1].PegCoord == coord) return;
+            // Skip duplicate position.
+            if (_previewRope.Path.Count > 0 && _previewRope.Path[^1].PegCoord == subCoord) return;
 
-            // Max 3 bend points (5 waypoints total: 2 endpoints + 3 bends).
+            // Max waypoints (endpoints + bends).
             if (_previewRope.Path.Count >= 5)
             {
                 ShowNotification(new GUIContent("Max 3 bend points reached."));
                 return;
             }
 
-            // Every segment (pin or bend) must stay within reach.
+            // Every segment must stay within reach (MaxRopeReach coarse cells = MaxRopeReach*SubDiv sub-cells).
             if (_previewRope.Path.Count > 0)
             {
                 Vector2Int last = _previewRope.Path[^1].PegCoord;
-                if (Mathf.Max(Mathf.Abs(coord.x - last.x), Mathf.Abs(coord.y - last.y)) > MaxRopeReach)
+                int maxSubReach = MaxRopeReach * CrossingSolver.SubDiv;
+                if (Mathf.Max(Mathf.Abs(subCoord.x - last.x), Mathf.Abs(subCoord.y - last.y)) > maxSubReach)
                 {
-                    ShowNotification(new GUIContent($"Too far — max reach is {MaxRopeReach}."));
+                    ShowNotification(new GUIContent($"Too far — max reach is {MaxRopeReach} cells."));
                     return;
                 }
             }
 
             _waypointHistory.Push(new List<RopeWaypoint>(_previewRope.Path));
-            _previewRope.Path.Add(new RopeWaypoint(coord, WindSide.None, !hasPeg));
+            _previewRope.Path.Add(new RopeWaypoint(subCoord, WindSide.None, !hasPeg));
         }
 
         private void UndoLastWaypoint()
@@ -1654,7 +1663,28 @@ namespace TwistedTangle.Editor
             _selectedRopeId = -1;
             _nextRopeId = _level.Ropes.Count == 0 ? 0 : _level.Ropes.Max(r => r.RopeId) + 1;
 
+            MigrateLevelToSubGrid();
             RefreshAll();
+        }
+
+        private void MigrateLevelToSubGrid()
+        {
+            if (_level == null) return;
+            // Detect old format: endpoint PegCoord matches an entity Coordinates directly (coarse grid)
+            bool isOldFormat = _level.Ropes.Any(r =>
+                r.Path.Count > 0 &&
+                _level.GridEntities.Any(e => e.Coordinates == r.Path[0].PegCoord));
+            if (!isOldFormat) return;
+
+            foreach (var rope in _level.Ropes)
+                for (int i = 0; i < rope.Path.Count; i++)
+                {
+                    var wp = rope.Path[i];
+                    rope.Path[i] = new RopeWaypoint(CrossingSolver.PinToSub(wp.PegCoord), wp.Side, wp.IsBendPoint);
+                }
+
+            EditorUtility.SetDirty(_level);
+            Debug.Log("[LevelCreator] Migrated level to sub-grid coordinate system.");
         }
 
         private void DeleteLevel(int id)
@@ -1734,6 +1764,7 @@ namespace TwistedTangle.Editor
             _canvas.PreviewRope = _previewRope;
             _canvas.SelectedRopeId = _selectedRopeId;
             _canvas.ShowCrossings = _tool == Tool.Flip;
+            _canvas.ShowSubGrid   = _tool == Tool.Rope;
             _canvas.Redraw();
         }
 

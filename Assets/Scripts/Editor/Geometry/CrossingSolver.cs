@@ -37,8 +37,27 @@ namespace TwistedTangle.Editor.Geometry
     {
         private const float Eps = 1e-4f;
 
-        /// <summary>Cell-center point for a peg/waypoint coordinate.</summary>
+        /// <summary>Sub-grid divisions per coarse cell. Each coarse cell is divided into SubDiv×SubDiv sub-cells.</summary>
+        public const int SubDiv = 3;
+
+        /// <summary>Cell-center point for a pin/entity coordinate (coarse grid).</summary>
         public static Vector2 Center(Vector2Int coord) => new(coord.x + 0.5f, coord.y + 0.5f);
+
+        /// <summary>Center point for a rope waypoint in sub-grid coordinates.</summary>
+        public static Vector2 SubCenter(Vector2Int subCoord) =>
+            new((subCoord.x + 0.5f) / SubDiv, (subCoord.y + 0.5f) / SubDiv);
+
+        /// <summary>Converts a coarse pin coordinate to its sub-grid equivalent (pin sits at sub-cell index 1 of each axis).</summary>
+        public static Vector2Int PinToSub(Vector2Int pinCoord) =>
+            new(pinCoord.x * SubDiv + SubDiv / 2, pinCoord.y * SubDiv + SubDiv / 2);
+
+        /// <summary>True if the sub-grid coord is at a pin center position (i.e. index 1 within its coarse cell on both axes).</summary>
+        public static bool IsSubGridPin(Vector2Int subCoord) =>
+            subCoord.x % SubDiv == SubDiv / 2 && subCoord.y % SubDiv == SubDiv / 2;
+
+        /// <summary>Converts a sub-grid pin coord back to the coarse pin coord. Only valid when IsSubGridPin is true.</summary>
+        public static Vector2Int SubToPinCoord(Vector2Int subCoord) =>
+            new((subCoord.x - SubDiv / 2) / SubDiv, (subCoord.y - SubDiv / 2) / SubDiv);
 
         /// <summary>(segment index, t) that represents being AT waypoint <paramref name="waypointIndex"/>:
         /// the first waypoint uses its outgoing segment (t=0); every other waypoint breaks the segment
@@ -73,8 +92,8 @@ namespace TwistedTangle.Editor.Geometry
 
                     for (int sa = 0; sa < aSegCount; sa++)
                     {
-                        Vector2 a1 = Center(a.Path[sa].PegCoord);
-                        Vector2 a2 = Center(a.Path[sa + 1].PegCoord);
+                        Vector2 a1 = SubCenter(a.Path[sa].PegCoord);
+                        Vector2 a2 = SubCenter(a.Path[sa + 1].PegCoord);
 
                         // For self-intersection skip the same and adjacent segments (they share a peg).
                         int sbStart = i == j ? sa + 2 : 0;
@@ -82,8 +101,8 @@ namespace TwistedTangle.Editor.Geometry
                         {
                             if (i == j && Mathf.Abs(sa - sb) <= 1) continue;
 
-                            Vector2 b1 = Center(b.Path[sb].PegCoord);
-                            Vector2 b2 = Center(b.Path[sb + 1].PegCoord);
+                            Vector2 b1 = SubCenter(b.Path[sb].PegCoord);
+                            Vector2 b2 = SubCenter(b.Path[sb + 1].PegCoord);
 
                             if (SegmentsIntersect(a1, a2, b1, b2, out float t, out float u, out Vector2 p))
                             {
@@ -149,7 +168,7 @@ namespace TwistedTangle.Editor.Geometry
                             {
                                 RopeIndexA = i, RopeIdA = a.RopeId, SegA = segA, TA = tA,
                                 RopeIndexB = j, RopeIdB = b.RopeId, SegB = segB, TB = tB,
-                                Point = Center(cell)
+                                Point = SubCenter(cell)
                             });
                         }
                     }
@@ -167,7 +186,7 @@ namespace TwistedTangle.Editor.Geometry
                 for (int k = 0; k < a.Path.Count; k++)
                 {
                     var aCell = a.Path[k].PegCoord;
-                    Vector2 wpPos = Center(aCell);
+                    Vector2 wpPos = SubCenter(aCell);
                     int segA = k == 0 ? 0 : k - 1;
                     float tA = k == 0 ? 0f : 1f;
                     for (int j = 0; j < ropes.Count; j++)
@@ -180,8 +199,8 @@ namespace TwistedTangle.Editor.Geometry
                             // Skip if A's waypoint coincides with one of this B segment's waypoint cells
                             // (that is a shared-cell crossing, already handled above).
                             if (aCell == b.Path[sb].PegCoord || aCell == b.Path[sb + 1].PegCoord) continue;
-                            Vector2 b1 = Center(b.Path[sb].PegCoord);
-                            Vector2 b2 = Center(b.Path[sb + 1].PegCoord);
+                            Vector2 b1 = SubCenter(b.Path[sb].PegCoord);
+                            Vector2 b2 = SubCenter(b.Path[sb + 1].PegCoord);
                             if (!PointOnSegmentInterior(wpPos, b1, b2, out float u)) continue;
                             result.Add(new RopeCrossing
                             {
