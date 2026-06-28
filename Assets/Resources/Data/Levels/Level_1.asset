@@ -70,7 +70,7 @@ MonoBehaviour:
       IsBendPoint: 0
   - RopeId: 3
     Tint: {r: 0, g: 0.9150943, b: 0.8613863, a: 1}
-    Layer: 2
+    Layer: 5
     Path:
     - PegCoord: {x: 2, y: 2}
       Side: 0

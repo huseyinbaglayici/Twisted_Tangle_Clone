@@ -50,6 +50,11 @@ namespace TwistedTangle.Editor
         private int _selectedRopeId = -1;
         private readonly Stack<List<RopeWaypoint>> _waypointHistory = new();
 
+        // --- solution preview (step through solver moves with ropes reshaping) ---
+        private List<SolveMove> _solutionMoves;
+        private int _previewStep = -1;            // -1 = not previewing; 0..N = state after that many moves
+        private LevelDataSO _previewLevel;        // in-memory, never saved
+
         // --- data-driven content ---
         private readonly List<EntityBaseTypeSO> _baseTypes = new();
         private readonly List<EntityDefinitionSO> _entityDefs = new();
@@ -1015,6 +1020,94 @@ namespace TwistedTangle.Editor
                 string who = string.IsNullOrEmpty(m.PinDesc) ? "" : $"  [{m.PinDesc}]";
                 _solverContainer.Add(new Label($"{step++}. ({m.From.x},{m.From.y}) → ({m.To.x},{m.To.y}){who}"));
             }
+
+            // Visual preview: step through the moves on the canvas with ropes reshaping (bend-follow),
+            // so the designer can SEE the crossings vanish instead of tracing the moves by hand.
+            _solutionMoves = result.Solvable && result.Moves > 0 ? new List<SolveMove>(result.Solution) : null;
+            _previewStep = -1;
+            if (_solutionMoves != null)
+            {
+                var pvRow = MakeRow();
+                pvRow.AddToClassList("tt-row--wrap");
+                var stepLabel = new Label();
+
+                void RefreshLabel() =>
+                    stepLabel.text = _previewStep < 0
+                        ? "preview: off (showing authored)"
+                        : $"preview: after move {_previewStep} / {_solutionMoves.Count}";
+
+                pvRow.Add(MakeButton("▶ Preview", () => { ShowPreviewStep(0); RefreshLabel(); }, "tt-btn--primary"));
+                pvRow.Add(MakeButton("◀ Prev", () => { if (_previewStep > 0) { ShowPreviewStep(_previewStep - 1); RefreshLabel(); } }, null));
+                pvRow.Add(MakeButton("Next ▶", () => { if (_previewStep >= 0 && _previewStep < _solutionMoves.Count) { ShowPreviewStep(_previewStep + 1); RefreshLabel(); } }, null));
+                pvRow.Add(MakeButton("✕ Exit", () => { ExitPreview(); RefreshLabel(); }, null));
+                pvRow.Add(stepLabel);
+                _solverContainer.Add(pvRow);
+                RefreshLabel();
+            }
+        }
+
+        /// <summary>
+        /// Render the level as it looks after the first <paramref name="step"/> solver moves: each moved
+        /// pin (and its entity) is relocated and every rope is reshaped via bend-follow, so the canvas
+        /// shows exactly the geometry the solver evaluated. Crossings are drawn so they can be watched
+        /// disappearing. Nothing is saved — the preview level is in-memory only.
+        /// </summary>
+        private void ShowPreviewStep(int step)
+        {
+            if (_level == null || _solutionMoves == null) return;
+            _previewStep = Mathf.Clamp(step, 0, _solutionMoves.Count);
+
+            // Current cell of each endpoint pin, keyed by its authored coord; apply the first N moves.
+            var current = new Dictionary<Vector2Int, Vector2Int>();
+            foreach (var rope in _level.Ropes)
+            {
+                if (rope?.Path == null || rope.Path.Count < 2) continue;
+                current[rope.Path[0].PegCoord] = rope.Path[0].PegCoord;
+                current[rope.Path[^1].PegCoord] = rope.Path[^1].PegCoord;
+            }
+            for (int i = 0; i < _previewStep; i++)
+            {
+                var m = _solutionMoves[i];
+                foreach (var key in new List<Vector2Int>(current.Keys))
+                    if (current[key] == m.From) { current[key] = m.To; break; }
+            }
+
+            if (_previewLevel == null) _previewLevel = ScriptableObject.CreateInstance<LevelDataSO>();
+            _previewLevel.GridWidth = _level.GridWidth;
+            _previewLevel.GridHeight = _level.GridHeight;
+
+            _previewLevel.GridEntities.Clear();
+            foreach (var e in _level.GridEntities)
+            {
+                var coord = current.TryGetValue(e.Coordinates, out var moved) ? moved : e.Coordinates;
+                _previewLevel.GridEntities.Add(new GridEntityData(coord, e.TypeId));
+            }
+
+            _previewLevel.CrossingOverrides.Clear();
+            _previewLevel.CrossingOverrides.AddRange(_level.CrossingOverrides);
+
+            _previewLevel.Ropes.Clear();
+            foreach (var rope in _level.Ropes)
+            {
+                if (rope?.Path == null || rope.Path.Count < 2) { _previewLevel.Ropes.Add(rope); continue; }
+                Vector2Int a = current.TryGetValue(rope.Path[0].PegCoord, out var va) ? va : rope.Path[0].PegCoord;
+                Vector2Int b = current.TryGetValue(rope.Path[^1].PegCoord, out var vb) ? vb : rope.Path[^1].PegCoord;
+                _previewLevel.Ropes.Add(LevelSolver.ReshapeRope(rope, a, b));
+            }
+
+            _canvas.Level = _previewLevel;
+            _canvas.GridWidth = _level.GridWidth;
+            _canvas.GridHeight = _level.GridHeight;
+            _canvas.PreviewRope = null;
+            _canvas.SelectedRopeId = -1;
+            _canvas.ShowCrossings = true;     // watch the crossings vanish as you step
+            _canvas.Redraw();
+        }
+
+        private void ExitPreview()
+        {
+            _previewStep = -1;
+            RefreshCanvas();
         }
 
 

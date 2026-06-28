@@ -46,13 +46,15 @@ Three categories of crossing exist, all detected in `CrossingSolver` and replica
 
 Two rope segments from different ropes intersect strictly in their interiors (both parameters in (0,1)). Segments that only touch at a shared pin endpoint are not counted. This is the standard case.
 
-### 2.2 Pin-crossing (`IsPinCrossing = true`)
+**Collinear overlap.** Two segments from different ropes that lie along the same line and overlap on an *interval* (not just a single touch point) are physically on top of each other and counted as a crossing (`CrossingSolver.SegmentsOverlapCollinear`). This catches ropes that run stacked along a grid row/column — the plain interior test returns false for parallel segments. Skipped when the two segments share a waypoint cell (handled as §2.2).
 
-Rope A's inner waypoint (real or virtual) shares its grid cell with rope B's **endpoint pin**. Even a virtual bend routes through that exact cell, so it is physically blocked by B's pin.
+### 2.2 Shared-cell crossing
 
-**Special case — virtual bend in the same direction:** if the inner waypoint is a virtual bend (`IsBendPoint = true`) and both ropes leave the shared cell in the same direction (cross product < 0.1 and dot product > 0), they run alongside each other and this is not a topological crossing.
+Any grid cell where two **different** ropes each have a waypoint is a crossing — the ropes physically overlap there, so one passes over the other. This is type-agnostic: it covers a rope's body passing through another rope's endpoint pin **and** two ropes that bend through the same cell (e.g. a pinwheel of bent ropes whose corners meet). Real pegs and virtual bend points are treated identically here — both occupy the cell.
 
-Pin-crossings are **unresolvable by peeling** — both rope A and rope B are marked as stuck in the peel model (both `underCount` values are incremented). A pin must physically move to break the shared-cell constraint.
+**Sole exception — shared pin:** if the cell is a *terminal endpoint* for **both** ropes, they are simply tied to the same pin (multiple ropes anchored on one pin), not crossed, so it is not counted.
+
+Shared-cell crossings are **ordinary crossings**: over/under is decided by Layer like any segment crossing (§3.1) and they peel normally (§3.2). There is no special "unresolvable" status — the reason it counts is the two ropes overlapping, not the presence of a pin.
 
 ### 2.3 Bend-on-segment (`IsBendOnSegment = true`)
 
@@ -76,9 +78,7 @@ This alternation model is what creates genuine braid tangles. Without it, every 
 
 **Return value:** number of crossings still active when no more ropes can be peeled. Zero means the tangle is **fully separable** — the level is solved.
 
-A single clean over-crossing (rope A strictly on top of rope B, no other entanglement) peels immediately: PeelResidual = 0. This is considered solved even though a geometric crossing exists.
-
-Pin-crossings are never resolvable by peeling — both participating ropes are treated as stuck (`underCount` incremented for both sides regardless of which is geometrically "over").
+A single clean over-crossing (rope A strictly on top of rope B, no other entanglement) peels immediately: PeelResidual = 0. This is considered solved even though a geometric crossing exists. This applies to shared-cell crossings too — a lone shared-cell overlap between two ropes peels like any other.
 
 The optional `unpeeled` output parameter receives the set of rope ids still stuck when peeling stalls — this is used by the solver to identify which pins are worth moving.
 
@@ -110,10 +110,8 @@ At each search node, the solver does not consider all movable pins. It calls `Cr
 1. Build crossings for the current state.
 2. Call `PeelResidual` with the `unpeeled` output to get the set of rope ids still stuck.
 3. For each crossing where at least one rope is stuck:
-   - **Segment-segment:** add movable endpoints of both stuck ropes.
-   - **Pin-crossing with a virtual bend:** add movable endpoints of both stuck ropes (either rerouting solves it).
-   - **Pin-crossing with a real inner peg:** add only the movable endpoint of the stuck rope B (rope B's endpoint is the one that must move away from the shared cell).
-   - **Bend-on-segment:** add only rope B's movable endpoints.
+   - **Bend-on-segment:** add only rope B's movable endpoints (rope A's inner peg is fixed).
+   - **Everything else (segment-segment and shared-cell):** add movable endpoints of both stuck ropes. `AddRopeSlots` skips locked/nailed pins automatically, so a shared-cell crossing on a nailed pin only contributes the movable side.
 4. Sort result by descending layer (higher-layer pins first).
 
 This filters the candidate set to only the pins that can actually break the unpeelable core, keeping branching small.

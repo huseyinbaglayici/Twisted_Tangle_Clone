@@ -27,10 +27,6 @@ namespace TwistedTangle.Editor.Geometry
         /// <summary>True when RopeA's fixed bend point lies on RopeB's segment.
         /// Moving RopeA's endpoints cannot resolve this — only RopeB's endpoints can.</summary>
         public bool IsBendOnSegment;
-
-        /// <summary>True when the crossing is at a rope waypoint that coincides with another rope's
-        /// endpoint pin. These require physical pin moves — they cannot be resolved by peeling.</summary>
-        public bool IsPinCrossing;
     }
 
     /// <summary>
@@ -43,6 +39,15 @@ namespace TwistedTangle.Editor.Geometry
 
         /// <summary>Cell-center point for a peg/waypoint coordinate.</summary>
         public static Vector2 Center(Vector2Int coord) => new(coord.x + 0.5f, coord.y + 0.5f);
+
+        /// <summary>(segment index, t) that represents being AT waypoint <paramref name="waypointIndex"/>:
+        /// the first waypoint uses its outgoing segment (t=0); every other waypoint breaks the segment
+        /// leading into it (t=1), so a render gap appears just before the waypoint, not under its pin.</summary>
+        public static void WaypointSegT(int waypointIndex, out int seg, out float t)
+        {
+            if (waypointIndex == 0) { seg = 0; t = 0f; }
+            else { seg = waypointIndex - 1; t = 1f; }
+        }
 
         /// <summary>
         /// All crossings among the given ropes, including a rope crossing itself. Segments that only
@@ -80,77 +85,91 @@ namespace TwistedTangle.Editor.Geometry
                             Vector2 b1 = Center(b.Path[sb].PegCoord);
                             Vector2 b2 = Center(b.Path[sb + 1].PegCoord);
 
-                            if (!SegmentsIntersect(a1, a2, b1, b2, out float t, out float u, out Vector2 p))
+                            if (SegmentsIntersect(a1, a2, b1, b2, out float t, out float u, out Vector2 p))
+                            {
+                                result.Add(new RopeCrossing
+                                {
+                                    RopeIndexA = i, RopeIdA = a.RopeId, SegA = sa, TA = t,
+                                    RopeIndexB = j, RopeIdB = b.RopeId, SegB = sb, TB = u,
+                                    Point = p
+                                });
                                 continue;
+                            }
 
+                            // Collinear overlap: two segments from different ropes lying along the same
+                            // line and overlapping on an interval (not merely touching at a point) are
+                            // physically on top of each other. Skip when they share a waypoint cell — that
+                            // is already a shared-cell crossing — to avoid double-counting.
+                            if (i != j &&
+                                !SegmentsShareCell(a, sa, b, sb) &&
+                                SegmentsOverlapCollinear(a1, a2, b1, b2, out float ot, out float ou, out Vector2 omid))
+                            {
+                                result.Add(new RopeCrossing
+                                {
+                                    RopeIndexA = i, RopeIdA = a.RopeId, SegA = sa, TA = ot,
+                                    RopeIndexB = j, RopeIdB = b.RopeId, SegB = sb, TB = ou,
+                                    Point = omid
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Shared-cell crossings: any cell where two different ropes each have a waypoint is a
+            // crossing — the ropes physically overlap there, so one passes over the other (over/under
+            // decided by layer like any segment crossing, and resolved by peeling). The sole exception
+            // is a cell that is a terminal endpoint for BOTH ropes: there they are simply tied to the
+            // same shared pin, not crossed. This covers a rope's body passing through another rope's
+            // pin AND two ropes that bend through the same cell (e.g. a pinwheel of bent ropes).
+            for (int i = 0; i < ropes.Count; i++)
+            {
+                var a = ropes[i];
+                if (a?.Path == null || a.Path.Count < 2) continue;
+
+                for (int j = i + 1; j < ropes.Count; j++)
+                {
+                    var b = ropes[j];
+                    if (b?.Path == null || b.Path.Count < 2) continue;
+
+                    for (int ka = 0; ka < a.Path.Count; ka++)
+                    {
+                        var cell = a.Path[ka].PegCoord;
+                        for (int kb = 0; kb < b.Path.Count; kb++)
+                        {
+                            if (b.Path[kb].PegCoord != cell) continue;
+
+                            bool aTerminal = ka == 0 || ka == a.Path.Count - 1;
+                            bool bTerminal = kb == 0 || kb == b.Path.Count - 1;
+                            if (aTerminal && bTerminal) continue; // shared pin — joined, not crossed
+
+                            WaypointSegT(ka, out int segA, out float tA);
+                            WaypointSegT(kb, out int segB, out float tB);
                             result.Add(new RopeCrossing
                             {
-                                RopeIndexA = i, RopeIdA = a.RopeId, SegA = sa, TA = t,
-                                RopeIndexB = j, RopeIdB = b.RopeId, SegB = sb, TB = u,
-                                Point = p
+                                RopeIndexA = i, RopeIdA = a.RopeId, SegA = segA, TA = tA,
+                                RopeIndexB = j, RopeIdB = b.RopeId, SegB = segB, TB = tB,
+                                Point = Center(cell)
                             });
                         }
                     }
                 }
             }
 
-            // Pin-crossings: rope A's inner waypoint (real or virtual) coincides with rope B's endpoint
-            // anchor pin. Even a virtual bend (IsBendPoint=true) routes through that exact cell, so it
-            // is physically blocked by B's pin. Over/under decided by layer like any other crossing.
+            // Waypoint-on-segment crossings: any of rope A's waypoints (endpoint, real peg or virtual
+            // bend) lying strictly on rope B's segment interior means the ropes physically touch there.
+            // The waypoint sits at a B cell with no B waypoint of its own, so the shared-cell test above
+            // misses it and (for parallel segments) so does the interior segment test.
             for (int i = 0; i < ropes.Count; i++)
             {
                 var a = ropes[i];
-                if (a?.Path == null || a.Path.Count < 3) continue; // needs at least one inner waypoint
-
-                for (int k = 1; k < a.Path.Count - 1; k++) // inner waypoints = rope body
+                if (a?.Path == null || a.Path.Count < 2) continue;
+                for (int k = 0; k < a.Path.Count; k++)
                 {
-                    var pinCoord = a.Path[k].PegCoord;
-
-                    for (int j = 0; j < ropes.Count; j++)
-                    {
-                        if (i == j) continue;
-                        var b = ropes[j];
-                        if (b?.Path == null || b.Path.Count < 2) continue;
-
-                        bool atStart = b.Path[0].PegCoord == pinCoord;
-                        bool atEnd = b.Path[^1].PegCoord == pinCoord;
-                        if (!atStart && !atEnd) continue;
-
-                        // Virtual bend: skip when both ropes leave the shared cell in the same
-                        // direction — they run alongside each other, not a topological crossing.
-                        if (a.Path[k].IsBendPoint)
-                        {
-                            Vector2 aOut = Center(a.Path[k + 1].PegCoord) - Center(pinCoord);
-                            Vector2 bNextPos = atStart ? Center(b.Path[1].PegCoord) : Center(b.Path[^2].PegCoord);
-                            Vector2 bOut = bNextPos - Center(pinCoord);
-                            float cross = aOut.x * bOut.y - aOut.y * bOut.x;
-                            if (Mathf.Abs(cross) < 0.1f && Vector2.Dot(aOut, bOut) > 0f) continue;
-                        }
-
-                        // Gap on the segment LEADING INTO the pin (k-1, t=1) so the break
-                        // appears just before the pin rather than under its circle (t=0 on k).
-                        result.Add(new RopeCrossing
-                        {
-                            RopeIndexA = i, RopeIdA = a.RopeId, SegA = k - 1, TA = 1f,
-                            RopeIndexB = j, RopeIdB = b.RopeId, SegB = atStart ? 0 : b.Path.Count - 2, TB = atStart ? 0f : 1f,
-                            Point = Center(pinCoord),
-                            IsPinCrossing = true
-                        });
-                    }
-                }
-            }
-
-            // Bend-on-segment crossings: rope A's inner waypoint lies strictly on rope B's segment
-            // interior. Covers collinear overlap (segment-segment test returns false for parallel
-            // segments) and the case where a bend sits exactly on another rope's path.
-            for (int i = 0; i < ropes.Count; i++)
-            {
-                var a = ropes[i];
-                if (a?.Path == null || a.Path.Count < 3) continue;
-                for (int k = 1; k < a.Path.Count - 1; k++)
-                {
-                    if (a.Path[k].IsBendPoint) continue; // virtual bend — routing-only, not a physical obstacle
-                    Vector2 bendPos = Center(a.Path[k].PegCoord);
+                    var aCell = a.Path[k].PegCoord;
+                    Vector2 wpPos = Center(aCell);
+                    int segA = k == 0 ? 0 : k - 1;
+                    float tA = k == 0 ? 0f : 1f;
                     for (int j = 0; j < ropes.Count; j++)
                     {
                         if (i == j) continue;
@@ -158,14 +177,17 @@ namespace TwistedTangle.Editor.Geometry
                         if (b?.Path == null || b.Path.Count < 2) continue;
                         for (int sb = 0; sb < b.Path.Count - 1; sb++)
                         {
+                            // Skip if A's waypoint coincides with one of this B segment's waypoint cells
+                            // (that is a shared-cell crossing, already handled above).
+                            if (aCell == b.Path[sb].PegCoord || aCell == b.Path[sb + 1].PegCoord) continue;
                             Vector2 b1 = Center(b.Path[sb].PegCoord);
                             Vector2 b2 = Center(b.Path[sb + 1].PegCoord);
-                            if (!PointOnSegmentInterior(bendPos, b1, b2, out float u)) continue;
+                            if (!PointOnSegmentInterior(wpPos, b1, b2, out float u)) continue;
                             result.Add(new RopeCrossing
                             {
-                                RopeIndexA = i, RopeIdA = a.RopeId, SegA = k - 1, TA = 1f,
+                                RopeIndexA = i, RopeIdA = a.RopeId, SegA = segA, TA = tA,
                                 RopeIndexB = j, RopeIdB = b.RopeId, SegB = sb, TB = u,
-                                Point = bendPos,
+                                Point = wpPos,
                                 IsBendOnSegment = true
                             });
                         }
@@ -281,18 +303,8 @@ namespace TwistedTangle.Editor.Geometry
                 Ensure(x.RopeIdA); Ensure(x.RopeIdB);
                 ropeCrossings[x.RopeIdA].Add(c);
                 ropeCrossings[x.RopeIdB].Add(c);
-                // Pin-crossings cannot be resolved by peeling — both ropes are locked until
-                // the player physically moves a pin to break the shared-coordinate constraint.
-                if (crossings[c].IsPinCrossing)
-                {
-                    underCount[x.RopeIdA]++;
-                    underCount[x.RopeIdB]++;
-                }
-                else
-                {
-                    int underId = aOver[c] ? x.RopeIdB : x.RopeIdA;
-                    underCount[underId]++;
-                }
+                int underId = aOver[c] ? x.RopeIdB : x.RopeIdA;
+                underCount[underId]++;
             }
 
             var ids = new List<int>(ropeCrossings.Keys);
@@ -336,6 +348,46 @@ namespace TwistedTangle.Editor.Geometry
             if (Mathf.Abs(cross) > Eps * Mathf.Sqrt(lenSq)) return false; // not collinear
             u = (g.x * d.x + g.y * d.y) / lenSq;
             return u > Eps && u < 1f - Eps;
+        }
+
+        /// <summary>True if two rope segments share a waypoint grid cell (a common pin/bend cell).</summary>
+        private static bool SegmentsShareCell(RopeData a, int sa, RopeData b, int sb)
+        {
+            var a0 = a.Path[sa].PegCoord; var a1 = a.Path[sa + 1].PegCoord;
+            var b0 = b.Path[sb].PegCoord; var b1 = b.Path[sb + 1].PegCoord;
+            return a0 == b0 || a0 == b1 || a1 == b0 || a1 == b1;
+        }
+
+        /// <summary>
+        /// True when segments p1→p2 and p3→p4 are collinear and overlap along an *interval* (more than a
+        /// single touch point). <paramref name="ta"/>/<paramref name="tb"/> are the parameters of the
+        /// overlap midpoint along each segment; <paramref name="mid"/> is that midpoint.
+        /// </summary>
+        public static bool SegmentsOverlapCollinear(Vector2 p1, Vector2 p2, Vector2 p3, Vector2 p4,
+            out float ta, out float tb, out Vector2 mid)
+        {
+            ta = tb = 0f; mid = default;
+            Vector2 d = p2 - p1;
+            float len2 = d.sqrMagnitude;
+            if (len2 < Eps) return false;
+
+            float tol = Eps * Mathf.Sqrt(len2);
+            float n3 = d.x * (p3.y - p1.y) - d.y * (p3.x - p1.x);
+            float n4 = d.x * (p4.y - p1.y) - d.y * (p4.x - p1.x);
+            if (Mathf.Abs(n3) > tol || Mathf.Abs(n4) > tol) return false; // p3/p4 not on p1→p2's line
+
+            float t3 = Vector2.Dot(p3 - p1, d) / len2;
+            float t4 = Vector2.Dot(p4 - p1, d) / len2;
+            float lo = Mathf.Max(0f, Mathf.Min(t3, t4));
+            float hi = Mathf.Min(1f, Mathf.Max(t3, t4));
+            if (hi - lo <= Eps) return false; // disjoint or touching at a single point
+
+            ta = (lo + hi) * 0.5f;
+            mid = p1 + ta * d;
+            Vector2 e = p4 - p3;
+            float elen2 = e.sqrMagnitude;
+            tb = elen2 > Eps ? Vector2.Dot(mid - p3, e) / elen2 : 0f;
+            return true;
         }
 
         /// <summary>
