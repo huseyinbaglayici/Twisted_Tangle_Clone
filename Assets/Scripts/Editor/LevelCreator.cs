@@ -1057,17 +1057,19 @@ namespace TwistedTangle.Editor
             if (_level == null || _solutionMoves == null) return;
             _previewStep = Mathf.Clamp(step, 0, _solutionMoves.Count);
 
-            // Current cell of each endpoint pin, keyed by its authored coord; apply the first N moves.
+            // current maps coarse pin coord → coarse pin coord (moves are in coarse space).
             var current = new Dictionary<Vector2Int, Vector2Int>();
             foreach (var rope in _level.Ropes)
             {
                 if (rope?.Path == null || rope.Path.Count < 2) continue;
-                current[rope.Path[0].PegCoord] = rope.Path[0].PegCoord;
-                current[rope.Path[^1].PegCoord] = rope.Path[^1].PegCoord;
+                var ca = CrossingSolver.SubToPinCoord(rope.Path[0].PegCoord);
+                var cb = CrossingSolver.SubToPinCoord(rope.Path[^1].PegCoord);
+                current[ca] = ca;
+                current[cb] = cb;
             }
             for (int i = 0; i < _previewStep; i++)
             {
-                var m = _solutionMoves[i];
+                var m = _solutionMoves[i]; // From/To are coarse coords from the solver
                 foreach (var key in new List<Vector2Int>(current.Keys))
                     if (current[key] == m.From) { current[key] = m.To; break; }
             }
@@ -1076,6 +1078,7 @@ namespace TwistedTangle.Editor
             _previewLevel.GridWidth = _level.GridWidth;
             _previewLevel.GridHeight = _level.GridHeight;
 
+            // Entity coords are coarse — match directly against current (also coarse).
             _previewLevel.GridEntities.Clear();
             foreach (var e in _level.GridEntities)
             {
@@ -1086,13 +1089,18 @@ namespace TwistedTangle.Editor
             _previewLevel.CrossingOverrides.Clear();
             _previewLevel.CrossingOverrides.AddRange(_level.CrossingOverrides);
 
+            // Preview ropes: keep bends fixed, only move the endpoint waypoints (same as ReshapeRope).
             _previewLevel.Ropes.Clear();
             foreach (var rope in _level.Ropes)
             {
                 if (rope?.Path == null || rope.Path.Count < 2) { _previewLevel.Ropes.Add(rope); continue; }
-                Vector2Int a = current.TryGetValue(rope.Path[0].PegCoord, out var va) ? va : rope.Path[0].PegCoord;
-                Vector2Int b = current.TryGetValue(rope.Path[^1].PegCoord, out var vb) ? vb : rope.Path[^1].PegCoord;
-                _previewLevel.Ropes.Add(LevelSolver.ReshapeRope(rope, a, b));
+                var coarseA = CrossingSolver.SubToPinCoord(rope.Path[0].PegCoord);
+                var coarseB = CrossingSolver.SubToPinCoord(rope.Path[^1].PegCoord);
+                Vector2Int newCoarseA = current.TryGetValue(coarseA, out var va) ? va : coarseA;
+                Vector2Int newCoarseB = current.TryGetValue(coarseB, out var vb) ? vb : coarseB;
+                _previewLevel.Ropes.Add(LevelSolver.ReshapeRope(rope,
+                    CrossingSolver.PinToSub(newCoarseA),
+                    CrossingSolver.PinToSub(newCoarseB)));
             }
 
             _canvas.Level = _previewLevel;

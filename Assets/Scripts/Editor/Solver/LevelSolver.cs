@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using TwistedTangle.Editor.Geometry;
+using TwistedTangle.Runtime.Data.Enums;
 using TwistedTangle.Runtime.Data.ScriptableObjects;
 using TwistedTangle.Runtime.Data.ValueObjects;
 using UnityEngine;
@@ -95,8 +96,9 @@ namespace TwistedTangle.Editor.Solver
             for (int p = 0; p < ropeList.Count; p++)
             {
                 var r = level.Ropes[ropeList[p]];
-                ropeNodeA[p] = GetNode(r.Path[0].PegCoord);
-                ropeNodeB[p] = GetNode(r.Path[^1].PegCoord);
+                // Path stores sub-grid coords; convert endpoints to coarse for the pin-move state space.
+                ropeNodeA[p] = GetNode(CrossingSolver.SubToPinCoord(r.Path[0].PegCoord));
+                ropeNodeB[p] = GetNode(CrossingSolver.SubToPinCoord(r.Path[^1].PegCoord));
             }
             int nodeCount = nodeCoords.Count;
 
@@ -143,13 +145,14 @@ namespace TwistedTangle.Editor.Solver
             int NodeCell(int[] st, int node) =>
                 movableOf[node] >= 0 ? st[movableOf[node]] : Encode(nodeCoords[node], width);
 
-            // The rope's current shape for a state: endpoints at their live cells, bends drag along
-            // (see ReshapeRope). Wrapping a pin is just a crossing like any other; it never anchors the rope.
+            // Rope shape for search: preserve bends (fixed), only move the two endpoint waypoints.
+            // Bends determine the actual geometry and must be kept so FindCrossings sees the same
+            // crossings as the validator does on the authored path.
             RopeData TransformRope(int p, int[] st)
             {
                 var r = level.Ropes[ropeList[p]];
-                Vector2Int c0 = Decode(NodeCell(st, ropeNodeA[p]), width);
-                Vector2Int cn = Decode(NodeCell(st, ropeNodeB[p]), width);
+                Vector2Int c0 = CrossingSolver.PinToSub(Decode(NodeCell(st, ropeNodeA[p]), width));
+                Vector2Int cn = CrossingSolver.PinToSub(Decode(NodeCell(st, ropeNodeB[p]), width));
                 return ReshapeRope(r, c0, cn);
             }
 
@@ -160,9 +163,9 @@ namespace TwistedTangle.Editor.Solver
                 return list;
             }
 
-            // A move is legal only if every segment of every rope stays within reach (per-segment
-            // Chebyshev). A bent rope's endpoints can sit farther apart than maxReach as long as each
-            // individual segment is short enough.
+            // A move is legal only when EVERY segment (endpoint→bend, bend→bend, bend→endpoint) stays
+            // within maxReach coarse cells (= maxReach*SubDiv in sub-grid).
+            int maxSubReach = maxReach * CrossingSolver.SubDiv;
             bool ReachOk(List<RopeData> ropes)
             {
                 foreach (var r in ropes)
@@ -170,7 +173,7 @@ namespace TwistedTangle.Editor.Solver
                     {
                         var a = r.Path[k].PegCoord;
                         var b = r.Path[k + 1].PegCoord;
-                        if (Mathf.Max(Mathf.Abs(a.x - b.x), Mathf.Abs(a.y - b.y)) > maxReach) return false;
+                        if (Mathf.Max(Mathf.Abs(a.x - b.x), Mathf.Abs(a.y - b.y)) > maxSubReach) return false;
                     }
                 return true;
             }
@@ -182,10 +185,12 @@ namespace TwistedTangle.Editor.Solver
                 if (movableOf[nb] >= 0) slots.Add(movableOf[nb]);
             }
 
-            // Move candidates: only the movable endpoint of the TOP rope at each crossing.
-            // The bottom rope is physically blocked — it cannot pass through the top rope.
-            // ResolveOverUnder handles braid alternation (same pair alternates over/under) and
-            // CrossingOverrides, so this respects the exact weave the designer authored.
+            // Move candidates: ONLY the physically top rope at each crossing.
+            // The bottom rope is trapped beneath the top rope — moving it through the crossing
+            // would require threading under, creating more tangles. The top rope can be peeled
+            // off freely. Layer order via ResolveOverUnder is the single source of truth for this.
+            // If the top rope's endpoints are all locked, no candidate is generated for that crossing
+            // (the puzzle is unsolvable at that crossing without unlocking).
             List<int> CrossingSlots(List<RopeData> stateRopes)
             {
                 var crossings = CrossingSolver.FindCrossings(stateRopes);
@@ -196,7 +201,7 @@ namespace TwistedTangle.Editor.Solver
                 {
                     var x = crossings[c];
                     if (x.RopeIndexA == x.RopeIndexB) continue; // self-crossing: skip
-                    // Only the top rope at this crossing can be peeled off
+                    // Top rope only — it can be peeled upward; bottom is physically pinned.
                     AddRopeSlots(slots, aOver[c] ? x.RopeIndexA : x.RopeIndexB);
                 }
                 var list = new List<int>(slots);
@@ -214,7 +219,7 @@ namespace TwistedTangle.Editor.Solver
                 for (int k = 0; k + 1 < r.Path.Count; k++)
                 {
                     var a = r.Path[k].PegCoord; var b = r.Path[k + 1].PegCoord;
-                    if (Mathf.Max(Mathf.Abs(a.x - b.x), Mathf.Abs(a.y - b.y)) > maxReach) { result.OverStretchedRopes++; break; }
+                    if (Mathf.Max(Mathf.Abs(a.x - b.x), Mathf.Abs(a.y - b.y)) > maxSubReach) { result.OverStretchedRopes++; break; }
                 }
 
             var startCrossings = CrossingSolver.FindCrossings(startRopes);
@@ -309,40 +314,20 @@ namespace TwistedTangle.Editor.Solver
         /// the two endpoint moves, weighted by its cumulative-length fraction, then snaps to the grid.
         /// Wrapping a pin never anchors the rope — it just follows like the rest of the body.
         /// </summary>
+        /// <summary>
+        /// Rebuilds a rope with new endpoint sub-grid positions while keeping all inner waypoints
+        /// (bends and inner pins) exactly where they are. This matches the real gameplay mechanic:
+        /// moving a pin only changes the rope segments directly connected to that pin; the rest of
+        /// the rope stays put. A proportional-drag model was wrong — it artificially moves bends away
+        /// from crossings, creating phantom solutions that don't exist in practice.
+        /// </summary>
         public static RopeData ReshapeRope(RopeData rope, Vector2Int newEndA, Vector2Int newEndB)
         {
             var copy = new RopeData(rope.RopeId, rope.Tint, rope.Layer);
             int n = rope.Path.Count;
-            if (n == 0) return copy;
-            if (n == 1) { copy.Path.Add(new RopeWaypoint(newEndA, rope.Path[0].Side, rope.Path[0].IsBendPoint)); return copy; }
-
-            Vector2 a0 = new Vector2(rope.Path[0].PegCoord.x, rope.Path[0].PegCoord.y);
-            Vector2 aN = new Vector2(rope.Path[n - 1].PegCoord.x, rope.Path[n - 1].PegCoord.y);
-            Vector2 d0 = new Vector2(newEndA.x, newEndA.y) - a0;
-            Vector2 dN = new Vector2(newEndB.x, newEndB.y) - aN;
-
-            float total = 0f;
-            var cum = new float[n];
-            for (int k = 1; k < n; k++)
-            {
-                total += Vector2.Distance(
-                    new Vector2(rope.Path[k].PegCoord.x, rope.Path[k].PegCoord.y),
-                    new Vector2(rope.Path[k - 1].PegCoord.x, rope.Path[k - 1].PegCoord.y));
-                cum[k] = total;
-            }
-
             for (int k = 0; k < n; k++)
             {
-                Vector2Int cell;
-                if (k == 0) cell = newEndA;
-                else if (k == n - 1) cell = newEndB;
-                else
-                {
-                    float fr = total > 1e-5f ? cum[k] / total : (float)k / (n - 1);
-                    Vector2 disp = Vector2.Lerp(d0, dN, fr);
-                    Vector2 q = new Vector2(rope.Path[k].PegCoord.x, rope.Path[k].PegCoord.y) + disp;
-                    cell = new Vector2Int(Mathf.RoundToInt(q.x), Mathf.RoundToInt(q.y));
-                }
+                Vector2Int cell = k == 0 ? newEndA : k == n - 1 ? newEndB : rope.Path[k].PegCoord;
                 copy.Path.Add(new RopeWaypoint(cell, rope.Path[k].Side, rope.Path[k].IsBendPoint));
             }
             return copy;

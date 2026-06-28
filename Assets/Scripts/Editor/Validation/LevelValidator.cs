@@ -85,7 +85,10 @@ namespace TwistedTangle.Editor.Validation
             }
 
             // Rope checks + which entities actually get used.
-            var usedEntities = new HashSet<Vector2Int>();
+            // NOTE: rope PegCoords are sub-grid coordinates; entity Coordinates are coarse.
+            // Use CrossingSolver.SubToPinCoord to convert endpoints for entity lookup.
+            var usedEntities = new HashSet<Vector2Int>(); // coarse coords
+            int subMax = CrossingSolver.SubDiv;
             foreach (var rope in level.Ropes)
             {
                 if (rope?.Path == null || rope.Path.Count < 2)
@@ -97,20 +100,29 @@ namespace TwistedTangle.Editor.Validation
                 for (int i = 0; i < rope.Path.Count; i++)
                 {
                     var wp = rope.Path[i];
-                    var coord = wp.PegCoord;
+                    var subCoord = wp.PegCoord;
 
                     if (!wp.IsBendPoint)
                     {
-                        usedEntities.Add(coord);
-                        if (!entityCells.Contains(coord))
+                        // Pin waypoint: sub-grid → coarse for entity lookup.
+                        var coarseCoord = CrossingSolver.SubToPinCoord(subCoord);
+                        usedEntities.Add(coarseCoord);
+                        if (!entityCells.Contains(coarseCoord))
                         {
                             string where = i == 0 || i == rope.Path.Count - 1 ? "endpoint" : "waypoint";
-                            report.Errors.Add($"Rope {rope.RopeId} {where} at {coord} is not on an entity.");
+                            report.Errors.Add($"Rope {rope.RopeId} {where} at {coarseCoord} is not on an entity.");
                         }
                     }
+                    else
+                    {
+                        // Bend point: validate sub-grid bounds.
+                        if (subCoord.x < 0 || subCoord.y < 0 ||
+                            subCoord.x >= level.GridWidth * subMax || subCoord.y >= level.GridHeight * subMax)
+                            report.Errors.Add($"Rope {rope.RopeId} bend at sub-grid {subCoord} is outside the grid.");
+                    }
 
-                    if (i > 0 && rope.Path[i - 1].PegCoord == coord)
-                        report.Warnings.Add($"Rope {rope.RopeId} repeats the same cell {coord}.");
+                    if (i > 0 && rope.Path[i - 1].PegCoord == subCoord)
+                        report.Warnings.Add($"Rope {rope.RopeId} repeats the same position {subCoord}.");
                 }
             }
 
@@ -150,8 +162,8 @@ namespace TwistedTangle.Editor.Validation
                 if (rope?.Path == null) continue;
                 for (int i = 1; i < rope.Path.Count; i++)
                     length += Vector2.Distance(
-                        CrossingSolver.Center(rope.Path[i - 1].PegCoord),
-                        CrossingSolver.Center(rope.Path[i].PegCoord));
+                        CrossingSolver.SubCenter(rope.Path[i - 1].PegCoord),
+                        CrossingSolver.SubCenter(rope.Path[i].PegCoord));
             }
 
             int colorCount = level.Ropes
