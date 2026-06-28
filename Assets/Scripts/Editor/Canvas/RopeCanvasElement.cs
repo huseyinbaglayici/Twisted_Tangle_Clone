@@ -38,6 +38,7 @@ namespace TwistedTangle.Editor.Canvas
 
         private bool _pointerDown;
         private Vector2Int _lastDragCell = new(-1, -1);
+        private Vector2Int _hoveredPeg = new(-1, -1);
 
         public RopeCanvasElement()
         {
@@ -48,6 +49,7 @@ namespace TwistedTangle.Editor.Canvas
             RegisterCallback<PointerDownEvent>(OnPointerDown);
             RegisterCallback<PointerMoveEvent>(OnPointerMove);
             RegisterCallback<PointerUpEvent>(OnPointerUp);
+            RegisterCallback<PointerLeaveEvent>(_ => { _hoveredPeg = new Vector2Int(-1, -1); MarkDirtyRepaint(); });
         }
 
         public void Redraw()
@@ -81,6 +83,13 @@ namespace TwistedTangle.Editor.Canvas
 
         private void OnPointerMove(PointerMoveEvent evt)
         {
+            // Hover tracking — always active
+            if (TryCell(evt.localPosition, out int hx, out int hy))
+            {
+                var hc = new Vector2Int(hx, hy);
+                if (hc != _hoveredPeg) { _hoveredPeg = hc; MarkDirtyRepaint(); }
+            }
+
             if (!_pointerDown) return;
             if (!TryCell(evt.localPosition, out int x, out int y)) return;
 
@@ -172,6 +181,15 @@ namespace TwistedTangle.Editor.Canvas
                 p.Arc(c, r, Angle.Degrees(0f), Angle.Degrees(360f));
                 p.Stroke();
 
+                // Hover glow
+                if (entity.Coordinates == _hoveredPeg)
+                {
+                    p.lineWidth = 3f;
+                    p.strokeColor = new Color(1f, 1f, 1f, 0.4f);
+                    p.BeginPath();
+                    p.Arc(c, r + 5f, Angle.Degrees(0f), Angle.Degrees(360f));
+                    p.Stroke();
+                }
             }
         }
 
@@ -198,6 +216,7 @@ namespace TwistedTangle.Editor.Canvas
                     new Color(0.06f, 0.06f, 0.06f, 0.6f), RopeWidth + 7f);
                 StrokeRope(p, entry.rope, entry.idx, gaps, entry.rope.Tint, RopeWidth);
                 DrawEndpoints(p, entry.rope);
+                DrawExitGrommets(p, entry.rope);
             }
         }
 
@@ -333,44 +352,22 @@ namespace TwistedTangle.Editor.Canvas
 
         private void DrawSocketArc(Painter2D p, Vector2 pinCenter, Vector2 exitDir, float pegR, Color color)
         {
-            float innerR = pegR * 0.38f;
-            Vector2 sockCenter = pinCenter + exitDir * pegR;
-            float sockR = RopeWidth * 0.5f;
-            Vector2 bridgeStart = pinCenter + exitDir * innerR;
+            // Small socket dot INSIDE the pin, offset toward rope — "hole where rope exits" illusion.
+            // Stays within pin boundary so it never needs to merge with the rope.
+            Vector2 sockCenter = pinCenter + exitDir * (pegR * 0.44f);
+            float holeR  = pegR * 0.13f;
+            float frameR = holeR + 2.5f;
 
-            float angle = Mathf.Atan2(exitDir.y, exitDir.x) * Mathf.Rad2Deg;
-            // Back half cap: faces AWAY from rope — rope side is left open
-            Angle startA = Angle.Degrees(angle + 90f);
-            Angle endA   = Angle.Degrees(angle - 90f);
-
-            // Dark border cylinder
-            p.lineWidth = RopeWidth + 5f;
-            p.strokeColor = new Color(0.05f, 0.05f, 0.05f, 1f);
-            p.BeginPath();
-            p.MoveTo(bridgeStart);
-            p.LineTo(sockCenter);
-            p.Stroke();
-
-            // Colored cylinder
-            p.lineWidth = RopeWidth;
-            p.strokeColor = color;
-            p.BeginPath();
-            p.MoveTo(bridgeStart);
-            p.LineTo(sockCenter);
-            p.Stroke();
-
-            // Back half cap — dark border
-            p.fillColor = new Color(0.05f, 0.05f, 0.05f, 1f);
-            p.BeginPath();
-            p.MoveTo(sockCenter);
-            p.Arc(sockCenter, sockR + 2.5f, startA, endA);
-            p.Fill();
-
-            // Back half cap — rope color
+            // Rope-colored frame ring
             p.fillColor = color;
             p.BeginPath();
-            p.MoveTo(sockCenter);
-            p.Arc(sockCenter, sockR, startA, endA);
+            p.Arc(sockCenter, frameR, Angle.Degrees(0f), Angle.Degrees(360f));
+            p.Fill();
+
+            // Dark hole center
+            p.fillColor = new Color(0.05f, 0.05f, 0.05f, 1f);
+            p.BeginPath();
+            p.Arc(sockCenter, holeR, Angle.Degrees(0f), Angle.Degrees(360f));
             p.Fill();
         }
 
