@@ -36,6 +36,27 @@
     margin-right: 12px;
 }
 
+.tt-level-props-bar {
+    flex-direction: row;
+    align-items: center;
+    flex-shrink: 0;
+    padding: 4px 8px;
+    background-color: #141414;
+    border-bottom-width: 1px;
+    border-bottom-color: #383838;
+}
+
+.tt-level-props-bar__label {
+    color: #888888;
+    font-size: 11px;
+    margin-right: 6px;
+    -unity-font-style: bold;
+}
+
+.tt-level-props-bar__field {
+    width: 220px;
+}
+
 .tt-body {
     flex-direction: row;
     flex-grow: 1;

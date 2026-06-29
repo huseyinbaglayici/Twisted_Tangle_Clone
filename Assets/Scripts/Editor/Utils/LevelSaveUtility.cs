@@ -83,6 +83,8 @@ namespace TwistedTangle.Editor.Utils
 
             dst.CrossingOverrides.Clear();
             dst.CrossingOverrides.AddRange(src.CrossingOverrides); // value type
+
+            dst.BackgroundMaterial = src.BackgroundMaterial;
         }
 
         private static RopeData CloneRope(RopeData src)

@@ -31,6 +31,7 @@ namespace TwistedTangle.Editor.Canvas
         public int SelectedRopeId = -1;
         public bool ShowCrossings; // highlight crossing points (flip tool)
         public bool ShowSubGrid;   // show sub-grid routing dots (rope tool)
+        public Color GridStrokeColor = new Color(1f, 1f, 1f, 0.08f);
 
         // --- callbacks to the window ---
         public Action<int, int, Vector2, int> CellClicked; // cellX, cellY, localPos, mouseButton
@@ -165,7 +166,7 @@ namespace TwistedTangle.Editor.Canvas
         private void DrawGrid(Painter2D p)
         {
             p.lineWidth = 1f;
-            p.strokeColor = new Color(1f, 1f, 1f, 0.08f);
+            p.strokeColor = GridStrokeColor;
             float w = GridWidth * CellSize;
             float h = GridHeight * CellSize;
 

@@ -9,6 +9,7 @@ using TwistedTangle.Runtime.Data.ValueObjects;
 using TwistedTangle.Editor.Geometry;
 using TwistedTangle.Runtime.Data.Enums;
 using UnityEditor;
+using UnityEditor.UIElements;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -78,6 +79,9 @@ namespace TwistedTangle.Editor
             _validationContainer,
             _validationStatusDot;
 
+        private ObjectField _bgMaterialField;
+        private Slider _bgOpacitySlider;
+        private VisualElement _bgDimmerLayer;
 
         private readonly Dictionary<Tool, Button> _toolButtons = new(); // built-in tools
         private readonly List<(EntityBaseTypeSO baseType, Button btn)> _baseButtons = new(); // one per base + Ungrouped
@@ -126,6 +130,7 @@ namespace TwistedTangle.Editor
 
             app.Add(BuildEditorSetupBar());
             app.Add(BuildTopBar());
+            app.Add(BuildLevelPropsBar());
 
             var body = new VisualElement();
             body.AddToClassList("tt-body");
@@ -142,20 +147,26 @@ namespace TwistedTangle.Editor
             root.RegisterCallback<KeyDownEvent>(OnShortcutKeyDown);
             KeyBindingStore.Changed -= UpdateShortcutHints;
             KeyBindingStore.Changed += UpdateShortcutHints;
+            EnvironmentSettings.Changed -= OnEnvironmentChanged;
+            EnvironmentSettings.Changed += OnEnvironmentChanged;
             Undo.undoRedoPerformed -= OnUndoRedo;
             Undo.undoRedoPerformed += OnUndoRedo;
 
             RefreshAll();
             UpdateShortcutHints();
+            ApplyBackgroundToCanvas(_level?.BackgroundMaterial);
         }
 
         private void OnDisable()
         {
             KeyBindingStore.Changed -= UpdateShortcutHints;
+            EnvironmentSettings.Changed -= OnEnvironmentChanged;
             Undo.undoRedoPerformed -= OnUndoRedo;
         }
 
         private void OnUndoRedo() => RefreshAll();
+
+        private void OnEnvironmentChanged() => ApplyBackgroundToCanvas(_level?.BackgroundMaterial);
 
         #region Data-driven discovery
 
@@ -477,10 +488,11 @@ namespace TwistedTangle.Editor
         {
             var bar = new VisualElement();
             bar.AddToClassList("tt-setup-bar");
-            bar.Add(MakeButton("AI Generate ↗",    AiLevelGeneratorWindow.ShowWindow, "tt-btn--primary"));
-            bar.Add(MakeButton("Advanced Tools ↗", AdvancedToolsWindow.ShowWindow,    null));
-            bar.Add(MakeButton("Key Bindings ↗",   KeyBindingWindow.ShowWindow,       null));
-            bar.Add(MakeButton("Paths ↗",          PathSettingsWindow.ShowWindow,     null));
+            bar.Add(MakeButton("AI Generate ↗",     AiLevelGeneratorWindow.ShowWindow,    "tt-btn--primary"));
+            bar.Add(MakeButton("Advanced Tools ↗",  AdvancedToolsWindow.ShowWindow,       null));
+            bar.Add(MakeButton("Key Bindings ↗",    KeyBindingWindow.ShowWindow,          null));
+            bar.Add(MakeButton("Paths ↗",           PathSettingsWindow.ShowWindow,        null));
+            bar.Add(MakeButton("Environment ↗",     EnvironmentSettingsWindow.ShowWindow, null));
             return bar;
         }
 
@@ -510,6 +522,43 @@ namespace TwistedTangle.Editor
             return bar;
         }
 
+        private VisualElement BuildLevelPropsBar()
+        {
+            var bar = new VisualElement();
+            bar.AddToClassList("tt-level-props-bar");
+
+            var lbl = new Label("Background");
+            lbl.AddToClassList("tt-level-props-bar__label");
+            bar.Add(lbl);
+
+            _bgMaterialField = new ObjectField { objectType = typeof(Material) };
+            _bgMaterialField.AddToClassList("tt-level-props-bar__field");
+            _bgMaterialField.RegisterValueChangedCallback(evt =>
+            {
+                var mat = evt.newValue as Material;
+                if (_level != null) _level.BackgroundMaterial = mat;
+                ApplyBackgroundToCanvas(mat);
+            });
+            bar.Add(_bgMaterialField);
+
+            var opacityLbl = new Label("Opacity");
+            opacityLbl.AddToClassList("tt-level-props-bar__label");
+            opacityLbl.style.marginLeft = 12;
+            bar.Add(opacityLbl);
+
+            _bgOpacitySlider = new Slider(0f, 1f) { value = 1f };
+            _bgOpacitySlider.style.width = 100;
+            _bgOpacitySlider.style.marginLeft = 4;
+            _bgOpacitySlider.RegisterValueChangedCallback(evt =>
+            {
+                if (_bgDimmerLayer != null)
+                    _bgDimmerLayer.style.opacity = evt.newValue;
+            });
+            bar.Add(_bgOpacitySlider);
+
+            return bar;
+        }
+
         private VisualElement BuildCanvasPanelWrapper()
         {
             var panel = new VisualElement();
@@ -524,6 +573,15 @@ namespace TwistedTangle.Editor
 
             _canvasHost = new VisualElement();
             _canvasHost.AddToClassList("tt-canvas-host");
+
+            _bgDimmerLayer = new VisualElement { pickingMode = PickingMode.Ignore };
+            _bgDimmerLayer.style.position = Position.Absolute;
+            _bgDimmerLayer.style.top = 0;
+            _bgDimmerLayer.style.left = 0;
+            _bgDimmerLayer.style.width = Length.Percent(100);
+            _bgDimmerLayer.style.height = Length.Percent(100);
+            _bgDimmerLayer.style.backgroundColor = Color.clear;
+            _canvasHost.Add(_bgDimmerLayer);
 
             _canvas = new RopeCanvasElement { PegColorResolver = ResolveEntityColor };
             _canvas.AddToClassList("tt-canvas");
@@ -821,6 +879,51 @@ namespace TwistedTangle.Editor
             return s;
         }
 
+        private void ApplyBackgroundToCanvas(Material mat)
+        {
+            if (_canvasHost == null || _bgDimmerLayer == null) return;
+
+            var effective = mat ?? EnvironmentSettings.DefaultBackgroundMaterial;
+
+            if (effective == null)
+            {
+                _bgDimmerLayer.style.backgroundImage = StyleKeyword.None;
+                _bgDimmerLayer.style.backgroundColor = Color.clear;
+                _canvasHost.style.backgroundColor = new Color(0.067f, 0.067f, 0.067f);
+                if (_canvas != null) _canvas.GridStrokeColor = new Color(1f, 1f, 1f, 0.08f);
+                return;
+            }
+
+            var tex = ExtractTexture(effective);
+            if (tex != null)
+            {
+                _bgDimmerLayer.style.backgroundImage = new StyleBackground(tex);
+                _bgDimmerLayer.style.backgroundColor = Color.clear;
+                _bgDimmerLayer.style.backgroundSize = new BackgroundSize(BackgroundSizeType.Cover);
+            }
+            else
+            {
+                _bgDimmerLayer.style.backgroundImage = StyleKeyword.None;
+                Color bgColor = effective.HasProperty("_BaseColor") ? effective.GetColor("_BaseColor")
+                              : effective.HasProperty("_Color")     ? effective.GetColor("_Color")
+                              : Color.gray;
+                _bgDimmerLayer.style.backgroundColor = bgColor;
+            }
+
+            _canvasHost.style.backgroundColor = Color.clear;
+            if (_canvas != null) _canvas.GridStrokeColor = new Color(0f, 0f, 0f, 0.12f);
+        }
+
+        private static Texture2D ExtractTexture(Material m)
+        {
+            if (m == null) return null;
+            foreach (var name in m.GetTexturePropertyNames())
+            {
+                if (m.GetTexture(name) is Texture2D tex) return tex;
+            }
+            return null;
+        }
+
         private VisualElement BuildRopeListSection()
         {
             var s = MakeSection("Ropes");
@@ -894,6 +997,8 @@ namespace TwistedTangle.Editor
             _heightField.value = _level.GridHeight;
             _timeField.value = _level.TimeSeconds;
             RefreshAll();
+            _bgMaterialField.SetValueWithoutNotify(_level.BackgroundMaterial);
+            ApplyBackgroundToCanvas(_level.BackgroundMaterial);
         }
 
         /// <summary>True if an entity type is marked immovable via a "nailed" or "locked" tag.</summary>
@@ -1259,6 +1364,9 @@ namespace TwistedTangle.Editor
             _level.GridHeight = h;
             _level.TimeSeconds = _timeField.value;
 
+            var defaultMat = EnvironmentSettings.DefaultBackgroundMaterial;
+            _level.BackgroundMaterial = defaultMat;
+
             _isEditMode = false;
             _currentLevelId = 0;
             _nextRopeId = 0;
@@ -1266,6 +1374,7 @@ namespace TwistedTangle.Editor
             _previewRope = null;
 
             RefreshAll();
+            _bgMaterialField.SetValueWithoutNotify(defaultMat);
         }
 
         private void PlaceEntity(Vector2Int coord)
@@ -1494,6 +1603,8 @@ namespace TwistedTangle.Editor
 
             MigrateLevelToSubGrid();
             RefreshAll();
+            _bgMaterialField.SetValueWithoutNotify(_level.BackgroundMaterial);
+            ApplyBackgroundToCanvas(_level.BackgroundMaterial);
         }
 
         private void MigrateLevelToSubGrid()
@@ -1595,6 +1706,7 @@ namespace TwistedTangle.Editor
             _canvas.ShowCrossings = _tool == Tool.Flip;
             _canvas.ShowSubGrid   = _tool == Tool.Rope;
             _canvas.Redraw();
+            ApplyBackgroundToCanvas(_level?.BackgroundMaterial);
         }
 
         #endregion

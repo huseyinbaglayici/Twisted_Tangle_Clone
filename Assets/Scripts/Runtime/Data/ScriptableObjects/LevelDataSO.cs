@@ -22,6 +22,7 @@ namespace TwistedTangle.Runtime.Data.ScriptableObjects
         [SerializeField] private List<GridEntityData> gridEntities = new();
         [SerializeField] private List<RopeData> ropes = new();
         [SerializeField] private List<CrossingOverride> crossingOverrides = new();
+        [SerializeField] private Material backgroundMaterial;
 
         public int LevelId
         {
@@ -51,5 +52,6 @@ namespace TwistedTangle.Runtime.Data.ScriptableObjects
         public List<GridEntityData> GridEntities => gridEntities;
         public List<RopeData> Ropes => ropes;
         public List<CrossingOverride> CrossingOverrides => crossingOverrides;
+        public Material BackgroundMaterial { get => backgroundMaterial; set => backgroundMaterial = value; }
     }
 }
