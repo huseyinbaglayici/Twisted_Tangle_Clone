@@ -111,7 +111,7 @@
 /* ── Rope bar (below grid, above floating panels) ───────────────────────────── */
 
 .tt-rope-bar {
-    height: 110px;
+    height: 200px;
     border-top-width: 1px;
     border-top-color: rgba(255, 255, 255, 0.15);
     border-bottom-width: 1px;
