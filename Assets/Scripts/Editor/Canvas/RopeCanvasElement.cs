@@ -244,7 +244,9 @@ namespace TwistedTangle.Editor.Canvas
             foreach (var entry in sorted)
             {
                 if (entry.rope.Path.Count < 2) continue;
-                StrokeRope(p, entry.rope, entry.idx, noGaps,
+                // Outline must share the same gaps as the fill: an under-rope's dark outline
+                // would otherwise bleed into the crossing gap where its fill is suppressed.
+                StrokeRope(p, entry.rope, entry.idx, gaps,
                     new Color(0.06f, 0.06f, 0.06f, 0.6f), RopeWidth + 7f);
                 StrokeRope(p, entry.rope, entry.idx, gaps, entry.rope.Tint, RopeWidth);
                 DrawEndpoints(p, entry.rope);
