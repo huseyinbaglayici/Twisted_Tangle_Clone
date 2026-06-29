@@ -391,6 +391,62 @@
     margin-bottom: 4px;
 }
 
+/* ── Metric chips (validation stats panel) ──────────────────────────────── */
+
+.tt-metric-chip {
+    flex-direction: row;
+    align-items: baseline;
+    background-color: rgba(255, 255, 255, 0.07);
+    border-radius: 10px;
+    padding-left: 7px;
+    padding-right: 7px;
+    padding-top: 2px;
+    padding-bottom: 2px;
+    margin-right: 4px;
+    margin-bottom: 4px;
+}
+
+.tt-metric-chip__val {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.9);
+    -unity-font-style: bold;
+    margin-right: 3px;
+}
+
+.tt-metric-chip__lbl {
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.42);
+}
+
+.tt-metric-chip--warn .tt-metric-chip__val {
+    color: #E0B341;
+}
+
+.tt-difficulty-badge {
+    font-size: 11px;
+    -unity-font-style: bold;
+    border-radius: 4px;
+    padding-left: 8px;
+    padding-right: 8px;
+    padding-top: 3px;
+    padding-bottom: 3px;
+}
+
+.tt-difficulty-badge--Easy {
+    color: #4BB44B;
+    background-color: rgba(75, 180, 75, 0.12);
+}
+
+.tt-difficulty-badge--Medium {
+    color: #E0B341;
+    background-color: rgba(224, 179, 65, 0.12);
+}
+
+.tt-difficulty-badge--Hard {
+    color: #E55353;
+    background-color: rgba(229, 83, 83, 0.12);
+}
+
 /* Small colored dot indicating validation state */
 .tt-status-dot {
     width: 8px;
@@ -411,12 +467,115 @@
 
 /* ── Rope list ───────────────────────────────────────────────────────────── */
 
-/* Compact consistent-height row per rope */
 .tt-rope-row {
-    height: 30px;
+    height: 36px;
+    flex-direction: row;
     align-items: center;
     border-bottom-width: 1px;
     border-bottom-color: rgba(255, 255, 255, 0.05);
+}
+
+.tt-rope-row:hover {
+    background-color: rgba(255, 255, 255, 0.04);
+}
+
+.tt-rope-row--selected {
+    background-color: rgba(80, 130, 255, 0.12);
+}
+
+.tt-rope-row--selected:hover {
+    background-color: rgba(80, 130, 255, 0.18);
+}
+
+.tt-rope-row__left {
+    flex-direction: row;
+    flex-grow: 1;
+    align-items: center;
+    height: 100%;
+    cursor: link;
+}
+
+.tt-rope-row__handle {
+    width: 20px;
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.18);
+    -unity-text-align: middle-center;
+    flex-shrink: 0;
+    cursor: move;
+}
+
+.tt-rope-row__swatch {
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+    margin-right: 8px;
+    flex-shrink: 0;
+}
+
+.tt-rope-row__info {
+    flex-grow: 1;
+    flex-direction: column;
+    justify-content: center;
+    min-width: 0;
+}
+
+.tt-rope-row__name {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.85);
+}
+
+.tt-rope-row--selected .tt-rope-row__name {
+    -unity-font-style: bold;
+    color: #80A8FF;
+}
+
+.tt-rope-row__meta {
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.32);
+}
+
+.tt-rope-row__badge {
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.38);
+    background-color: rgba(255, 255, 255, 0.06);
+    border-radius: 3px;
+    padding-left: 4px;
+    padding-right: 4px;
+    padding-top: 1px;
+    padding-bottom: 1px;
+    margin-right: 6px;
+    flex-shrink: 0;
+}
+
+.tt-rope-row__actions {
+    flex-direction: row;
+    align-items: center;
+    flex-shrink: 0;
+    padding-right: 4px;
+}
+
+.tt-rope-row__icon-btn {
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    font-size: 13px;
+    border-width: 0;
+    border-radius: 4px;
+    background-color: transparent;
+    color: rgba(255, 255, 255, 0.35);
+    margin-left: 1px;
+    margin-right: 1px;
+    -unity-font-style: normal;
+}
+
+.tt-rope-row__icon-btn:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.88);
+}
+
+.tt-rope-row__icon-btn--danger:hover {
+    background-color: rgba(220, 70, 70, 0.18);
+    color: #E55353;
 }
 
 /* ── Palette ─────────────────────────────────────────────────────────────── */

@@ -1053,45 +1053,63 @@ namespace TwistedTangle.Editor
             foreach (var rope in _level.Ropes.OrderByDescending(r => r.Layer))
             {
                 var captured = rope;
-                var row = MakeRow();
+
+                var row = new VisualElement();
                 row.AddToClassList("tt-rope-row");
+                if (rope.RopeId == _selectedRopeId) row.AddToClassList("tt-rope-row--selected");
 
-                var swatch = new VisualElement();
-                swatch.AddToClassList("tt-peg-swatch");
-                swatch.style.backgroundColor = rope.Tint;
-                row.Add(swatch);
-
-                var label = new Label($"Rope {rope.RopeId}  ·  L{rope.Layer}  ·  {rope.Path.Count} pts")
-                {
-                    style =
-                    {
-                        minWidth = 170, unityFontStyleAndWeight =
-                            rope.RopeId == _selectedRopeId ? FontStyle.Bold : FontStyle.Normal
-                    }
-                };
-                row.Add(label);
-
-                row.Add(MakeButton("Select", () =>
+                // Clickable left area: handle + swatch + info + layer badge
+                var left = new VisualElement();
+                left.AddToClassList("tt-rope-row__left");
+                left.RegisterCallback<ClickEvent>(_ =>
                 {
                     _selectedRopeId = captured.RopeId;
                     RefreshAll();
-                }, "tt-tool"));
-                row.Add(MakeButton("▲ Front", () =>
-                {
-                    BringToFront(captured);
-                    RefreshAll();
-                }, "tt-tool"));
-                row.Add(MakeButton("▼ Back", () =>
-                {
-                    SendToBack(captured);
-                    RefreshAll();
-                }, "tt-tool"));
-                row.Add(MakeButton("✕", () =>
-                {
-                    DeleteRope(captured);
-                    RefreshAll();
-                }, "tt-btn--danger"));
+                });
 
+                var handle = new Label("≡");
+                handle.AddToClassList("tt-rope-row__handle");
+                left.Add(handle);
+
+                var swatch = new VisualElement();
+                swatch.AddToClassList("tt-rope-row__swatch");
+                swatch.style.backgroundColor = rope.Tint;
+                left.Add(swatch);
+
+                var info = new VisualElement();
+                info.AddToClassList("tt-rope-row__info");
+                var nameLabel = new Label($"Rope {rope.RopeId}");
+                nameLabel.AddToClassList("tt-rope-row__name");
+                var metaLabel = new Label($"{rope.Path.Count} pts");
+                metaLabel.AddToClassList("tt-rope-row__meta");
+                info.Add(nameLabel);
+                info.Add(metaLabel);
+                left.Add(info);
+
+                var badge = new Label($"L{rope.Layer}");
+                badge.AddToClassList("tt-rope-row__badge");
+                left.Add(badge);
+
+                row.Add(left);
+
+                // Icon action buttons
+                var actions = new VisualElement();
+                actions.AddToClassList("tt-rope-row__actions");
+
+                var frontBtn = new Button(() => { BringToFront(captured); RefreshAll(); }) { text = "↑", tooltip = "Bring to front" };
+                frontBtn.AddToClassList("tt-rope-row__icon-btn");
+                actions.Add(frontBtn);
+
+                var backBtn = new Button(() => { SendToBack(captured); RefreshAll(); }) { text = "↓", tooltip = "Send to back" };
+                backBtn.AddToClassList("tt-rope-row__icon-btn");
+                actions.Add(backBtn);
+
+                var deleteBtn = new Button(() => { DeleteRope(captured); RefreshAll(); }) { text = "✕", tooltip = "Delete rope" };
+                deleteBtn.AddToClassList("tt-rope-row__icon-btn");
+                deleteBtn.AddToClassList("tt-rope-row__icon-btn--danger");
+                actions.Add(deleteBtn);
+
+                row.Add(actions);
                 _ropeListContainer.Add(row);
             }
         }
@@ -1128,19 +1146,23 @@ namespace TwistedTangle.Editor
             var m = report.Metrics;
             var metricsRow = MakeRow();
             metricsRow.AddToClassList("tt-row--wrap");
-            AddMetric(metricsRow, $"Entities: {m.EntityCount}");
-            AddMetric(metricsRow, $"Ropes: {m.RopeCount}");
-            AddMetric(metricsRow, $"Crossings: {m.CrossingCount}");
-            AddMetric(metricsRow, $"Tangle: {m.TangleResidual}");
-            AddMetric(metricsRow, $"Colors: {m.ColorCount}");
-            AddMetric(metricsRow, $"Overrides: {m.OverrideCount}");
-            AddMetric(metricsRow, $"Length: {m.TotalPathLength:0.0}");
-            AddMetric(metricsRow, $"Time: {_level.TimeSeconds}s");
+            AddMetricChip(metricsRow, m.EntityCount.ToString(),            "entities");
+            AddMetricChip(metricsRow, m.RopeCount.ToString(),              "ropes");
+            AddMetricChip(metricsRow, m.CrossingCount.ToString(),          "crossings", m.CrossingCount > 0);
+            AddMetricChip(metricsRow, m.TangleResidual.ToString(),         "tangle",    m.TangleResidual > 0);
+            AddMetricChip(metricsRow, m.ColorCount.ToString(),             "colors");
+            AddMetricChip(metricsRow, m.OverrideCount.ToString(),          "overrides");
+            AddMetricChip(metricsRow, $"{m.TotalPathLength:0.0}",          "length");
+            AddMetricChip(metricsRow, $"{_level.TimeSeconds}s",            "time");
             _validationContainer.Add(metricsRow);
 
-            var diff = new Label($"Difficulty: {m.Difficulty} (score {m.DifficultyScore:0.0})");
-            diff.AddToClassList($"tt-difficulty--{m.Difficulty}");
-            _validationContainer.Add(diff);
+            var diffRow = MakeRow();
+            diffRow.style.marginTop = 4;
+            var diffBadge = new Label($"{m.Difficulty}  ·  {m.DifficultyScore:0.0}");
+            diffBadge.AddToClassList("tt-difficulty-badge");
+            diffBadge.AddToClassList($"tt-difficulty-badge--{m.Difficulty}");
+            diffRow.Add(diffBadge);
+            _validationContainer.Add(diffRow);
 
             if (_validationStatusDot != null)
             {
@@ -1150,11 +1172,20 @@ namespace TwistedTangle.Editor
             }
         }
 
-        private static void AddMetric(VisualElement row, string text)
+        private static void AddMetricChip(VisualElement row, string value, string label, bool warn = false)
         {
-            var l = new Label(text);
-            l.AddToClassList("tt-metric");
-            row.Add(l);
+            var chip = new VisualElement();
+            chip.AddToClassList("tt-metric-chip");
+            if (warn) chip.AddToClassList("tt-metric-chip--warn");
+
+            var valLbl = new Label(value);
+            valLbl.AddToClassList("tt-metric-chip__val");
+            var nameLbl = new Label(label);
+            nameLbl.AddToClassList("tt-metric-chip__lbl");
+
+            chip.Add(valLbl);
+            chip.Add(nameLbl);
+            row.Add(chip);
         }
 
         #endregion
