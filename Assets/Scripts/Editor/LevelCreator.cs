@@ -81,6 +81,7 @@ namespace TwistedTangle.Editor
 
         private ObjectField _bgMaterialField;
         private Slider _bgOpacitySlider;
+        private ColorField _gridColorField;
         private VisualElement _bgDimmerLayer;
 
         private readonly Dictionary<Tool, Button> _toolButtons = new(); // built-in tools
@@ -556,6 +557,27 @@ namespace TwistedTangle.Editor
             });
             bar.Add(_bgOpacitySlider);
 
+            var divider = new VisualElement();
+            divider.style.width = 1;
+            divider.style.alignSelf = Align.Stretch;
+            divider.style.backgroundColor = new Color(1f, 1f, 1f, 0.08f);
+            divider.style.marginLeft = 12;
+            divider.style.marginRight = 8;
+            bar.Add(divider);
+
+            var gridLbl = new Label("Grid");
+            gridLbl.AddToClassList("tt-level-props-bar__label");
+            bar.Add(gridLbl);
+
+            _gridColorField = new ColorField { showAlpha = true, value = new Color(1f, 1f, 1f, 0.18f) };
+            _gridColorField.style.width = 80;
+            _gridColorField.RegisterValueChangedCallback(evt =>
+            {
+                if (_canvas != null) _canvas.GridStrokeColor = evt.newValue;
+                _canvas?.MarkDirtyRepaint();
+            });
+            bar.Add(_gridColorField);
+
             return bar;
         }
 
@@ -890,7 +912,12 @@ namespace TwistedTangle.Editor
                 _bgDimmerLayer.style.backgroundImage = StyleKeyword.None;
                 _bgDimmerLayer.style.backgroundColor = Color.clear;
                 _canvasHost.style.backgroundColor = new Color(0.067f, 0.067f, 0.067f);
-                if (_canvas != null) _canvas.GridStrokeColor = new Color(1f, 1f, 1f, 0.08f);
+                if (_canvas != null)
+                {
+                    _canvas.GridStrokeColor  = new Color(1f, 1f, 1f, 0.18f);
+                    _canvas.RopeOutlineColor = new Color(1f, 1f, 1f, 0.72f);
+                }
+                _gridColorField?.SetValueWithoutNotify(new Color(1f, 1f, 1f, 0.18f));
                 return;
             }
 
@@ -899,19 +926,38 @@ namespace TwistedTangle.Editor
             {
                 _bgDimmerLayer.style.backgroundImage = new StyleBackground(tex);
                 _bgDimmerLayer.style.backgroundColor = Color.clear;
-                _bgDimmerLayer.style.backgroundSize = new BackgroundSize(BackgroundSizeType.Cover);
+                _bgDimmerLayer.style.backgroundSize  = new BackgroundSize(BackgroundSizeType.Cover);
             }
             else
             {
-                _bgDimmerLayer.style.backgroundImage = StyleKeyword.None;
                 Color bgColor = effective.HasProperty("_BaseColor") ? effective.GetColor("_BaseColor")
                               : effective.HasProperty("_Color")     ? effective.GetColor("_Color")
                               : Color.gray;
+                _bgDimmerLayer.style.backgroundImage = StyleKeyword.None;
                 _bgDimmerLayer.style.backgroundColor = bgColor;
             }
 
             _canvasHost.style.backgroundColor = Color.clear;
-            if (_canvas != null) _canvas.GridStrokeColor = new Color(0f, 0f, 0f, 0.12f);
+            if (_canvas != null)
+            {
+                var derived = DeriveGridColor(effective);
+                _canvas.GridStrokeColor  = derived;
+                _canvas.RopeOutlineColor = new Color(0.06f, 0.06f, 0.06f, 0.60f);
+                _gridColorField?.SetValueWithoutNotify(derived);
+            }
+        }
+
+        // Reads _BaseColor / _Color from the material to estimate background luminance,
+        // then returns black or white at a fixed alpha — simple, predictable, edge-case safe.
+        private static Color DeriveGridColor(Material m)
+        {
+            Color bg = m.HasProperty("_BaseColor") ? m.GetColor("_BaseColor")
+                     : m.HasProperty("_Color")     ? m.GetColor("_Color")
+                     : Color.gray;
+            float lum = bg.r * 0.2126f + bg.g * 0.7152f + bg.b * 0.0722f;
+            return lum > 0.4f
+                ? new Color(0f, 0f, 0f, 0.22f)   // light background → dark grid lines
+                : new Color(1f, 1f, 1f, 0.22f);  // dark background  → light grid lines
         }
 
         private static Texture2D ExtractTexture(Material m)
