@@ -31,7 +31,8 @@ namespace TwistedTangle.Editor.Canvas
         public int SelectedRopeId = -1;
         public bool ShowCrossings; // highlight crossing points (flip tool)
         public bool ShowSubGrid;   // show sub-grid routing dots (rope tool)
-        public Color GridStrokeColor = new Color(1f, 1f, 1f, 0.08f);
+        public Color GridStrokeColor   = new Color(1f, 1f, 1f, 0.08f);
+        public Color RopeOutlineColor  = new Color(1f, 1f, 1f, 0.72f);
 
         // --- callbacks to the window ---
         public Action<int, int, Vector2, int> CellClicked; // cellX, cellY, localPos, mouseButton
@@ -229,7 +230,6 @@ namespace TwistedTangle.Editor.Canvas
         {
             if (Level == null || Level.Ropes.Count == 0) return;
 
-            var gaps = BuildGapMap();
             var noGaps = new Dictionary<(int, int), List<float>>();
 
             var sorted = new List<(RopeData rope, int idx)>();
@@ -241,14 +241,14 @@ namespace TwistedTangle.Editor.Canvas
                 if (entry.rope.RopeId == SelectedRopeId && entry.rope.Path.Count >= 2)
                     StrokeRope(p, entry.rope, entry.idx, noGaps, new Color(1f, 1f, 1f, 0.4f), RopeWidth + 10f);
 
+            // Pure painter's algorithm: draw each rope (outline then fill) in layer order.
+            // Over-rope's outline (+7 px) naturally covers the under-rope at crossings,
+            // keeping the under-rope visible right up to the crossing edge — no void gap.
             foreach (var entry in sorted)
             {
                 if (entry.rope.Path.Count < 2) continue;
-                // Outline must share the same gaps as the fill: an under-rope's dark outline
-                // would otherwise bleed into the crossing gap where its fill is suppressed.
-                StrokeRope(p, entry.rope, entry.idx, gaps,
-                    new Color(0.06f, 0.06f, 0.06f, 0.6f), RopeWidth + 7f);
-                StrokeRope(p, entry.rope, entry.idx, gaps, entry.rope.Tint, RopeWidth);
+                StrokeRope(p, entry.rope, entry.idx, noGaps, RopeOutlineColor, RopeWidth + 7f);
+                StrokeRope(p, entry.rope, entry.idx, noGaps, entry.rope.Tint, RopeWidth);
                 DrawEndpoints(p, entry.rope);
                 DrawExitGrommets(p, entry.rope);
             }
