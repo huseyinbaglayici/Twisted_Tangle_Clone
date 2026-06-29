@@ -1,5 +1,7 @@
 /* Twisted Tangle — Level Creator styling.
-   Colors are intentionally muted/dark to match Unity's editor and keep ropes/pegs readable. */
+   Theme: ImGui-inspired dark (#1A1A1A base) blended with mobile game energy
+   (rope colors stay saturated; blue #4296F7 + teal #26A6A6 as UI accents).
+   Canvas & rope rendering classes are intentionally untouched. */
 
 .tt-root {
     flex-grow: 1;
@@ -13,7 +15,6 @@
     background-color: #1A1A1A;
 }
 
-/* Top bar: always-visible horizontal strip for Level I/O + Grid params */
 .tt-topbar {
     flex-direction: row;
     align-items: center;
@@ -21,161 +22,146 @@
     height: 44px;
     padding-left: 8px;
     padding-right: 8px;
-    background-color: #1A1A1A;
+    background-color: #141414;
     border-bottom-width: 1px;
-    border-bottom-color: rgba(255, 255, 255, 0.12);
+    border-bottom-color: #383838;
     flex-wrap: wrap;
 }
 
-/* Vertical rule between Level I/O group and Grid group */
 .tt-topbar__sep {
     width: 1px;
     height: 24px;
-    background-color: rgba(255, 255, 255, 0.15);
+    background-color: #404040;
     margin-left: 8px;
     margin-right: 12px;
 }
 
-/* Body: canvas panel (left) + right panel side by side */
 .tt-body {
     flex-direction: row;
     flex-grow: 1;
 }
 
-/* Left: canvas fill zone — position:relative so absolute-positioned overlay panels anchor here */
 .tt-canvas-panel {
     flex-grow: 1;
     flex-direction: column;
     position: relative;
-    background-color: #1E1E1E;
+    background-color: #1A1A1A;
     overflow: hidden;
 }
 
-/* Right panel: width set in C# (resizable), slightly lighter tint for depth */
 .tt-right-panel {
     flex-shrink: 0;
     min-width: 240px;
-    background-color: #242424;
+    background-color: #202020;
 }
 
-/* Drag divider between canvas and right panel */
 .tt-right-divider {
     width: 4px;
     flex-shrink: 0;
     cursor: resize-horizontal;
-    background-color: rgba(255, 255, 255, 0.06);
+    background-color: #282828;
 }
 
 .tt-right-divider:hover {
-    background-color: rgba(0, 194, 255, 0.35);
+    background-color: rgba(66, 150, 247, 0.35);
 }
 
-/* Sections scroll — thin subtle scrollbar, hidden horizontal */
+/* ── Scrollbars ──────────────────────────────────────────────────────────── */
+
 .tt-right-scroll > .unity-scroll-view__content-container {
     padding: 6px;
 }
 .tt-right-scroll > .unity-scroll-view__horizontal-scroller {
     display: none;
 }
-
-/* Thin track */
 .tt-right-scroll > .unity-scroll-view__vertical-scroller {
     width: 6px;
     background-color: transparent;
 }
-/* Hide the arrow buttons */
 .tt-right-scroll > .unity-scroll-view__vertical-scroller > .unity-scroller__low-button,
 .tt-right-scroll > .unity-scroll-view__vertical-scroller > .unity-scroller__high-button {
     display: none;
 }
-/* Track itself */
 .tt-right-scroll > .unity-scroll-view__vertical-scroller > .unity-base-slider__tracker {
-    background-color: rgba(255, 255, 255, 0.04);
+    background-color: #222222;
     border-radius: 3px;
     margin: 0;
 }
-/* Draggable thumb */
 .tt-right-scroll > .unity-scroll-view__vertical-scroller > .unity-base-slider__dragger-border {
     display: none;
 }
 .tt-right-scroll > .unity-scroll-view__vertical-scroller > .unity-base-slider__dragger {
-    background-color: rgba(255, 255, 255, 0.20);
+    background-color: #444444;
     border-radius: 3px;
     border-width: 0;
     min-height: 24px;
 }
 .tt-right-scroll > .unity-scroll-view__vertical-scroller > .unity-base-slider__dragger:hover {
-    background-color: rgba(255, 255, 255, 0.35);
+    background-color: #555555;
 }
 
-/* ── Rope bar (below grid, above floating panels) ───────────────────────────── */
+/* ── Rope bar (below grid, above floating panels) ───────────────────────── */
 
 .tt-rope-bar {
     height: 200px;
     border-top-width: 1px;
-    border-top-color: rgba(255, 255, 255, 0.15);
+    border-top-color: #383838;
     border-bottom-width: 1px;
-    border-bottom-color: rgba(255, 255, 255, 0.08);
-    background-color: rgba(20, 20, 20, 0.95);
+    border-bottom-color: #2E2E2E;
+    background-color: #141414;
 }
 
 .tt-rope-bar__scroll > .unity-scroll-view__content-container {
-    padding: 4px 8px;
+    padding: 0;
 }
-
 .tt-rope-bar__scroll > .unity-scroll-view__horizontal-scroller {
     display: none;
 }
-
 .tt-rope-bar__scroll > .unity-scroll-view__vertical-scroller {
     width: 6px;
     background-color: transparent;
 }
-
 .tt-rope-bar__scroll > .unity-scroll-view__vertical-scroller > .unity-scroller__low-button,
 .tt-rope-bar__scroll > .unity-scroll-view__vertical-scroller > .unity-scroller__high-button {
     display: none;
 }
-
 .tt-rope-bar__scroll > .unity-scroll-view__vertical-scroller > .unity-base-slider__dragger {
-    background-color: rgba(255, 255, 255, 0.18);
+    background-color: #444444;
     border-radius: 3px;
     border-width: 0;
     min-height: 20px;
 }
 
-/* ── Canvas bottom panels (Validate / Solve) — floating overlays ─────────── */
+/* ── Canvas bottom panels (Validate) — floating overlays ────────────────── */
 
-/* Grab bar — drag up/down to resize each panel independently */
 .tt-canvas-bottom__handle {
     height: 6px;
     flex-shrink: 0;
-    background-color: rgba(255, 255, 255, 0.06);
+    background-color: #262626;
     cursor: resize-vertical;
     border-bottom-width: 1px;
-    border-bottom-color: rgba(255, 255, 255, 0.15);
+    border-bottom-color: #383838;
 }
 
 .tt-canvas-bottom__handle:hover {
-    background-color: rgba(0, 194, 255, 0.35);
-    border-bottom-color: rgba(0, 194, 255, 0.6);
+    background-color: rgba(66, 150, 247, 0.30);
+    border-bottom-color: rgba(66, 150, 247, 0.6);
 }
 
 .tt-canvas-bottom__half {
     flex-direction: column;
     padding: 0 6px 4px 6px;
     overflow: hidden;
-    background-color: rgba(26, 26, 26, 0.92);
+    background-color: #1A1A1A;
     border-top-width: 1px;
-    border-top-color: rgba(255, 255, 255, 0.12);
+    border-top-color: #383838;
 }
 
 .tt-canvas-bottom__half--right {
     border-left-width: 1px;
-    border-left-color: rgba(255, 255, 255, 0.08);
+    border-left-color: #2E2E2E;
 }
 
-/* Output scroll inside each panel — hidden scrollbar chrome */
 .tt-canvas-bottom__scroll {
     flex-grow: 1;
 }
@@ -186,47 +172,46 @@
     display: none;
 }
 
-/* ── Editor setup bar (above topbar) ─────────────────────────────────────── */
+/* ── Editor setup bar ────────────────────────────────────────────────────── */
 
 .tt-setup-bar {
     flex-direction: row;
     flex-shrink: 0;
     align-items: center;
     padding: 3px 8px;
-    background-color: #161616;
+    background-color: #141414;
     border-bottom-width: 1px;
-    border-bottom-color: rgba(255, 255, 255, 0.08);
+    border-bottom-color: #2E2E2E;
 }
 
 /* ── Sections ────────────────────────────────────────────────────────────── */
 
 .tt-section {
-    margin-bottom: 6px;
+    margin-bottom: 4px;
     padding: 4px;
-    border-radius: 4px;
-    background-color: rgba(255, 255, 255, 0.02);
+    border-radius: 3px;
+    background-color: #222222;
     border-left-width: 2px;
-    border-left-color: rgba(255, 159, 0, 0.5);
+    border-left-color: #4296F7;
 }
 
-/* Tighter, more distinct section header */
 .tt-section > .unity-foldout__toggle {
-    background-color: rgba(255, 255, 255, 0.05);
-    border-radius: 3px;
+    background-color: #2A2A2A;
+    border-radius: 2px;
     margin-bottom: 2px;
     padding-left: 4px;
 }
 
 .tt-section > .unity-foldout__toggle > .unity-toggle__input > .unity-label {
     -unity-font-style: bold;
-    color: #D4D4D4;
+    color: #EEEEEE;
     font-size: 11px;
 }
 
 .tt-section__header {
     -unity-font-style: bold;
     margin-bottom: 4px;
-    color: #CFCFCF;
+    color: #CCCCCC;
 }
 
 /* ── Rows ────────────────────────────────────────────────────────────────── */
@@ -248,27 +233,34 @@
 
 .tt-btn {
     height: 26px;
-    border-radius: 5px;
+    border-radius: 3px;
     -unity-font-style: bold;
     margin-right: 4px;
     margin-top: 2px;
 }
 
+/* ImGui-style primary: dark background, blue border + text */
 .tt-btn--primary {
-    background-color: #00C2FF;
-    color: #FFFFFF;
+    background-color: #1E3050;
+    color: #4296F7;
+    border-width: 1px;
+    border-color: #4296F7;
 }
 
 .tt-btn--save {
     height: 36px;
-    background-color: #39B33F;
-    color: #FFFFFF;
-    border-radius: 5px;
+    background-color: #1E3A20;
+    color: #26A6A6;
+    border-width: 1px;
+    border-color: #26A6A6;
+    border-radius: 3px;
 }
 
 .tt-btn--danger {
-    background-color: #E55353;
-    color: #FFFFFF;
+    background-color: #3A1A1A;
+    color: #E55353;
+    border-width: 1px;
+    border-color: #CC3333;
 }
 
 /* Tool / palette toggle buttons */
@@ -277,16 +269,18 @@
     min-width: 60px;
     margin-right: 4px;
     margin-top: 2px;
-    border-radius: 5px;
+    border-radius: 3px;
     border-width: 1px;
-    border-color: rgba(255, 255, 255, 0.15);
-    background-color: rgba(255, 255, 255, 0.06);
+    border-color: #3A3A3A;
+    background-color: #2A2A2A;
+    color: #AAAAAA;
 }
 
 .tt-tool--active {
-    border-color: #FF9F00;
-    border-width: 2px;
-    background-color: rgba(255, 159, 0, 0.15);
+    border-color: #4296F7;
+    border-width: 1px;
+    background-color: #1E3050;
+    color: #4296F7;
 }
 
 /* ── Canvas ──────────────────────────────────────────────────────────────── */
@@ -295,7 +289,7 @@
     align-items: center;
     justify-content: center;
     padding: 16px;
-    background-color: #1E1E1E;
+    background-color: #111111;
     min-height: 200px;
 }
 
@@ -320,7 +314,7 @@
     height: 22px;
     margin-right: 4px;
     margin-top: 2px;
-    border-radius: 3px;
+    border-radius: 2px;
     border-width: 1px;
     border-color: rgba(0, 0, 0, 0.5);
 }
@@ -332,32 +326,29 @@
     margin-right: 10px;
 }
 
-/* Label — matches section header color */
 .tt-num .unity-base-field__label {
     min-width: 0;
     width: 58px;
     margin-right: 2px;
-    color: #CFCFCF;
+    color: #AAAAAA;
     -unity-font-style: normal;
 }
 
-/* Input box — dark to match the rest of the editor */
 .tt-num .unity-base-text-field__input {
     min-width: 0;
     width: 56px;
-    background-color: #2C2C2C;
-    border-color: rgba(255, 255, 255, 0.15);
-    border-radius: 3px;
-    color: #E8E8E8;
+    background-color: #252525;
+    border-color: #404040;
+    border-radius: 2px;
+    color: #EEEEEE;
     -unity-font-style: normal;
 }
 
 .tt-num .unity-base-text-field__input:focus {
-    border-color: #00C2FF;
+    border-color: #4296F7;
     border-width: 1px;
 }
 
-/* Narrow variant kept for backwards compat */
 .tt-num--narrow .unity-base-field__label {
     width: 16px;
 }
@@ -365,7 +356,7 @@
 /* ── Validation & metrics ────────────────────────────────────────────────── */
 
 .tt-validation__ok {
-    color: #6FCF6F;
+    color: #26A6A6;
     -unity-font-style: bold;
 }
 
@@ -374,15 +365,17 @@
 }
 
 .tt-validation__warn {
-    color: #E0B341;
+    color: #E8A020;
 }
 
-/* Metric chips: pill-shaped tags instead of plain text */
+/* Legacy metric pill — kept for safety */
 .tt-metric {
-    color: #BFBFBF;
+    color: #AAAAAA;
     font-size: 11px;
-    background-color: rgba(255, 255, 255, 0.07);
-    border-radius: 10px;
+    background-color: #252525;
+    border-radius: 3px;
+    border-width: 1px;
+    border-color: #383838;
     padding-left: 6px;
     padding-right: 6px;
     padding-top: 2px;
@@ -395,9 +388,11 @@
 
 .tt-metric-chip {
     flex-direction: row;
-    align-items: baseline;
-    background-color: rgba(255, 255, 255, 0.07);
-    border-radius: 10px;
+    align-items: center;
+    background-color: #252525;
+    border-radius: 3px;
+    border-width: 1px;
+    border-color: #383838;
     padding-left: 7px;
     padding-right: 7px;
     padding-top: 2px;
@@ -408,24 +403,30 @@
 
 .tt-metric-chip__val {
     font-size: 12px;
-    color: rgba(255, 255, 255, 0.9);
+    color: #EEEEEE;
     -unity-font-style: bold;
     margin-right: 3px;
 }
 
 .tt-metric-chip__lbl {
     font-size: 10px;
-    color: rgba(255, 255, 255, 0.42);
+    color: #666666;
+}
+
+.tt-metric-chip--warn {
+    border-color: #4A3000;
+    background-color: #1E1400;
 }
 
 .tt-metric-chip--warn .tt-metric-chip__val {
-    color: #E0B341;
+    color: #E8A020;
 }
 
 .tt-difficulty-badge {
     font-size: 11px;
     -unity-font-style: bold;
-    border-radius: 4px;
+    border-radius: 3px;
+    border-width: 1px;
     padding-left: 8px;
     padding-right: 8px;
     padding-top: 3px;
@@ -433,36 +434,40 @@
 }
 
 .tt-difficulty-badge--Easy {
-    color: #4BB44B;
-    background-color: rgba(75, 180, 75, 0.12);
+    color: #26A6A6;
+    background-color: #0F2A2A;
+    border-color: #1A5A5A;
 }
 
 .tt-difficulty-badge--Medium {
-    color: #E0B341;
-    background-color: rgba(224, 179, 65, 0.12);
+    color: #E8A020;
+    background-color: #1E1400;
+    border-color: #6A4000;
 }
 
 .tt-difficulty-badge--Hard {
     color: #E55353;
-    background-color: rgba(229, 83, 83, 0.12);
+    background-color: #2A1515;
+    border-color: #6A2020;
 }
 
-/* Small colored dot indicating validation state */
+/* ── Status dot ──────────────────────────────────────────────────────────── */
+
 .tt-status-dot {
     width: 8px;
     height: 8px;
     border-radius: 4px;
     margin-right: 6px;
-    background-color: #888888;
+    background-color: #555555;
     flex-shrink: 0;
 }
 
-.tt-status-dot--ok    { background-color: #6FCF6F; }
+.tt-status-dot--ok    { background-color: #26A6A6; }
 .tt-status-dot--error { background-color: #E55353; }
-.tt-status-dot--warn  { background-color: #E0B341; }
+.tt-status-dot--warn  { background-color: #E8A020; }
 
-.tt-difficulty--Easy   { color: #6FCF6F; -unity-font-style: bold; }
-.tt-difficulty--Medium { color: #E0B341; -unity-font-style: bold; }
+.tt-difficulty--Easy   { color: #26A6A6; -unity-font-style: bold; }
+.tt-difficulty--Medium { color: #E8A020; -unity-font-style: bold; }
 .tt-difficulty--Hard   { color: #E55353; -unity-font-style: bold; }
 
 /* ── Rope list ───────────────────────────────────────────────────────────── */
@@ -472,19 +477,21 @@
     flex-direction: row;
     align-items: center;
     border-bottom-width: 1px;
-    border-bottom-color: rgba(255, 255, 255, 0.05);
+    border-bottom-color: #252525;
 }
 
 .tt-rope-row:hover {
-    background-color: rgba(255, 255, 255, 0.04);
+    background-color: #262626;
 }
 
 .tt-rope-row--selected {
-    background-color: rgba(80, 130, 255, 0.12);
+    background-color: #1A2A3A;
+    border-left-width: 2px;
+    border-left-color: #4296F7;
 }
 
 .tt-rope-row--selected:hover {
-    background-color: rgba(80, 130, 255, 0.18);
+    background-color: #1E2E42;
 }
 
 .tt-rope-row__left {
@@ -498,16 +505,16 @@
 .tt-rope-row__handle {
     width: 20px;
     font-size: 14px;
-    color: rgba(255, 255, 255, 0.18);
+    color: #3A3A3A;
     -unity-text-align: middle-center;
     flex-shrink: 0;
-    cursor: move;
+    cursor: move-arrow;
 }
 
 .tt-rope-row__swatch {
-    width: 14px;
-    height: 14px;
-    border-radius: 3px;
+    width: 12px;
+    height: 12px;
+    border-radius: 2px;
     margin-right: 8px;
     flex-shrink: 0;
 }
@@ -520,25 +527,27 @@
 }
 
 .tt-rope-row__name {
-    font-size: 12px;
-    color: rgba(255, 255, 255, 0.85);
+    font-size: 11px;
+    color: #CCCCCC;
 }
 
 .tt-rope-row--selected .tt-rope-row__name {
     -unity-font-style: bold;
-    color: #80A8FF;
+    color: #4296F7;
 }
 
 .tt-rope-row__meta {
     font-size: 10px;
-    color: rgba(255, 255, 255, 0.32);
+    color: #555555;
 }
 
 .tt-rope-row__badge {
     font-size: 10px;
-    color: rgba(255, 255, 255, 0.38);
-    background-color: rgba(255, 255, 255, 0.06);
-    border-radius: 3px;
+    color: #4296F7;
+    background-color: #0F1E30;
+    border-width: 1px;
+    border-color: #1A3A5A;
+    border-radius: 2px;
     padding-left: 4px;
     padding-right: 4px;
     padding-top: 1px;
@@ -555,32 +564,34 @@
 }
 
 .tt-rope-row__icon-btn {
-    width: 24px;
-    height: 24px;
+    width: 22px;
+    height: 22px;
     padding: 0;
-    font-size: 13px;
-    border-width: 0;
-    border-radius: 4px;
-    background-color: transparent;
-    color: rgba(255, 255, 255, 0.35);
+    font-size: 12px;
+    border-width: 1px;
+    border-color: #353535;
+    border-radius: 2px;
+    background-color: #252525;
+    color: #666666;
     margin-left: 1px;
     margin-right: 1px;
     -unity-font-style: normal;
 }
 
 .tt-rope-row__icon-btn:hover {
-    background-color: rgba(255, 255, 255, 0.1);
-    color: rgba(255, 255, 255, 0.88);
+    background-color: #1A2A3A;
+    border-color: #4296F7;
+    color: #4296F7;
 }
 
 .tt-rope-row__icon-btn--danger:hover {
-    background-color: rgba(220, 70, 70, 0.18);
+    background-color: #2A1515;
+    border-color: #CC3333;
     color: #E55353;
 }
 
 /* ── Palette ─────────────────────────────────────────────────────────────── */
 
-/* Palette selector dropdown in rope mode — sits inline, doesn't stretch full-width */
 .tt-palette-selector {
     flex-grow: 0;
     margin-top: 2px;
@@ -602,11 +613,12 @@
 .tt-ai-group-header {
     -unity-font-style: bold;
     font-size: 11px;
-    color: rgba(255, 255, 255, 0.75);
+    color: #CCCCCC;
     margin-top: 6px;
     margin-bottom: 2px;
     padding-left: 6px;
     border-left-width: 2px;
+    border-left-color: #4296F7;
 }
 
 .tt-ai-entity-row {
@@ -615,13 +627,12 @@
 }
 
 .tt-ai-entity-required {
-    color: rgba(255, 255, 255, 0.9);
+    color: #EEEEEE;
 }
 
-/* Muted helper text under inputs */
 .tt-hint {
     font-size: 11px;
-    color: rgba(255, 255, 255, 0.45);
+    color: #666666;
     margin-top: 2px;
     margin-bottom: 4px;
 }
@@ -636,19 +647,19 @@
     padding-top: 2px;
     padding-bottom: 2px;
     border-left-width: 2px;
-    border-left-color: rgba(0, 194, 255, 0.45);
-    background-color: rgba(255, 255, 255, 0.02);
-    border-top-right-radius: 4px;
-    border-bottom-right-radius: 4px;
+    border-left-color: rgba(66, 150, 247, 0.45);
+    background-color: #222222;
+    border-top-right-radius: 3px;
+    border-bottom-right-radius: 3px;
 }
 
 .tt-subgroup .unity-foldout__text {
     font-size: 11px;
-    color: rgba(255, 255, 255, 0.55);
+    color: #777777;
     -unity-font-style: italic;
 }
 
 .tt-subname {
     font-size: 11px;
-    color: rgba(255, 255, 255, 0.65);
+    color: #999999;
 }
