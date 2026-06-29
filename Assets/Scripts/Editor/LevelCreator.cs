@@ -1407,10 +1407,15 @@ namespace TwistedTangle.Editor
         private void AddRopeWaypoint(Vector2Int subCoord)
         {
             bool isFirstPoint = _previewRope == null;
-            // If the coarse cell has a pin, snap to pin center so the whole cell acts as the pin hit area.
             var coarseCoord = new Vector2Int(subCoord.x / CrossingSolver.SubDiv, subCoord.y / CrossingSolver.SubDiv);
             bool hasPeg = _level.GridEntities.FindIndex(e => e.Coordinates == coarseCoord) >= 0;
-            if (hasPeg) subCoord = CrossingSolver.PinToSub(coarseCoord);
+
+            // Snap to the pin's center sub-cell when starting a rope (whole cell = ergonomic hit area)
+            // or when the user clicks the center sub-cell explicitly (intent to connect).
+            // Any other sub-cell in a pinned cell passes through as a bend point.
+            bool connectingToPin = hasPeg &&
+                (isFirstPoint || subCoord == CrossingSolver.PinToSub(coarseCoord));
+            if (connectingToPin) subCoord = CrossingSolver.PinToSub(coarseCoord);
 
             // First waypoint must anchor on a pin.
             if (isFirstPoint && !hasPeg) return;
@@ -1444,7 +1449,7 @@ namespace TwistedTangle.Editor
             }
 
             _waypointHistory.Push(new List<RopeWaypoint>(_previewRope.Path));
-            _previewRope.Path.Add(new RopeWaypoint(subCoord, WindSide.None, !hasPeg));
+            _previewRope.Path.Add(new RopeWaypoint(subCoord, WindSide.None, !connectingToPin));
         }
 
         private void UndoLastWaypoint()
