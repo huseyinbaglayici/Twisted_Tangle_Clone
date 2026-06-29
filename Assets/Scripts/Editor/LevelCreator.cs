@@ -1,5 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using TwistedTangle.Editor.Canvas;
 using TwistedTangle.Editor.Input;
 using TwistedTangle.Editor.Utils;
@@ -54,6 +56,7 @@ namespace TwistedTangle.Editor
         private List<SolveMove> _solutionMoves;
         private int _previewStep = -1;            // -1 = not previewing; 0..N = state after that many moves
         private LevelDataSO _previewLevel;        // in-memory, never saved
+        private CancellationTokenSource _solveCts; // cancels any in-flight background solve
 
         // --- data-driven content ---
         private readonly List<EntityBaseTypeSO> _baseTypes = new();
@@ -946,9 +949,15 @@ namespace TwistedTangle.Editor
         }
 
 
-        /// <summary>Runs the auto-solver on the current level and shows whether/how it untangles.</summary>
+        /// <summary>Runs the auto-solver on a background thread so the editor never freezes.</summary>
         private void RunSolve()
         {
+            // Cancel any in-flight solve before starting a new one.
+            _solveCts?.Cancel();
+            _solveCts?.Dispose();
+            _solveCts = new CancellationTokenSource();
+            var token = _solveCts.Token;
+
             _solverContainer.Clear();
             if (_level == null)
             {
@@ -956,14 +965,38 @@ namespace TwistedTangle.Editor
                 return;
             }
 
-            // Nailed/locked pins (entity types tagged "nailed"/"locked") are immovable to the solver.
-            var locked = NailedCells();
-            var result = LevelSolver.Solve(_level, new SolveOptions
+            // Capture all inputs on the main thread before handing off to the background thread.
+            var locked  = NailedCells();
+            var options = new SolveOptions
             {
-                LockedCells = locked,
-                MaxRopeReach = MaxRopeReach,
+                LockedCells      = locked,
+                MaxRopeReach     = MaxRopeReach,
                 CrossingOverrides = new HashSet<CrossingOverride>(_level.CrossingOverrides)
-            });
+            };
+            var level = _level;
+
+            var spinner = new Label("Solving…");
+            spinner.AddToClassList("tt-validation__warn");
+            _solverContainer.Add(spinner);
+
+            Task.Run(() => LevelSolver.Solve(level, options), token)
+                .ContinueWith(t =>
+                {
+                    if (token.IsCancellationRequested || t.IsCanceled || t.IsFaulted) return;
+                    var result = t.Result;
+                    // UI updates must happen on the main thread.
+                    EditorApplication.delayCall += () =>
+                    {
+                        if (token.IsCancellationRequested) return;
+                        ShowSolveResult(result, locked);
+                    };
+                }, TaskScheduler.Default);
+        }
+
+        /// <summary>Populates the solver panel with the result of a completed solve.</summary>
+        private void ShowSolveResult(SolveResult result, HashSet<Vector2Int> locked)
+        {
+            _solverContainer.Clear();
 
             string headline, cls;
             if (result.Solvable)
@@ -999,7 +1032,6 @@ namespace TwistedTangle.Editor
 
             if (result.Solvable)
             {
-                // Basic move-count difficulty (tunable thresholds) — portfolio-level, not calibrated.
                 string diff = result.Moves <= 2 ? "Easy" : result.Moves <= 5 ? "Medium" : "Hard";
                 var diffLabel = new Label($"Difficulty: {diff}  ·  {result.Moves} move(s)");
                 diffLabel.AddToClassList($"tt-difficulty--{diff}");
@@ -1013,7 +1045,6 @@ namespace TwistedTangle.Editor
                 _solverContainer.Add(warn);
             }
 
-            // The actual untangle steps — which rope's pin moves where — so the designer can follow it.
             int step = 1;
             foreach (var m in result.Solution)
             {
@@ -1021,10 +1052,8 @@ namespace TwistedTangle.Editor
                 _solverContainer.Add(new Label($"{step++}. ({m.From.x},{m.From.y}) → ({m.To.x},{m.To.y}){who}"));
             }
 
-            // Visual preview: step through the moves on the canvas with ropes reshaping (bend-follow),
-            // so the designer can SEE the crossings vanish instead of tracing the moves by hand.
             _solutionMoves = result.Solvable && result.Moves > 0 ? new List<SolveMove>(result.Solution) : null;
-            _previewStep = -1;
+            _previewStep   = -1;
             if (_solutionMoves != null)
             {
                 var pvRow = MakeRow();
@@ -1037,9 +1066,9 @@ namespace TwistedTangle.Editor
                         : $"preview: after move {_previewStep} / {_solutionMoves.Count}";
 
                 pvRow.Add(MakeButton("▶ Preview", () => { ShowPreviewStep(0); RefreshLabel(); }, "tt-btn--primary"));
-                pvRow.Add(MakeButton("◀ Prev", () => { if (_previewStep > 0) { ShowPreviewStep(_previewStep - 1); RefreshLabel(); } }, null));
-                pvRow.Add(MakeButton("Next ▶", () => { if (_previewStep >= 0 && _previewStep < _solutionMoves.Count) { ShowPreviewStep(_previewStep + 1); RefreshLabel(); } }, null));
-                pvRow.Add(MakeButton("✕ Exit", () => { ExitPreview(); RefreshLabel(); }, null));
+                pvRow.Add(MakeButton("◀ Prev",    () => { if (_previewStep > 0) { ShowPreviewStep(_previewStep - 1); RefreshLabel(); } }, null));
+                pvRow.Add(MakeButton("Next ▶",    () => { if (_previewStep >= 0 && _previewStep < _solutionMoves.Count) { ShowPreviewStep(_previewStep + 1); RefreshLabel(); } }, null));
+                pvRow.Add(MakeButton("✕ Exit",    () => { ExitPreview(); RefreshLabel(); }, null));
                 pvRow.Add(stepLabel);
                 _solverContainer.Add(pvRow);
                 RefreshLabel();
