@@ -84,8 +84,8 @@ namespace TwistedTangle.Editor
             }
 
             int ok = 0;
-            foreach (var r in results) if (r.Solvable) ok++;
-            _batchSummary.text = $"{ok}/{results.Count} solvable";
+            foreach (var r in results) if (r.ValidationErrors == 0 && r.Crossings == 0) ok++;
+            _batchSummary.text = $"{ok}/{results.Count} valid & untangled";
 
             _batchResultsContainer.Add(MakeTableHeader());
             foreach (var r in results)
@@ -114,21 +114,18 @@ namespace TwistedTangle.Editor
         private static VisualElement MakeTableRow(LevelCheckResult r)
         {
             string status = r.ValidationErrors > 0 ? "INVALID"
-                : r.Solvable                       ? "Solvable"
-                : r.HitLimit                       ? "Inconclusive"
-                : "Not solvable";
+                : r.Crossings == 0                 ? "Clean"
+                : "Has crossings";
 
             string statusCls = r.ValidationErrors > 0 ? "tt-validation__error"
-                : r.Solvable                          ? "tt-validation__ok"
-                : r.HitLimit                          ? "tt-validation__warn"
-                : "tt-validation__error";
+                : r.Crossings == 0                    ? "tt-validation__ok"
+                : "tt-validation__warn";
 
-            string moves = r.Moves >= 0 ? r.Moves.ToString() : "—";
             string errors = r.ValidationErrors > 0 ? r.ValidationErrors.ToString() : "";
 
             string[] values = {
                 r.LevelId.ToString(), status,
-                moves, r.Crossings.ToString(), r.ExpandedNodes.ToString(), errors
+                r.Crossings.ToString(), errors
             };
 
             var row = MakeRow();
@@ -158,10 +155,8 @@ namespace TwistedTangle.Editor
         private static (string label, int width)[] Headers() => new[]
         {
             ("ID",         44),
-            ("Status",    108),
-            ("Moves",      52),
+            ("Status",    120),
             ("Crossings",  80),
-            ("Nodes",      70),
             ("Errors",     60),
         };
 

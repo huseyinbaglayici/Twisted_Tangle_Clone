@@ -1,12 +1,9 @@
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using TwistedTangle.Editor.Canvas;
 using TwistedTangle.Editor.Input;
 using TwistedTangle.Editor.Utils;
 using TwistedTangle.Editor.Validation;
-using TwistedTangle.Editor.Solver;
 using TwistedTangle.Runtime.Data.ScriptableObjects;
 using TwistedTangle.Runtime.Data.ValueObjects;
 using TwistedTangle.Editor.Geometry;
@@ -52,12 +49,6 @@ namespace TwistedTangle.Editor
         private int _selectedRopeId = -1;
         private readonly Stack<List<RopeWaypoint>> _waypointHistory = new();
 
-        // --- solution preview (step through solver moves with ropes reshaping) ---
-        private List<SolveMove> _solutionMoves;
-        private int _previewStep = -1;            // -1 = not previewing; 0..N = state after that many moves
-        private LevelDataSO _previewLevel;        // in-memory, never saved
-        private CancellationTokenSource _solveCts; // cancels any in-flight background solve
-
         // --- data-driven content ---
         private readonly List<EntityBaseTypeSO> _baseTypes = new();
         private readonly List<EntityDefinitionSO> _entityDefs = new();
@@ -78,7 +69,6 @@ namespace TwistedTangle.Editor
         private bool _isPanning;
         private Vector2 _panStart;
 
-        // Max rope reach (Chebyshev) — bounds both authoring (drawing long ropes) and the solver.
         private const int MaxRopeReach = 3;
 
         private VisualElement _paletteContainer,
@@ -86,7 +76,6 @@ namespace TwistedTangle.Editor
             _editToolsContainer,
             _ropeListContainer,
             _validationContainer,
-            _solverContainer,
             _validationStatusDot;
 
 
@@ -478,7 +467,7 @@ namespace TwistedTangle.Editor
                 "7. Paste it into an AI chat (Claude, Gemini, ChatGPT…), send, then copy the JSON answer.\n" +
                 "8. Paste that JSON into the box and click '2 · Import JSON'.\n\n" +
                 "CHECK & SAVE (always)\n" +
-                "9. 'Validate' must be green and 'Solve' must say Solvable — fix issues if not.\n" +
+                "9. 'Validate' must be green — fix issues if not.\n" +
                 "10. Set Level Id and click 'Save'.",
                 HelpBoxMessageType.Info));
             return foldout;
@@ -638,8 +627,7 @@ namespace TwistedTangle.Editor
             panel.Add(spacer);
 
             // Floating overlay panels — position:absolute at bottom, independent resize, untouched
-            panel.Add(BuildFloatingBottomPanel(isRight: false));
-            panel.Add(BuildFloatingBottomPanel(isRight: true));
+            panel.Add(BuildFloatingBottomPanel());
             return panel;
         }
 
@@ -841,20 +829,16 @@ namespace TwistedTangle.Editor
             return s;
         }
 
-        private VisualElement BuildFloatingBottomPanel(bool isRight)
+        private VisualElement BuildFloatingBottomPanel()
         {
-            // position: absolute — completely outside the flex flow, zero effect on canvas size
             var panel = new VisualElement();
             panel.AddToClassList("tt-canvas-bottom__half");
-            if (isRight) panel.AddToClassList("tt-canvas-bottom__half--right");
             panel.style.position = Position.Absolute;
             panel.style.bottom = 0;
-            panel.style.width = Length.Percent(50);
+            panel.style.left = 0;
+            panel.style.width = Length.Percent(100);
             panel.style.height = 160f;
-            if (!isRight) panel.style.left = 0;
-            else          panel.style.right = 0;
 
-            // Drag handle at top — drag up to grow, drag down to shrink
             var handle = new VisualElement();
             handle.AddToClassList("tt-canvas-bottom__handle");
             float startY = 0f, startH = 0f;
@@ -878,33 +862,18 @@ namespace TwistedTangle.Editor
             });
             panel.Add(handle);
 
-            if (!isRight)
-            {
-                var header = MakeRow();
-                _validationStatusDot = new VisualElement();
-                _validationStatusDot.AddToClassList("tt-status-dot");
-                header.Add(_validationStatusDot);
-                header.Add(MakeButton("Validate", RebuildValidation, "tt-btn--primary"));
-                panel.Add(header);
-                var scroll = new ScrollView(ScrollViewMode.Vertical);
-                scroll.AddToClassList("tt-canvas-bottom__scroll");
-                scroll.style.flexGrow = 1;
-                _validationContainer = new VisualElement();
-                scroll.Add(_validationContainer);
-                panel.Add(scroll);
-            }
-            else
-            {
-                var header = MakeRow();
-                header.Add(MakeButton("Solve", RunSolve, "tt-btn--primary"));
-                panel.Add(header);
-                var scroll = new ScrollView(ScrollViewMode.Vertical);
-                scroll.AddToClassList("tt-canvas-bottom__scroll");
-                scroll.style.flexGrow = 1;
-                _solverContainer = new VisualElement();
-                scroll.Add(_solverContainer);
-                panel.Add(scroll);
-            }
+            var header = MakeRow();
+            _validationStatusDot = new VisualElement();
+            _validationStatusDot.AddToClassList("tt-status-dot");
+            header.Add(_validationStatusDot);
+            header.Add(MakeButton("Validate", RebuildValidation, "tt-btn--primary"));
+            panel.Add(header);
+            var scroll = new ScrollView(ScrollViewMode.Vertical);
+            scroll.AddToClassList("tt-canvas-bottom__scroll");
+            scroll.style.flexGrow = 1;
+            _validationContainer = new VisualElement();
+            scroll.Add(_validationContainer);
+            panel.Add(scroll);
 
             return panel;
         }
@@ -927,17 +896,6 @@ namespace TwistedTangle.Editor
             RefreshAll();
         }
 
-        /// <summary>Grid cells whose entity type is tagged "nailed"/"locked" — immovable to the solver.</summary>
-        private HashSet<Vector2Int> NailedCells()
-        {
-            var cells = new HashSet<Vector2Int>();
-            if (_level == null) return cells;
-            foreach (var entity in _level.GridEntities)
-                if (_entityLookup.TryGetValue(entity.TypeId, out var def) && IsNailed(def))
-                    cells.Add(entity.Coordinates);
-            return cells;
-        }
-
         /// <summary>True if an entity type is marked immovable via a "nailed" or "locked" tag.</summary>
         public static bool IsNailed(EntityDefinitionSO def)
         {
@@ -949,203 +907,6 @@ namespace TwistedTangle.Editor
         }
 
 
-        /// <summary>Runs the auto-solver on a background thread so the editor never freezes.</summary>
-        private void RunSolve()
-        {
-            // Cancel any in-flight solve before starting a new one.
-            _solveCts?.Cancel();
-            _solveCts?.Dispose();
-            _solveCts = new CancellationTokenSource();
-            var token = _solveCts.Token;
-
-            _solverContainer.Clear();
-            if (_level == null)
-            {
-                _solverContainer.Add(new Label("Generate or load a level first."));
-                return;
-            }
-
-            // Capture all inputs on the main thread before handing off to the background thread.
-            var locked  = NailedCells();
-            var options = new SolveOptions
-            {
-                LockedCells      = locked,
-                MaxRopeReach     = MaxRopeReach,
-                CrossingOverrides = new HashSet<CrossingOverride>(_level.CrossingOverrides)
-            };
-            var level = _level;
-
-            var spinner = new Label("Solving…");
-            spinner.AddToClassList("tt-validation__warn");
-            _solverContainer.Add(spinner);
-
-            Task.Run(() => LevelSolver.Solve(level, options), token)
-                .ContinueWith(t =>
-                {
-                    if (token.IsCancellationRequested || t.IsCanceled || t.IsFaulted) return;
-                    var result = t.Result;
-                    // UI updates must happen on the main thread.
-                    EditorApplication.delayCall += () =>
-                    {
-                        if (token.IsCancellationRequested) return;
-                        ShowSolveResult(result, locked);
-                    };
-                }, TaskScheduler.Default);
-        }
-
-        /// <summary>Populates the solver panel with the result of a completed solve.</summary>
-        private void ShowSolveResult(SolveResult result, HashSet<Vector2Int> locked)
-        {
-            _solverContainer.Clear();
-
-            string headline, cls;
-            if (result.Solvable)
-            {
-                headline = result.Moves == 0
-                    ? "✓ Already untangled (no crossings)."
-                    : $"✓ Solvable in {result.Moves} move(s).";
-                cls = "tt-validation__ok";
-            }
-            else if (result.HitExpansionLimit)
-            {
-                headline = "⚠ Inconclusive — search hit its limit (raise the cap or simplify).";
-                cls = "tt-validation__warn";
-            }
-            else
-            {
-                headline = "✗ Not solvable.";
-                cls = "tt-validation__error";
-            }
-
-            var status = new Label(headline);
-            status.AddToClassList(cls);
-            _solverContainer.Add(status);
-
-            var metricsRow = MakeRow();
-            metricsRow.AddToClassList("tt-row--wrap");
-            AddMetric(metricsRow, $"Start crossings: {result.InitialCrossings}");
-            AddMetric(metricsRow, $"Tangle: {result.InitialTangle}");
-            AddMetric(metricsRow, $"Moves: {(result.Moves >= 0 ? result.Moves.ToString() : "-")}");
-            AddMetric(metricsRow, $"Searched: {result.ExpandedNodes}");
-            AddMetric(metricsRow, $"Locked pins: {locked.Count}");
-            _solverContainer.Add(metricsRow);
-
-            if (result.Solvable)
-            {
-                string diff = result.Moves <= 2 ? "Easy" : result.Moves <= 5 ? "Medium" : "Hard";
-                var diffLabel = new Label($"Difficulty: {diff}  ·  {result.Moves} move(s)");
-                diffLabel.AddToClassList($"tt-difficulty--{diff}");
-                _solverContainer.Add(diffLabel);
-            }
-
-            if (result.OverStretchedRopes > 0)
-            {
-                var warn = new Label($"⚠ {result.OverStretchedRopes} rope(s) start longer than the reach limit.");
-                warn.AddToClassList("tt-validation__warn");
-                _solverContainer.Add(warn);
-            }
-
-            int step = 1;
-            foreach (var m in result.Solution)
-            {
-                string who = string.IsNullOrEmpty(m.PinDesc) ? "" : $"  [{m.PinDesc}]";
-                _solverContainer.Add(new Label($"{step++}. ({m.From.x},{m.From.y}) → ({m.To.x},{m.To.y}){who}"));
-            }
-
-            _solutionMoves = result.Solvable && result.Moves > 0 ? new List<SolveMove>(result.Solution) : null;
-            _previewStep   = -1;
-            if (_solutionMoves != null)
-            {
-                var pvRow = MakeRow();
-                pvRow.AddToClassList("tt-row--wrap");
-                var stepLabel = new Label();
-
-                void RefreshLabel() =>
-                    stepLabel.text = _previewStep < 0
-                        ? "preview: off (showing authored)"
-                        : $"preview: after move {_previewStep} / {_solutionMoves.Count}";
-
-                pvRow.Add(MakeButton("▶ Preview", () => { ShowPreviewStep(0); RefreshLabel(); }, "tt-btn--primary"));
-                pvRow.Add(MakeButton("◀ Prev",    () => { if (_previewStep > 0) { ShowPreviewStep(_previewStep - 1); RefreshLabel(); } }, null));
-                pvRow.Add(MakeButton("Next ▶",    () => { if (_previewStep >= 0 && _previewStep < _solutionMoves.Count) { ShowPreviewStep(_previewStep + 1); RefreshLabel(); } }, null));
-                pvRow.Add(MakeButton("✕ Exit",    () => { ExitPreview(); RefreshLabel(); }, null));
-                pvRow.Add(stepLabel);
-                _solverContainer.Add(pvRow);
-                RefreshLabel();
-            }
-        }
-
-        /// <summary>
-        /// Render the level as it looks after the first <paramref name="step"/> solver moves: each moved
-        /// pin (and its entity) is relocated and every rope is reshaped via bend-follow, so the canvas
-        /// shows exactly the geometry the solver evaluated. Crossings are drawn so they can be watched
-        /// disappearing. Nothing is saved — the preview level is in-memory only.
-        /// </summary>
-        private void ShowPreviewStep(int step)
-        {
-            if (_level == null || _solutionMoves == null) return;
-            _previewStep = Mathf.Clamp(step, 0, _solutionMoves.Count);
-
-            // current maps coarse pin coord → coarse pin coord (moves are in coarse space).
-            var current = new Dictionary<Vector2Int, Vector2Int>();
-            foreach (var rope in _level.Ropes)
-            {
-                if (rope?.Path == null || rope.Path.Count < 2) continue;
-                var ca = CrossingSolver.SubToPinCoord(rope.Path[0].PegCoord);
-                var cb = CrossingSolver.SubToPinCoord(rope.Path[^1].PegCoord);
-                current[ca] = ca;
-                current[cb] = cb;
-            }
-            for (int i = 0; i < _previewStep; i++)
-            {
-                var m = _solutionMoves[i]; // From/To are coarse coords from the solver
-                foreach (var key in new List<Vector2Int>(current.Keys))
-                    if (current[key] == m.From) { current[key] = m.To; break; }
-            }
-
-            if (_previewLevel == null) _previewLevel = ScriptableObject.CreateInstance<LevelDataSO>();
-            _previewLevel.GridWidth = _level.GridWidth;
-            _previewLevel.GridHeight = _level.GridHeight;
-
-            // Entity coords are coarse — match directly against current (also coarse).
-            _previewLevel.GridEntities.Clear();
-            foreach (var e in _level.GridEntities)
-            {
-                var coord = current.TryGetValue(e.Coordinates, out var moved) ? moved : e.Coordinates;
-                _previewLevel.GridEntities.Add(new GridEntityData(coord, e.TypeId));
-            }
-
-            _previewLevel.CrossingOverrides.Clear();
-            _previewLevel.CrossingOverrides.AddRange(_level.CrossingOverrides);
-
-            // Preview ropes: keep bends fixed, only move the endpoint waypoints (same as ReshapeRope).
-            _previewLevel.Ropes.Clear();
-            foreach (var rope in _level.Ropes)
-            {
-                if (rope?.Path == null || rope.Path.Count < 2) { _previewLevel.Ropes.Add(rope); continue; }
-                var coarseA = CrossingSolver.SubToPinCoord(rope.Path[0].PegCoord);
-                var coarseB = CrossingSolver.SubToPinCoord(rope.Path[^1].PegCoord);
-                Vector2Int newCoarseA = current.TryGetValue(coarseA, out var va) ? va : coarseA;
-                Vector2Int newCoarseB = current.TryGetValue(coarseB, out var vb) ? vb : coarseB;
-                _previewLevel.Ropes.Add(LevelSolver.ReshapeRope(rope,
-                    CrossingSolver.PinToSub(newCoarseA),
-                    CrossingSolver.PinToSub(newCoarseB)));
-            }
-
-            _canvas.Level = _previewLevel;
-            _canvas.GridWidth = _level.GridWidth;
-            _canvas.GridHeight = _level.GridHeight;
-            _canvas.PreviewRope = null;
-            _canvas.SelectedRopeId = -1;
-            _canvas.ShowCrossings = true;     // watch the crossings vanish as you step
-            _canvas.Redraw();
-        }
-
-        private void ExitPreview()
-        {
-            _previewStep = -1;
-            RefreshCanvas();
-        }
 
 
         #endregion

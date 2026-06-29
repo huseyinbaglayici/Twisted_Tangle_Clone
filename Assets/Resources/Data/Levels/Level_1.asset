@@ -33,103 +33,103 @@ MonoBehaviour:
     TypeId: pin.standart
   - Coordinates: {x: 2, y: 1}
     TypeId: pin.standart
-  - Coordinates: {x: 5, y: 1}
-    TypeId: pin.standart
-  - Coordinates: {x: 5, y: 2}
-    TypeId: pin.standart
   - Coordinates: {x: 3, y: 0}
     TypeId: pin.standart
   - Coordinates: {x: 4, y: 0}
     TypeId: pin.standart
+  - Coordinates: {x: 5, y: 1}
+    TypeId: pin.standart
+  - Coordinates: {x: 5, y: 2}
+    TypeId: pin.standart
   ropes:
   - RopeId: 0
-    Tint: {r: 0, g: 0.9150943, b: 0.8613863, a: 1}
+    Tint: {r: 0.7063372, g: 0, b: 0.8962264, a: 1}
     Layer: 0
     Path:
-    - PegCoord: {x: 0, y: 5}
+    - PegCoord: {x: 1, y: 16}
       Side: 0
       IsBendPoint: 0
-    - PegCoord: {x: 1, y: 4}
+    - PegCoord: {x: 4, y: 12}
       Side: 0
       IsBendPoint: 1
-    - PegCoord: {x: 2, y: 5}
+    - PegCoord: {x: 7, y: 16}
       Side: 0
       IsBendPoint: 0
   - RopeId: 1
-    Tint: {r: 0.7063372, g: 0, b: 0.8962264, a: 1}
+    Tint: {r: 0, g: 0.9150943, b: 0.8613863, a: 1}
     Layer: 1
     Path:
-    - PegCoord: {x: 1, y: 4}
+    - PegCoord: {x: 4, y: 13}
       Side: 0
       IsBendPoint: 0
-    - PegCoord: {x: 0, y: 3}
+    - PegCoord: {x: 2, y: 10}
       Side: 0
       IsBendPoint: 1
-    - PegCoord: {x: 0, y: 4}
+    - PegCoord: {x: 1, y: 13}
       Side: 0
       IsBendPoint: 0
   - RopeId: 3
-    Tint: {r: 0, g: 0.9150943, b: 0.8613863, a: 1}
-    Layer: 9
+    Tint: {r: 0.3, g: 0.75, b: 0.35, a: 1}
+    Layer: 2
     Path:
-    - PegCoord: {x: 2, y: 2}
+    - PegCoord: {x: 10, y: 10}
       Side: 0
       IsBendPoint: 0
-    - PegCoord: {x: 3, y: 2}
+    - PegCoord: {x: 10, y: 6}
       Side: 0
       IsBendPoint: 1
-    - PegCoord: {x: 3, y: 1}
+    - PegCoord: {x: 13, y: 6}
       Side: 0
       IsBendPoint: 1
-    - PegCoord: {x: 2, y: 1}
+    - PegCoord: {x: 13, y: 10}
+      Side: 0
+      IsBendPoint: 0
+  - RopeId: 4
+    Tint: {r: 0.2, g: 0.55, b: 0.95, a: 1}
+    Layer: 3
+    Path:
+    - PegCoord: {x: 7, y: 7}
+      Side: 0
+      IsBendPoint: 0
+    - PegCoord: {x: 11, y: 7}
+      Side: 0
+      IsBendPoint: 1
+    - PegCoord: {x: 11, y: 4}
+      Side: 0
+      IsBendPoint: 1
+    - PegCoord: {x: 7, y: 4}
       Side: 0
       IsBendPoint: 0
   - RopeId: 5
-    Tint: {r: 0.55, g: 0.25, b: 0.8, a: 1}
+    Tint: {r: 0.9, g: 0.2, b: 0.2, a: 1}
     Layer: 4
     Path:
-    - PegCoord: {x: 5, y: 1}
+    - PegCoord: {x: 10, y: 1}
       Side: 0
       IsBendPoint: 0
-    - PegCoord: {x: 4, y: 1}
+    - PegCoord: {x: 10, y: 5}
       Side: 0
       IsBendPoint: 1
-    - PegCoord: {x: 4, y: 2}
+    - PegCoord: {x: 13, y: 5}
       Side: 0
       IsBendPoint: 1
-    - PegCoord: {x: 5, y: 2}
+    - PegCoord: {x: 13, y: 1}
       Side: 0
       IsBendPoint: 0
   - RopeId: 6
-    Tint: {r: 0.3, g: 0.75, b: 0.35, a: 1}
-    Layer: 8
+    Tint: {r: 0.55, g: 0.25, b: 0.8, a: 1}
+    Layer: 5
     Path:
-    - PegCoord: {x: 3, y: 3}
+    - PegCoord: {x: 16, y: 7}
       Side: 0
       IsBendPoint: 0
-    - PegCoord: {x: 3, y: 2}
+    - PegCoord: {x: 12, y: 7}
       Side: 0
       IsBendPoint: 1
-    - PegCoord: {x: 4, y: 2}
+    - PegCoord: {x: 12, y: 4}
       Side: 0
       IsBendPoint: 1
-    - PegCoord: {x: 4, y: 3}
-      Side: 0
-      IsBendPoint: 0
-  - RopeId: 7
-    Tint: {r: 0.9, g: 0.2, b: 0.2, a: 1}
-    Layer: 6
-    Path:
-    - PegCoord: {x: 3, y: 0}
-      Side: 0
-      IsBendPoint: 0
-    - PegCoord: {x: 3, y: 1}
-      Side: 0
-      IsBendPoint: 1
-    - PegCoord: {x: 4, y: 1}
-      Side: 0
-      IsBendPoint: 1
-    - PegCoord: {x: 4, y: 0}
+    - PegCoord: {x: 16, y: 4}
       Side: 0
       IsBendPoint: 0
   crossingOverrides: []
