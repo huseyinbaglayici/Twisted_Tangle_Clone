@@ -1,31 +1,25 @@
 using System.Collections.Generic;
 using System.Linq;
+using TwistedTangle.Editor.Settings;
+using TwistedTangle.Runtime.Data.Enums;
 using TwistedTangle.Runtime.Data.ScriptableObjects;
 using TwistedTangle.Editor.Geometry;
 using UnityEngine;
 
 namespace TwistedTangle.Editor.Validation
 {
-    public enum DifficultyBucket
-    {
-        Easy,
-        Medium,
-        Hard
-    }
-
-    /// <summary>Read-only metrics summarizing a level, shown to the designer for self-service.</summary>
     public struct LevelMetrics
     {
         public int EntityCount;
         public int RopeCount;
         public int CrossingCount;
-        public int TangleResidual;   // crossings left after peeling top ropes (0 = separable)
-        public bool Separable;       // true => the tangle can be lifted apart (TangleResidual == 0)
+        public int TangleResidual;
+        public bool Separable;
         public int ColorCount;
         public int OverrideCount;
         public float TotalPathLength;
         public float DifficultyScore;
-        public DifficultyBucket Difficulty;
+        public LevelDifficulty Difficulty;
     }
 
     /// <summary>Outcome of validating a level: blocking errors, advisory warnings, and metrics.</summary>
@@ -44,16 +38,8 @@ namespace TwistedTangle.Editor.Validation
     /// </summary>
     public static class LevelValidator
     {
-        // Difficulty weights — tuned heuristically; crossings and color variety drive most of it.
-        private const float WCrossings = 1.0f;
-        private const float WRopes = 0.5f;
-        private const float WColors = 1.5f;
-        private const float WLength = 0.2f;
-        private const float WOverrides = 1.0f;
-        private const float MediumThreshold = 10f;
-        private const float HardThreshold = 24f;
-
-        public static ValidationReport Validate(LevelDataSO level, ICollection<string> knownEntityTypeIds)
+        public static ValidationReport Validate(LevelDataSO level, ICollection<string> knownEntityTypeIds,
+            DifficultySettingsSO settings = null)
         {
             var report = new ValidationReport();
             if (level == null)
@@ -148,13 +134,13 @@ namespace TwistedTangle.Editor.Validation
             int residual = CrossingSolver.PeelResidual(level.Ropes, crossings, aOver);
 
             // --- metrics + difficulty ----------------------------------------------------------
-            report.Metrics = BuildMetrics(level, crossings.Count);
+            report.Metrics = BuildMetrics(level, crossings.Count, settings);
             report.Metrics.TangleResidual = residual;
             report.Metrics.Separable = residual == 0;
             return report;
         }
 
-        private static LevelMetrics BuildMetrics(LevelDataSO level, int crossingCount)
+        private static LevelMetrics BuildMetrics(LevelDataSO level, int crossingCount, DifficultySettingsSO settings)
         {
             float length = 0f;
             foreach (var rope in level.Ropes)
@@ -172,24 +158,19 @@ namespace TwistedTangle.Editor.Validation
                 .Distinct()
                 .Count();
 
-            float score = WCrossings * crossingCount
-                          + WRopes * level.Ropes.Count
-                          + WColors * colorCount
-                          + WLength * length
-                          + WOverrides * level.CrossingOverrides.Count;
+            settings ??= DifficultySettingsSO.LoadOrCreate();
+            float score = settings.ComputeScore(crossingCount, level.Ropes.Count, colorCount, length, level.CrossingOverrides.Count);
 
             return new LevelMetrics
             {
-                EntityCount = level.GridEntities.Count,
-                RopeCount = level.Ropes.Count,
-                CrossingCount = crossingCount,
-                ColorCount = colorCount,
-                OverrideCount = level.CrossingOverrides.Count,
+                EntityCount     = level.GridEntities.Count,
+                RopeCount       = level.Ropes.Count,
+                CrossingCount   = crossingCount,
+                ColorCount      = colorCount,
+                OverrideCount   = level.CrossingOverrides.Count,
                 TotalPathLength = length,
                 DifficultyScore = score,
-                Difficulty = score < MediumThreshold ? DifficultyBucket.Easy
-                    : score < HardThreshold ? DifficultyBucket.Medium
-                    : DifficultyBucket.Hard
+                Difficulty      = settings.Classify(score),
             };
         }
 

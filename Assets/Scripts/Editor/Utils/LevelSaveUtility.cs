@@ -69,9 +69,10 @@ namespace TwistedTangle.Editor.Utils
         /// <summary>Deep-copies all level data from <paramref name="src"/> into <paramref name="dst"/>.</summary>
         public static void CopyInto(LevelDataSO src, LevelDataSO dst)
         {
-            dst.LevelId = src.LevelId;
-            dst.GridWidth = src.GridWidth;
-            dst.GridHeight = src.GridHeight;
+            dst.LevelId     = src.LevelId;
+            dst.Difficulty  = src.Difficulty;
+            dst.GridWidth   = src.GridWidth;
+            dst.GridHeight  = src.GridHeight;
             dst.TimeSeconds = src.TimeSeconds;
 
             dst.GridEntities.Clear();

@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using TwistedTangle.Runtime.Data.Enums;
 using TwistedTangle.Runtime.Data.ValueObjects;
 using UnityEngine;
 
@@ -16,6 +17,7 @@ namespace TwistedTangle.Runtime.Data.ScriptableObjects
     public class LevelDataSO : ScriptableObject
     {
         [SerializeField] private int levelId = -1;
+        [SerializeField] private LevelDifficulty difficulty = LevelDifficulty.Normal;
         [SerializeField] private int gridWidth = 5;
         [SerializeField] private int gridHeight = 5;
         [SerializeField] private int timeSeconds = 45;
@@ -28,6 +30,12 @@ namespace TwistedTangle.Runtime.Data.ScriptableObjects
         {
             get => levelId;
             set => levelId = value;
+        }
+
+        public LevelDifficulty Difficulty
+        {
+            get => difficulty;
+            set => difficulty = value;
         }
 
         public int GridWidth

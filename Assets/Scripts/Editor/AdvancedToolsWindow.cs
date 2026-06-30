@@ -1,8 +1,10 @@
 using System.Collections.Generic;
 using System.Linq;
+using TwistedTangle.Editor.Settings;
 using TwistedTangle.Editor.Utils;
 using TwistedTangle.Editor.Validation;
 using UnityEditor;
+using UnityEditor.UIElements;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -38,8 +40,27 @@ namespace TwistedTangle.Editor
             scroll.Add(title);
 
             scroll.Add(BuildBatchCheckSection());
+            scroll.Add(BuildDifficultySettingsSection());
 
             root.Add(scroll);
+        }
+
+        private VisualElement BuildDifficultySettingsSection()
+        {
+            var section = new Foldout { text = "Difficulty Parameters", value = false };
+            section.AddToClassList("tt-section");
+
+            var hint = new Label("Weights and thresholds used by the validator and AI generator to score level difficulty.");
+            hint.AddToClassList("tt-hint");
+            hint.style.whiteSpace = WhiteSpace.Normal;
+            hint.style.marginBottom = 6;
+            section.Add(hint);
+
+            var settings = DifficultySettingsSO.LoadOrCreate();
+            var inspector = new InspectorElement(settings);
+            section.Add(inspector);
+
+            return section;
         }
 
         private VisualElement BuildBatchCheckSection()

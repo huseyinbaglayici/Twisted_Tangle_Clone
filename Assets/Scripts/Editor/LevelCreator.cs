@@ -50,6 +50,7 @@ namespace TwistedTangle.Editor
         private readonly HashSet<string> _hiddenSwatchNames = new();
 
         private IntegerField _levelIdField, _widthField, _heightField, _timeField;
+        private EnumField _difficultyField;
         private RopeCanvasElement _canvas;
         private VisualElement _canvasHost;
         private Label _zoomLabel;
@@ -498,6 +499,20 @@ namespace TwistedTangle.Editor
         {
             var bar = new VisualElement();
             bar.AddToClassList("tt-level-props-bar");
+
+            var diffLbl = new Label("Difficulty");
+            diffLbl.AddToClassList("tt-level-props-bar__label");
+            bar.Add(diffLbl);
+
+            _difficultyField = new EnumField(LevelDifficulty.Normal);
+            _difficultyField.style.minWidth = 80;
+            _difficultyField.style.marginRight = 12;
+            _difficultyField.tooltip = "Auto-computed on Validate. Override manually before saving.";
+            _difficultyField.RegisterValueChangedCallback(evt =>
+            {
+                if (_level != null) _level.Difficulty = (LevelDifficulty)evt.newValue;
+            });
+            bar.Add(_difficultyField);
 
             var lbl = new Label("Background");
             lbl.AddToClassList("tt-level-props-bar__label");
@@ -1328,6 +1343,12 @@ namespace TwistedTangle.Editor
             diffRow.Add(diffBadge);
             _validationContainer.Add(diffRow);
 
+            if (_difficultyField != null && _level != null)
+            {
+                _level.Difficulty = m.Difficulty;
+                _difficultyField.SetValueWithoutNotify(m.Difficulty);
+            }
+
             if (_validationStatusDot != null)
             {
                 _validationStatusDot.EnableInClassList("tt-status-dot--ok",    report.IsValid);
@@ -1614,8 +1635,9 @@ namespace TwistedTangle.Editor
                 return;
             }
 
-            _level.LevelId = _levelIdField.value;
+            _level.LevelId     = _levelIdField.value;
             _level.TimeSeconds = _timeField.value;
+            if (_difficultyField != null) _level.Difficulty = (LevelDifficulty)_difficultyField.value;
             var report = LevelValidator.Validate(_level, _entityLookup.Keys);
             RebuildValidation();
 
@@ -1660,6 +1682,7 @@ namespace TwistedTangle.Editor
             MigrateLevelToSubGrid();
             RefreshAll();
             _bgMaterialField.SetValueWithoutNotify(_level.BackgroundMaterial);
+            _difficultyField?.SetValueWithoutNotify(_level.Difficulty);
             ApplyBackgroundToCanvas(_level.BackgroundMaterial);
         }
 

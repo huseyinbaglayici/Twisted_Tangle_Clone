@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 022f945e2757f8e40b66ebe0f186849d, type: 3}
+  m_Name: DifficultySettings
+  m_EditorClassIdentifier: 
+  WCrossings: 1
+  WRopes: 0.5
+  WColors: 1.5
+  WLength: 0.2
+  WOverrides: 1
+  NormalThreshold: 10
+  HardThreshold: 24
+  VeryHardThreshold: 40
+  SpecialThreshold: 60
