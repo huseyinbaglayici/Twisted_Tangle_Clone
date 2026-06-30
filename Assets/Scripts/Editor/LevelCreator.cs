@@ -1661,7 +1661,16 @@ namespace TwistedTangle.Editor
         private void MigrateLevelToSubGrid()
         {
             if (_level == null) return;
-            // Detect old format: endpoint PegCoord matches an entity Coordinates directly (coarse grid)
+            // New-format levels have endpoint PegCoords that match PinToSub(entity.Coordinates).
+            // Old-format levels have endpoint PegCoords that match entity.Coordinates directly.
+            // We must check new-format first: a coarse entity coord can coincidentally equal a
+            // sub-grid pin coord (e.g. entity at (1,1) == PinToSub(0,0)), causing a false positive
+            // that triggers a second migration and corrupts coords by scaling them again by SubDiv.
+            bool alreadyMigrated = _level.Ropes.Any(r =>
+                r.Path.Count > 0 &&
+                _level.GridEntities.Any(e => CrossingSolver.PinToSub(e.Coordinates) == r.Path[0].PegCoord));
+            if (alreadyMigrated) return;
+
             bool isOldFormat = _level.Ropes.Any(r =>
                 r.Path.Count > 0 &&
                 _level.GridEntities.Any(e => e.Coordinates == r.Path[0].PegCoord));

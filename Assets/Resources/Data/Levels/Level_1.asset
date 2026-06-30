@@ -1,0 +1,188 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8cd0362da516a7c4380f02963c80dc64, type: 3}
+  m_Name: Level_1
+  m_EditorClassIdentifier: 
+  levelId: 1
+  gridWidth: 4
+  gridHeight: 6
+  timeSeconds: 45
+  gridEntities:
+  - Coordinates: {x: 0, y: 4}
+    TypeId: pin.standart
+  - Coordinates: {x: 0, y: 1}
+    TypeId: pin.standart
+  - Coordinates: {x: 0, y: 0}
+    TypeId: pin.standart
+  - Coordinates: {x: 1, y: 1}
+    TypeId: pin.standart
+  - Coordinates: {x: 1, y: 2}
+    TypeId: pin.standart
+  - Coordinates: {x: 1, y: 3}
+    TypeId: pin.standart
+  - Coordinates: {x: 1, y: 4}
+    TypeId: pin.standart
+  - Coordinates: {x: 2, y: 4}
+    TypeId: pin.standart
+  - Coordinates: {x: 2, y: 3}
+    TypeId: pin.standart
+  - Coordinates: {x: 3, y: 4}
+    TypeId: pin.standart
+  - Coordinates: {x: 2, y: 2}
+    TypeId: pin.standart
+  - Coordinates: {x: 3, y: 2}
+    TypeId: pin.standart
+  - Coordinates: {x: 3, y: 1}
+    TypeId: pin.standart
+  - Coordinates: {x: 0, y: 3}
+    TypeId: pin.standart
+  - Coordinates: {x: 2, y: 1}
+    TypeId: pin.standart
+  - Coordinates: {x: 2, y: 0}
+    TypeId: pin.standart
+  ropes:
+  - RopeId: 0
+    Tint: {r: 0.3, g: 0.75, b: 0.35, a: 1}
+    Layer: 0
+    Path:
+    - PegCoord: {x: 1, y: 13}
+      Side: 0
+      IsBendPoint: 0
+    - PegCoord: {x: 2, y: 10}
+      Side: 0
+      IsBendPoint: 1
+    - PegCoord: {x: 2, y: 7}
+      Side: 0
+      IsBendPoint: 1
+    - PegCoord: {x: 1, y: 4}
+      Side: 0
+      IsBendPoint: 0
+  - RopeId: 1
+    Tint: {r: 0.55, g: 0.25, b: 0.8, a: 1}
+    Layer: 1
+    Path:
+    - PegCoord: {x: 1, y: 10}
+      Side: 0
+      IsBendPoint: 0
+    - PegCoord: {x: 2, y: 10}
+      Side: 0
+      IsBendPoint: 1
+    - PegCoord: {x: 2, y: 11}
+      Side: 0
+      IsBendPoint: 1
+    - PegCoord: {x: 1, y: 10}
+      Side: 0
+      IsBendPoint: 0
+    - PegCoord: {x: 4, y: 7}
+      Side: 0
+      IsBendPoint: 0
+  - RopeId: 2
+    Tint: {r: 0.2, g: 0.55, b: 0.95, a: 1}
+    Layer: 2
+    Path:
+    - PegCoord: {x: 1, y: 1}
+      Side: 0
+      IsBendPoint: 0
+    - PegCoord: {x: 5, y: 2}
+      Side: 0
+      IsBendPoint: 1
+    - PegCoord: {x: 6, y: 4}
+      Side: 0
+      IsBendPoint: 1
+    - PegCoord: {x: 7, y: 7}
+      Side: 0
+      IsBendPoint: 0
+  - RopeId: 3
+    Tint: {r: 0.95, g: 0.4, b: 0.7, a: 1}
+    Layer: 3
+    Path:
+    - PegCoord: {x: 7, y: 4}
+      Side: 0
+      IsBendPoint: 0
+    - PegCoord: {x: 5, y: 3}
+      Side: 0
+      IsBendPoint: 1
+    - PegCoord: {x: 5, y: 2}
+      Side: 0
+      IsBendPoint: 1
+    - PegCoord: {x: 7, y: 1}
+      Side: 0
+      IsBendPoint: 0
+  - RopeId: 4
+    Tint: {r: 0.2, g: 0.55, b: 0.95, a: 1}
+    Layer: 4
+    Path:
+    - PegCoord: {x: 4, y: 4}
+      Side: 0
+      IsBendPoint: 0
+    - PegCoord: {x: 5, y: 6}
+      Side: 0
+      IsBendPoint: 1
+    - PegCoord: {x: 5, y: 7}
+      Side: 0
+      IsBendPoint: 1
+    - PegCoord: {x: 5, y: 9}
+      Side: 0
+      IsBendPoint: 1
+    - PegCoord: {x: 4, y: 13}
+      Side: 0
+      IsBendPoint: 0
+  - RopeId: 6
+    Tint: {r: 0.9, g: 0.2, b: 0.2, a: 1}
+    Layer: 5
+    Path:
+    - PegCoord: {x: 7, y: 13}
+      Side: 0
+      IsBendPoint: 0
+    - PegCoord: {x: 5, y: 11}
+      Side: 0
+      IsBendPoint: 1
+    - PegCoord: {x: 5, y: 9}
+      Side: 0
+      IsBendPoint: 1
+    - PegCoord: {x: 6, y: 10}
+      Side: 0
+      IsBendPoint: 1
+    - PegCoord: {x: 4, y: 10}
+      Side: 0
+      IsBendPoint: 0
+  - RopeId: 7
+    Tint: {r: 0.95, g: 0.85, b: 0.1, a: 1}
+    Layer: 6
+    Path:
+    - PegCoord: {x: 10, y: 13}
+      Side: 0
+      IsBendPoint: 0
+    - PegCoord: {x: 9, y: 6}
+      Side: 0
+      IsBendPoint: 1
+    - PegCoord: {x: 10, y: 4}
+      Side: 0
+      IsBendPoint: 0
+  - RopeId: 10
+    Tint: {r: 1, g: 0.55, b: 0, a: 1}
+    Layer: 7
+    Path:
+    - PegCoord: {x: 7, y: 10}
+      Side: 0
+      IsBendPoint: 0
+    - PegCoord: {x: 10, y: 6}
+      Side: 0
+      IsBendPoint: 1
+    - PegCoord: {x: 8, y: 6}
+      Side: 0
+      IsBendPoint: 1
+    - PegCoord: {x: 10, y: 7}
+      Side: 0
+      IsBendPoint: 0
+  crossingOverrides: []
+  backgroundMaterial: {fileID: 2100000, guid: 547b8ba5e45adc249a11dccf009ff753, type: 2}
