@@ -1556,19 +1556,23 @@ namespace TwistedTangle.Editor
         private void FinishRope()
         {
             if (_previewRope == null) return;
-            if (_previewRope.Path.Count >= 2)
-            {
-                if (_previewRope.Path[^1].IsBendPoint)
-                {
-                    ShowNotification(new GUIContent("End the rope on a pin."));
-                    return;
-                }
 
-                Undo.RecordObject(_level, "Add Rope");
-                _level.Ropes.Add(_previewRope);
-                _selectedRopeId = _previewRope.RopeId;
-                _nextRopeId++;
+            if (_previewRope.Path.Count < 2)
+            {
+                ShowNotification(new GUIContent("Connect to at least two pins before finishing."));
+                return;
             }
+
+            if (_previewRope.Path[^1].IsBendPoint)
+            {
+                ShowNotification(new GUIContent("End the rope on a pin."));
+                return;
+            }
+
+            Undo.RecordObject(_level, "Add Rope");
+            _level.Ropes.Add(_previewRope);
+            _selectedRopeId = _previewRope.RopeId;
+            _nextRopeId++;
 
             _previewRope = null;
             _waypointHistory.Clear();
