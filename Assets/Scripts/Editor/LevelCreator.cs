@@ -577,8 +577,8 @@ namespace TwistedTangle.Editor
             _canvas = new RopeCanvasElement
             {
                 PegColorResolver   = ResolveEntityColor,
-                IsBlockingResolver = typeId => _entityLookup.TryGetValue(typeId, out var def)
-                                              && def.BaseType != null && def.BaseType.ShowOccupiedMarker,
+                MarkerResolver = typeId => _entityLookup.TryGetValue(typeId, out var def)
+                                          ? def.CanvasMarker : CanvasMarker.None,
             };
             _canvas.AddToClassList("tt-canvas");
             _canvas.CellClicked = OnCanvasCellClicked;
@@ -821,10 +821,25 @@ namespace TwistedTangle.Editor
 
         private void AddBaseButton(EntityBaseTypeSO baseType, string label, Color accent)
         {
-            var btn = new Button(() => SelectBase(baseType)) { text = label };
+            var btn = new Button(() =>
+            {
+                if (baseType != null && _tool == Tool.Place && _selectedBaseType == baseType)
+                    EditorGUIUtility.PingObject(baseType);
+                else
+                    SelectBase(baseType);
+            }) { text = label };
             btn.AddToClassList("tt-tool");
             btn.style.borderLeftWidth = 6;
             btn.style.borderLeftColor = accent;
+            if (baseType != null)
+            {
+                string baseShortcut = ShortcutTooltip(LevelEditorCommands.BaseCommandId(baseType.BaseId));
+                btn.tooltip = string.IsNullOrEmpty(baseShortcut)
+                    ? "Click again → locate in Project"
+                    : $"{baseShortcut}\nClick again → locate in Project";
+                btn.RegisterCallback<PointerEnterEvent>(_ => btn.style.opacity = 0.6f);
+                btn.RegisterCallback<PointerLeaveEvent>(_ => btn.style.opacity = 1f);
+            }
             _baseButtons.Add((baseType, btn));
             _toolsContainer.Add(btn);
         }
@@ -1063,8 +1078,15 @@ namespace TwistedTangle.Editor
                 return;
             }
 
-            var header = new Label($"{baseName} types");
+            var header = new Label(_selectedBaseType != null ? $"{baseName} types  ⤢" : $"{baseName} types");
             header.AddToClassList("tt-section__header");
+            if (_selectedBaseType != null)
+            {
+                header.tooltip = $"Click to locate {baseName} base asset in Project";
+                header.RegisterCallback<PointerEnterEvent>(_ => header.style.opacity = 0.6f);
+                header.RegisterCallback<PointerLeaveEvent>(_ => header.style.opacity = 1f);
+                header.RegisterCallback<ClickEvent>(_ => EditorGUIUtility.PingObject(_selectedBaseType));
+            }
             _paletteContainer.Add(header);
 
             var row = MakeRow();
@@ -1074,9 +1096,14 @@ namespace TwistedTangle.Editor
                 var captured = def;
                 var btn = new Button(() =>
                 {
-                    _selectedEntity = captured;
-                    RebuildPalette();
-                    RefreshCanvas();
+                    if (_selectedEntity == captured)
+                        EditorGUIUtility.PingObject(captured);
+                    else
+                    {
+                        _selectedEntity = captured;
+                        RebuildPalette();
+                        RefreshCanvas();
+                    }
                 })
                 {
                     text = def.DisplayName
@@ -1085,11 +1112,13 @@ namespace TwistedTangle.Editor
                 if (def == _selectedEntity) btn.AddToClassList("tt-tool--active");
                 btn.style.borderLeftWidth = 6;
                 btn.style.borderLeftColor = def.EditorColor;
-                btn.tooltip = ShortcutTooltip(LevelEditorCommands.EntityCommandId(def.TypeId));
-                _entityButtons.Add((captured, btn)); // so UpdateShortcutHints can refresh its hint live
+                string shortcut = ShortcutTooltip(LevelEditorCommands.EntityCommandId(def.TypeId));
+                btn.tooltip = string.IsNullOrEmpty(shortcut)
+                    ? "Click again → locate in Project"
+                    : $"{shortcut}\nClick again → locate in Project";
+                _entityButtons.Add((captured, btn));
                 row.Add(btn);
             }
-
             _paletteContainer.Add(row);
         }
 
@@ -1849,9 +1878,13 @@ namespace TwistedTangle.Editor
                 btn.tooltip = ShortcutTooltip(LevelEditorCommands.EntityCommandId(def.TypeId));
 
             foreach (var (baseType, btn) in _baseButtons)
-                btn.tooltip = baseType != null
-                    ? ShortcutTooltip(LevelEditorCommands.BaseCommandId(baseType.BaseId))
-                    : string.Empty;
+            {
+                if (baseType == null) { btn.tooltip = string.Empty; continue; }
+                string sc = ShortcutTooltip(LevelEditorCommands.BaseCommandId(baseType.BaseId));
+                btn.tooltip = string.IsNullOrEmpty(sc)
+                    ? "Click again → locate in Project"
+                    : $"{sc}\nClick again → locate in Project";
+            }
         }
 
         private static string ShortcutTooltip(string commandId)

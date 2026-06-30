@@ -10,12 +10,12 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: e6558c0148d099341a44ac3621135069, type: 3}
-  m_Name: Entity_obstacle_occupying_block
+  m_Name: Entity_obstacle_funnel
   m_EditorClassIdentifier: 
-  typeId: obstacle.occupying_block
-  displayName: occupying block
-  editorColor: {r: 0.8301887, g: 0.74012107, b: 0.76698333, a: 1}
+  typeId: obstacle.funnel
+  displayName: Funnel
+  editorColor: {r: 0.8396226, g: 0.79089, b: 0.17030083, a: 1}
   baseType: {fileID: 11400000, guid: 39707d918ba6a5547bc710d645129690, type: 2}
   prefab: {fileID: 0}
   tags: []
-  canvasMarker: 1
+  canvasMarker: 2

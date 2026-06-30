@@ -201,11 +201,12 @@ namespace TwistedTangle.Editor
                 header.style.borderLeftColor = accent;
                 _entitiesContainer.Add(header);
 
-                foreach (var def in defs.OrderBy(d => LevelCreator.IsNailed(d) ? 1 : 0).ThenBy(d => d.DisplayName))
+                foreach (var def in defs.OrderBy(d => IsObstacle(d) ? 2 : LevelCreator.IsNailed(d) ? 1 : 0).ThenBy(d => d.DisplayName))
                 {
-                    string id        = def.TypeId;
-                    bool   mandatory = !LevelCreator.IsNailed(def);
-                    var    item      = MakeRow();
+                    string id   = def.TypeId;
+                    bool mandatory = !IsObstacle(def) && !LevelCreator.IsNailed(def);
+
+                    var item = MakeRow();
                     item.AddToClassList("tt-ai-entity-row");
 
                     var toggle = new Toggle { value = true };
@@ -228,7 +229,10 @@ namespace TwistedTangle.Editor
                     }
 
                     item.Add(toggle);
-                    var lbl = new Label(def.DisplayName);
+                    string suffix = IsObstacle(def) ? " [obstacle]"
+                        : LevelCreator.IsNailed(def) ? " [nailed]"
+                        : string.Empty;
+                    var lbl = new Label(def.DisplayName + suffix);
                     if (mandatory) lbl.AddToClassList("tt-ai-entity-required");
                     item.Add(lbl);
                     _entitiesContainer.Add(item);
@@ -353,17 +357,24 @@ namespace TwistedTangle.Editor
             _statusLabel.EnableInClassList("tt-validation__error", !ok);
         }
 
-        private LevelGenerationRequest BuildRequest() => new()
+        private static bool IsObstacle(EntityDefinitionSO d) => d.CanvasMarker != CanvasMarker.None;
+
+        private LevelGenerationRequest BuildRequest()
         {
-            GridWidth   = Mathf.Max(1, _gridWidth?.value    ?? 6),
-            GridHeight  = Mathf.Max(1, _gridHeight?.value   ?? 6),
-            TimeSeconds = Mathf.Max(1, _timeSeconds?.value  ?? 45),
-            Difficulty  = _difficulty?.value ?? "Medium",
-            EntityTypeIds  = _entityDefs.Where(d => !_excludedTypeIds.Contains(d.TypeId)).Select(d => d.TypeId).ToList(),
-            NailedTypeIds  = _entityDefs.Where(d => LevelCreator.IsNailed(d) && !_excludedTypeIds.Contains(d.TypeId)).Select(d => d.TypeId).ToList(),
-            PaletteHex     = _swatches.Select(sw => "#" + ColorUtility.ToHtmlStringRGB(sw.color)).ToList(),
-            ReferenceLevelDescription = _refLevel != null ? LevelAiGenerator.DescribeLevel(_refLevel) : null,
-        };
+            var active = _entityDefs.Where(d => !_excludedTypeIds.Contains(d.TypeId)).ToList();
+            return new LevelGenerationRequest
+            {
+                GridWidth   = Mathf.Max(1, _gridWidth?.value    ?? 6),
+                GridHeight  = Mathf.Max(1, _gridHeight?.value   ?? 6),
+                TimeSeconds = Mathf.Max(1, _timeSeconds?.value  ?? 45),
+                Difficulty  = _difficulty?.value ?? "Medium",
+                EntityTypeIds   = active.Where(d => !IsObstacle(d)).Select(d => d.TypeId).ToList(),
+                NailedTypeIds   = active.Where(d => !IsObstacle(d) && LevelCreator.IsNailed(d)).Select(d => d.TypeId).ToList(),
+                ObstacleTypeIds = active.Where(d => IsObstacle(d)).Select(d => d.TypeId).ToList(),
+                PaletteHex      = _swatches.Select(sw => "#" + ColorUtility.ToHtmlStringRGB(sw.color)).ToList(),
+                ReferenceLevelDescription = _refLevel != null ? LevelAiGenerator.DescribeLevel(_refLevel) : null,
+            };
+        }
 
         private void Refresh()
         {

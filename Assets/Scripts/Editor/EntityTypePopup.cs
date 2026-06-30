@@ -9,24 +9,17 @@ using UnityEngine.UIElements;
 
 namespace TwistedTangle.Editor
 {
-    /// <summary>
-    /// Transient form (anchored under "+ New Entity Type") for authoring a new entity sub-type. You pick an
-    /// existing base type from the dropdown — or "＋ New base type…" to create one inline — then name the
-    /// sub-type. It submits through a callback supplied by the owner: on success it closes, on failure it
-    /// shows the error inline and stays open. State persists across popup sessions via EditorPrefs.
-    /// </summary>
     public class EntityTypePopup : PopupWindowContent
     {
         private const string NewBaseChoice = "＋ New base type…";
 
-        // EditorPrefs keys — no project scoping needed, these are trivial form defaults
-        private const string PrefBase = "TwistedTangle.EntityPopup.BaseIdx";
-        private const string PrefSub = "TwistedTangle.EntityPopup.SubName";
+        private const string PrefBase  = "TwistedTangle.EntityPopup.BaseIdx";
+        private const string PrefSub   = "TwistedTangle.EntityPopup.SubName";
         private const string PrefColor = "TwistedTangle.EntityPopup.Color";
 
         private readonly List<EntityBaseTypeSO> _bases;
 
-        // (existingBase, newBaseName, subName, color, prefab) -> (ok, error). existingBase null = create a new base.
+        // existingBase null = create new base
         private readonly Func<EntityBaseTypeSO, string, string, Color, GameObject, (bool ok, string error)> _onSubmit;
 
         private DropdownField _baseDropdown;

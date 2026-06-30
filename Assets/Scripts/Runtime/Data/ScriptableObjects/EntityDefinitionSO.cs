@@ -3,14 +3,7 @@ using UnityEngine.Scripting.APIUpdating;
 
 namespace TwistedTangle.Runtime.Data.ScriptableObjects
 {
-    /// <summary>
-    /// Data-driven definition of an entity type — anything that can sit on a grid node (a pin, a lock,
-    /// whatever we invent next). Adding a new kind means creating a new asset of this type, no editor
-    /// code changes. The editor palette and the runtime loader both discover these by scanning the
-    /// project/Resources, so a new asset shows up automatically in the tool and loads correctly in game.
-    /// </summary>
-    /// <remarks>Renamed from <c>PegDefinitionSO</c>; <see cref="MovedFromAttribute"/> keeps assets and
-    /// levels that referenced the old class name linked to this one.</remarks>
+    // Renamed from PegDefinitionSO; MovedFrom keeps saved levels linked after the rename.
     [MovedFrom(true, sourceClassName: "PegDefinitionSO")]
     [CreateAssetMenu(
         fileName = "Entity_New",
@@ -40,11 +33,20 @@ namespace TwistedTangle.Runtime.Data.ScriptableObjects
                  "editor does not interpret these, so new behaviors need no editor changes.")]
         [SerializeField] private string[] tags;
 
+#if UNITY_EDITOR
+        [Tooltip("Symbol drawn on the canvas cell. Blocked = ⊘, Funnel = △. Leave None for normal pegs.")]
+        [SerializeField] private CanvasMarker canvasMarker = CanvasMarker.None;
+#endif
+
         public string TypeId      => string.IsNullOrEmpty(typeId)      ? name   : typeId;
         public string DisplayName => string.IsNullOrEmpty(displayName)  ? TypeId : displayName;
         public Color  EditorColor => editorColor;
         public EntityBaseTypeSO BaseType => baseType;
         public GameObject Prefab => prefab;
         public string[] Tags     => tags ?? System.Array.Empty<string>();
+
+#if UNITY_EDITOR
+        public CanvasMarker CanvasMarker => canvasMarker;
+#endif
     }
 }

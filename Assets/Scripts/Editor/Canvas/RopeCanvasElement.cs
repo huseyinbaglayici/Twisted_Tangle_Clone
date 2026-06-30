@@ -9,16 +9,6 @@ using UnityEngine.UIElements;
 
 namespace TwistedTangle.Editor.Canvas
 {
-    /// <summary>
-    /// The drawing surface of the level editor. Renders the grid, pegs, and ropes with Painter2D
-    /// (UI Toolkit's vector API). Rope crossings use the knot-diagram trick: the rope that goes
-    /// "under" is broken with a small gap at the crossing, which makes the over/under order obvious
-    /// and stays correct regardless of how many ropes pile onto the same spot.
-    ///
-    /// The window owns all state; it pushes data into the public fields and calls
-    /// <see cref="Redraw"/>. The element only translates pointer input into cell coordinates and
-    /// forwards it through the callbacks.
-    /// </summary>
     public class RopeCanvasElement : VisualElement
     {
         // --- state pushed by the window ---
@@ -27,7 +17,7 @@ namespace TwistedTangle.Editor.Canvas
         public int GridHeight;
         public LevelDataSO Level;
         public Func<string, Color> PegColorResolver;
-        public Func<string, bool> IsBlockingResolver;
+        public Func<string, CanvasMarker> MarkerResolver;
         public RopeData PreviewRope; // in-progress rope being authored (null if none)
         public int SelectedRopeId = -1;
         public bool ShowCrossings; // highlight crossing points (flip tool)
@@ -186,38 +176,49 @@ namespace TwistedTangle.Editor.Canvas
 
         private void DrawBlockingMarkers(Painter2D p)
         {
-            if (Level == null || IsBlockingResolver == null) return;
-            float r    = CellSize * 0.30f;
-            float diag = r * 0.70f;
+            if (Level == null || MarkerResolver == null) return;
+            p.lineCap = LineCap.Round;
 
             foreach (var entity in Level.GridEntities)
             {
-                if (!IsBlockingResolver(entity.TypeId)) continue;
+                var marker = MarkerResolver(entity.TypeId);
+                if (marker == CanvasMarker.None) continue;
                 Vector2 c = ToPx(CrossingSolver.Center(entity.Coordinates));
 
-                // Shadow pass
-                p.lineWidth   = 5f;
-                p.strokeColor = new Color(0f, 0f, 0f, 0.50f);
-                p.lineCap     = LineCap.Round;
-                p.BeginPath();
-                p.Arc(c, r, Angle.Degrees(0f), Angle.Degrees(360f));
-                p.Stroke();
-                p.BeginPath();
-                p.MoveTo(c + new Vector2(-diag, -diag));
-                p.LineTo(c + new Vector2( diag,  diag));
-                p.Stroke();
-
-                // White symbol on top
-                p.lineWidth   = 2.5f;
-                p.strokeColor = new Color(1f, 1f, 1f, 0.90f);
-                p.BeginPath();
-                p.Arc(c, r, Angle.Degrees(0f), Angle.Degrees(360f));
-                p.Stroke();
-                p.BeginPath();
-                p.MoveTo(c + new Vector2(-diag, -diag));
-                p.LineTo(c + new Vector2( diag,  diag));
-                p.Stroke();
+                if (marker == CanvasMarker.Blocked)
+                    DrawBlocked(p, c);
+                else if (marker == CanvasMarker.Funnel)
+                    DrawFunnel(p, c);
             }
+        }
+
+        private void DrawBlocked(Painter2D p, Vector2 c)
+        {
+            float r    = CellSize * 0.30f;
+            float diag = r * 0.70f;
+
+            p.lineWidth = 5f; p.strokeColor = new Color(0f, 0f, 0f, 0.50f);
+            p.BeginPath(); p.Arc(c, r, Angle.Degrees(0f), Angle.Degrees(360f)); p.Stroke();
+            p.BeginPath(); p.MoveTo(c + new Vector2(-diag, -diag)); p.LineTo(c + new Vector2(diag, diag)); p.Stroke();
+
+            p.lineWidth = 2.5f; p.strokeColor = new Color(1f, 1f, 1f, 0.90f);
+            p.BeginPath(); p.Arc(c, r, Angle.Degrees(0f), Angle.Degrees(360f)); p.Stroke();
+            p.BeginPath(); p.MoveTo(c + new Vector2(-diag, -diag)); p.LineTo(c + new Vector2(diag, diag)); p.Stroke();
+        }
+
+        private void DrawFunnel(Painter2D p, Vector2 c)
+        {
+            float r = CellSize * 0.30f;
+            // △ upward triangle
+            var top   = c + new Vector2(0f,   -r);
+            var left  = c + new Vector2(-r,    r * 0.80f);
+            var right = c + new Vector2( r,    r * 0.80f);
+
+            p.lineWidth = 5f; p.strokeColor = new Color(0f, 0f, 0f, 0.50f);
+            p.BeginPath(); p.MoveTo(top); p.LineTo(left); p.LineTo(right); p.ClosePath(); p.Stroke();
+
+            p.lineWidth = 2.5f; p.strokeColor = new Color(1f, 1f, 1f, 0.90f);
+            p.BeginPath(); p.MoveTo(top); p.LineTo(left); p.LineTo(right); p.ClosePath(); p.Stroke();
         }
 
         private void DrawPegs(Painter2D p)

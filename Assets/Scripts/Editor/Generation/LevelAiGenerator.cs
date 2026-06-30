@@ -13,9 +13,10 @@ namespace TwistedTangle.Editor.Generation
         public int GridHeight = 6;
         public int TimeSeconds = 45;
         public string Difficulty = "Medium";
-        public List<string> EntityTypeIds = new();
-        public List<string> NailedTypeIds = new();
-        public List<string> PaletteHex = new();
+        public List<string> EntityTypeIds   = new(); // movable peg types
+        public List<string> NailedTypeIds   = new(); // immovable peg types (rope endpoints, can't be dragged)
+        public List<string> ObstacleTypeIds = new(); // immovable cell blockers — no rope endpoints
+        public List<string> PaletteHex      = new();
         public string ReferenceLevelDescription = null;
     }
 
@@ -245,10 +246,18 @@ namespace TwistedTangle.Editor.Generation
               .Append(", timeSeconds=").Append(r.TimeSeconds).AppendLine(".");
 
             if (r.EntityTypeIds is { Count: > 0 })
-                sb.Append("Allowed peg typeId values: ").AppendLine(string.Join(", ", r.EntityTypeIds));
+                sb.Append("Allowed peg typeId values (rope endpoints, player can drag these): ").AppendLine(string.Join(", ", r.EntityTypeIds));
 
             if (r.NailedTypeIds is { Count: > 0 })
-                sb.Append("NAILED (immovable) types: ").AppendLine(string.Join(", ", r.NailedTypeIds));
+                sb.Append("NAILED peg types (immovable rope endpoints — player cannot drag): ").AppendLine(string.Join(", ", r.NailedTypeIds));
+
+            if (r.ObstacleTypeIds is { Count: > 0 })
+            {
+                sb.Append("OBSTACLE types: ").AppendLine(string.Join(", ", r.ObstacleTypeIds));
+                sb.AppendLine("  - Place in gridEntities like a peg. Cannot be a rope endpoint. Player cannot move them.");
+                sb.AppendLine("  - Their cells count as occupied — subtract them from the empty-cell budget.");
+                sb.AppendLine("  - Use 0–2 obstacles to restrict movement space and raise difficulty.");
+            }
 
             if (r.PaletteHex is { Count: > 0 })
                 sb.Append("Rope colors (use distinct color per rope): ").AppendLine(string.Join(", ", r.PaletteHex));
