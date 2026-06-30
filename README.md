@@ -1,6 +1,6 @@
 <h1>Editor Tool/Data: Done</h1>
 
-<a href="Twisted%20Tangle%20Screenshots/index.md"><b>All Screenshots</b></a>
+<a href="Twisted_Tangle_Screenshots/index.md"><b>All Screenshots</b></a>
 
 <br/>
 
