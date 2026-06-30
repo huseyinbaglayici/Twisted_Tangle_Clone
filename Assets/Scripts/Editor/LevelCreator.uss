@@ -545,6 +545,15 @@
     border-radius: 2px;
     margin-right: 8px;
     flex-shrink: 0;
+    cursor: link;
+    border-width: 1px;
+    border-color: rgba(0,0,0,0);
+}
+
+.tt-rope-row__swatch--paintable:hover {
+    border-color: rgba(255,255,255,0.6);
+    width: 14px;
+    height: 14px;
 }
 
 .tt-rope-row__info {

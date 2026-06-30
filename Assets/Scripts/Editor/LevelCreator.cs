@@ -1252,6 +1252,16 @@ namespace TwistedTangle.Editor
                 var swatch = new VisualElement();
                 swatch.AddToClassList("tt-rope-row__swatch");
                 swatch.style.backgroundColor = rope.Tint;
+                if (_tool == Tool.Rope) swatch.AddToClassList("tt-rope-row__swatch--paintable");
+                swatch.tooltip = _tool == Tool.Rope ? "Click to apply active palette color" : string.Empty;
+                swatch.RegisterCallback<ClickEvent>(e =>
+                {
+                    if (_tool != Tool.Rope) return;
+                    e.StopPropagation(); // don't also trigger the row selection click
+                    Undo.RecordObject(_level, "Recolor Rope");
+                    captured.Tint = _ropeColor;
+                    RefreshAll();
+                });
                 left.Add(swatch);
 
                 var info = new VisualElement();
