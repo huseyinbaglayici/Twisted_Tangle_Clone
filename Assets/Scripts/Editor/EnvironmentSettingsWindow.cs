@@ -23,14 +23,14 @@ namespace TwistedTangle.Editor
             var uss = AssetDatabase.LoadAssetAtPath<StyleSheet>(LevelEditorPaths.Uss);
             if (uss != null) root.styleSheets.Add(uss);
 
-            root.style.backgroundColor = new Color(0.102f, 0.102f, 0.102f);
+            root.style.backgroundColor = EditorColors.WindowBg;
             root.style.paddingTop    = 8;
             root.style.paddingLeft   = 12;
             root.style.paddingRight  = 12;
             root.style.paddingBottom = 8;
 
             var title = new Label("Environment Settings");
-            title.AddToClassList("tt-title");
+            title.AddToClassList(Css.Title);
             root.Add(title);
 
             root.Add(new HelpBox(
@@ -39,7 +39,7 @@ namespace TwistedTangle.Editor
                 HelpBoxMessageType.Info));
 
             var section = new VisualElement();
-            section.AddToClassList("tt-section");
+            section.AddToClassList(Css.Section);
 
             var row = new VisualElement();
             row.style.flexDirection = FlexDirection.Row;

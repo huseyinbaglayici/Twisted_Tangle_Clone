@@ -99,7 +99,7 @@ namespace TwistedTangle.Editor
         public void CreateGUI()
         {
             var root = rootVisualElement;
-            root.AddToClassList("tt-root");
+            root.AddToClassList(Css.Root);
 
             var uss = AssetDatabase.LoadAssetAtPath<StyleSheet>(LevelEditorPaths.Uss);
             if (uss != null) root.styleSheets.Add(uss);
@@ -113,14 +113,14 @@ namespace TwistedTangle.Editor
             _tool = (_baseTypes.Count > 0 || HasUngrouped()) ? Tool.Place : Tool.Rope;
 
             var app = new VisualElement();
-            app.AddToClassList("tt-app-container");
+            app.AddToClassList(Css.AppContainer);
 
             app.Add(BuildEditorSetupBar());
             app.Add(BuildTopBar());
             app.Add(BuildLevelPropsBar());
 
             var body = new VisualElement();
-            body.AddToClassList("tt-body");
+            body.AddToClassList(Css.Body);
             var rightPanel = BuildRightPanel();
             body.Add(BuildCanvasPanelWrapper());
             body.Add(BuildRightPanelDivider(rightPanel));
@@ -213,14 +213,14 @@ namespace TwistedTangle.Editor
         }
 
         private Color ResolveEntityColor(string typeId) =>
-            _entityLookup.TryGetValue(typeId, out var def) ? def.EditorColor : new Color(0.5f, 0.5f, 0.5f);
+            _entityLookup.TryGetValue(typeId, out var def) ? def.EditorColor : EditorColors.EntityFallback;
 
         private void CreateDefaultEntityTypes()
         {
             EnsureFolder(LevelEditorPaths.Bases);
             EnsureFolder(LevelEditorPaths.Entities);
-            var pin = CreateBaseAsset("pin", "Pin", new Color(0.85f, 0.85f, 0.85f), LevelEditorPaths.Bases);
-            CreateEntityAsset("pin.standard", "Standard", new Color(0.85f, 0.85f, 0.85f), null, pin,
+            var pin = CreateBaseAsset("pin", "Pin", EditorColors.PinDefault, LevelEditorPaths.Bases);
+            CreateEntityAsset("pin.standard", "Standard", EditorColors.PinDefault, null, pin,
                 LevelEditorPaths.Entities);
             CreateEntityAsset("pin.nailed", "Nailed", new Color(1f, 0.6f, 0.1f), null, pin, LevelEditorPaths.Entities,
                 new[] { "nailed" });
@@ -435,7 +435,7 @@ namespace TwistedTangle.Editor
         private VisualElement BuildHelpSection()
         {
             var foldout = new Foldout { text = "ⓘ  How to use — click to expand", value = false };
-            foldout.AddToClassList("tt-section");
+            foldout.AddToClassList(Css.Section);
             foldout.Add(new HelpBox(
                 "QUICK START\n" +
                 "1. Set Width / Height / Time, then click 'Generate Grid'.\n" +
@@ -458,8 +458,8 @@ namespace TwistedTangle.Editor
         private VisualElement BuildEditorSetupBar()
         {
             var bar = new VisualElement();
-            bar.AddToClassList("tt-setup-bar");
-            bar.Add(MakeButton("AI Generate ↗",     AiLevelGeneratorWindow.ShowWindow,    "tt-btn--primary"));
+            bar.AddToClassList(Css.SetupBar);
+            bar.Add(MakeButton("AI Generate ↗",     AiLevelGeneratorWindow.ShowWindow,    Css.BtnPrimary));
             bar.Add(MakeButton("Advanced Tools ↗",  AdvancedToolsWindow.ShowWindow,       null));
             bar.Add(MakeButton("Key Bindings ↗",    KeyBindingWindow.ShowWindow,          null));
             bar.Add(MakeButton("Paths ↗",           PathSettingsWindow.ShowWindow,        null));
@@ -470,16 +470,16 @@ namespace TwistedTangle.Editor
         private VisualElement BuildTopBar()
         {
             var bar = new VisualElement();
-            bar.AddToClassList("tt-topbar");
+            bar.AddToClassList(Css.Topbar);
 
             _levelIdField = CompactIntField("Level ID", 1);
             bar.Add(_levelIdField);
-            bar.Add(MakeButton("Load",   () => LoadLevel(_levelIdField.value), "tt-btn--primary"));
-            bar.Add(MakeButton("Save",   SaveCurrentLevel,                      "tt-btn--save"));
-            bar.Add(MakeButton("Delete", () => DeleteLevel(_levelIdField.value),"tt-btn--danger"));
+            bar.Add(MakeButton("Load",   () => LoadLevel(_levelIdField.value), Css.BtnPrimary));
+            bar.Add(MakeButton("Save",   SaveCurrentLevel,                      Css.BtnSave));
+            bar.Add(MakeButton("Delete", () => DeleteLevel(_levelIdField.value),Css.BtnDanger));
 
             var sep = new VisualElement();
-            sep.AddToClassList("tt-topbar__sep");
+            sep.AddToClassList(Css.TopbarSep);
             bar.Add(sep);
 
             _widthField  = CompactIntField("Width",   6);
@@ -488,7 +488,7 @@ namespace TwistedTangle.Editor
             bar.Add(_widthField);
             bar.Add(_heightField);
             bar.Add(_timeField);
-            bar.Add(MakeButton("Generate Grid", GenerateGrid, "tt-btn--primary"));
+            bar.Add(MakeButton("Generate Grid", GenerateGrid, Css.BtnPrimary));
 
             return bar;
         }
@@ -496,10 +496,10 @@ namespace TwistedTangle.Editor
         private VisualElement BuildLevelPropsBar()
         {
             var bar = new VisualElement();
-            bar.AddToClassList("tt-level-props-bar");
+            bar.AddToClassList(Css.LevelPropsBar);
 
             var diffLbl = new Label("Difficulty");
-            diffLbl.AddToClassList("tt-level-props-bar__label");
+            diffLbl.AddToClassList(Css.LevelPropsBarLabel);
             bar.Add(diffLbl);
 
             _difficultyField = new EnumField(LevelDifficulty.Normal);
@@ -513,11 +513,11 @@ namespace TwistedTangle.Editor
             bar.Add(_difficultyField);
 
             var lbl = new Label("Background");
-            lbl.AddToClassList("tt-level-props-bar__label");
+            lbl.AddToClassList(Css.LevelPropsBarLabel);
             bar.Add(lbl);
 
             _bgMaterialField = new ObjectField { objectType = typeof(Material) };
-            _bgMaterialField.AddToClassList("tt-level-props-bar__field");
+            _bgMaterialField.AddToClassList(Css.LevelPropsBarField);
             _bgMaterialField.RegisterValueChangedCallback(evt =>
             {
                 var mat = evt.newValue as Material;
@@ -527,7 +527,7 @@ namespace TwistedTangle.Editor
             bar.Add(_bgMaterialField);
 
             var opacityLbl = new Label("Opacity");
-            opacityLbl.AddToClassList("tt-level-props-bar__label");
+            opacityLbl.AddToClassList(Css.LevelPropsBarLabel);
             opacityLbl.style.marginLeft = 12;
             bar.Add(opacityLbl);
 
@@ -544,16 +544,16 @@ namespace TwistedTangle.Editor
             var divider = new VisualElement();
             divider.style.width = 1;
             divider.style.alignSelf = Align.Stretch;
-            divider.style.backgroundColor = new Color(1f, 1f, 1f, 0.08f);
+            divider.style.backgroundColor = EditorColors.Separator;
             divider.style.marginLeft = 12;
             divider.style.marginRight = 8;
             bar.Add(divider);
 
             var gridLbl = new Label("Grid");
-            gridLbl.AddToClassList("tt-level-props-bar__label");
+            gridLbl.AddToClassList(Css.LevelPropsBarLabel);
             bar.Add(gridLbl);
 
-            _gridColorField = new ColorField { showAlpha = true, value = new Color(1f, 1f, 1f, 0.18f) };
+            _gridColorField = new ColorField { showAlpha = true, value = EditorColors.GridDefault };
             _gridColorField.style.width = 80;
             _gridColorField.RegisterValueChangedCallback(evt =>
             {
@@ -568,7 +568,7 @@ namespace TwistedTangle.Editor
         private VisualElement BuildCanvasPanelWrapper()
         {
             var panel = new VisualElement();
-            panel.AddToClassList("tt-canvas-panel");
+            panel.AddToClassList(Css.CanvasPanel);
 
             var scroll = new ScrollView(ScrollViewMode.VerticalAndHorizontal);
             scroll.style.flexGrow   = 0;
@@ -576,7 +576,7 @@ namespace TwistedTangle.Editor
             scroll.style.minHeight  = 0f;
 
             _canvasHost = new VisualElement();
-            _canvasHost.AddToClassList("tt-canvas-host");
+            _canvasHost.AddToClassList(Css.CanvasHost);
 
             _bgDimmerLayer = new VisualElement { pickingMode = PickingMode.Ignore };
             _bgDimmerLayer.style.position = Position.Absolute;
@@ -593,7 +593,7 @@ namespace TwistedTangle.Editor
                 MarkerResolver = typeId => _entityLookup.TryGetValue(typeId, out var def)
                                           ? def.CanvasMarker : CanvasMarker.None,
             };
-            _canvas.AddToClassList("tt-canvas");
+            _canvas.AddToClassList(Css.Canvas);
             _canvas.CellClicked = OnCanvasCellClicked;
             _canvas.CellDragged = OnCanvasCellDragged;
             _canvas.Released = () => RefreshPanels();
@@ -669,7 +669,7 @@ namespace TwistedTangle.Editor
             _zoomLabel.style.minWidth = 38f;
 
             var resetZoomBtn = new Button(ResetZoom) { text = "1:1" };
-            resetZoomBtn.AddToClassList("tt-tool");
+            resetZoomBtn.AddToClassList(Css.Tool);
             resetZoomBtn.tooltip      = "Reset zoom";
             resetZoomBtn.style.width  = 36f;
             resetZoomBtn.style.height = 24f;
@@ -693,11 +693,11 @@ namespace TwistedTangle.Editor
         private VisualElement BuildRopeBar()
         {
             var bar = new VisualElement();
-            bar.AddToClassList("tt-rope-bar");
+            bar.AddToClassList(Css.RopeBar);
             bar.style.flexShrink = 0;
 
             var scroll = new ScrollView(ScrollViewMode.Vertical);
-            scroll.AddToClassList("tt-rope-bar__scroll");
+            scroll.AddToClassList(Css.RopeBarScroll);
             scroll.style.flexGrow = 1;
 
             _ropeListContainer = new VisualElement();
@@ -709,7 +709,7 @@ namespace TwistedTangle.Editor
         private VisualElement BuildRightPanelDivider(VisualElement rightPanel)
         {
             var handle = new VisualElement();
-            handle.AddToClassList("tt-right-divider");
+            handle.AddToClassList(Css.RightDivider);
             float startX = 0f, startW = 0f;
             handle.RegisterCallback<PointerDownEvent>(e =>
             {
@@ -736,11 +736,11 @@ namespace TwistedTangle.Editor
         private VisualElement BuildRightPanel()
         {
             var panel = new VisualElement();
-            panel.AddToClassList("tt-right-panel");
+            panel.AddToClassList(Css.RightPanel);
             panel.style.width = 340f; // default — enough to show all content without clipping
 
             var scroll = new ScrollView(ScrollViewMode.Vertical);
-            scroll.AddToClassList("tt-right-scroll");
+            scroll.AddToClassList(Css.RightScroll);
 
             scroll.Add(BuildEditToolsSection());
             scroll.Add(BuildEntityPlacementSection());
@@ -756,7 +756,7 @@ namespace TwistedTangle.Editor
         {
             var s = MakeSection("Tools");
             _editToolsContainer = MakeRow();
-            _editToolsContainer.AddToClassList("tt-row--wrap");
+            _editToolsContainer.AddToClassList(Css.RowWrap);
             s.Add(_editToolsContainer);
             return s;
         }
@@ -765,7 +765,7 @@ namespace TwistedTangle.Editor
         {
             var s = MakeSection("Entity Placement");
             _toolsContainer = MakeRow();
-            _toolsContainer.AddToClassList("tt-row--wrap");
+            _toolsContainer.AddToClassList(Css.RowWrap);
             RebuildToolbar();
             s.Add(_toolsContainer);
 
@@ -800,7 +800,7 @@ namespace TwistedTangle.Editor
             });
             foreach (var item in items) item.add();
             if (HasUngrouped())
-                AddBaseButton(null, "Ungrouped", new Color(0.5f, 0.5f, 0.5f));
+                AddBaseButton(null, "Ungrouped", EditorColors.EntityFallback);
 
             if (_editToolsContainer != null)
             {
@@ -819,7 +819,7 @@ namespace TwistedTangle.Editor
         private void AddToolButton(Tool tool, string label)
         {
             var btn = new Button(() => SetTool(tool)) { text = label };
-            btn.AddToClassList("tt-tool");
+            btn.AddToClassList(Css.Tool);
             _toolButtons[tool] = btn;
             _toolsContainer.Add(btn);
         }
@@ -827,7 +827,7 @@ namespace TwistedTangle.Editor
         private void AddEditToolButton(Tool tool, string label)
         {
             var btn = new Button(() => SetTool(tool)) { text = label };
-            btn.AddToClassList("tt-tool");
+            btn.AddToClassList(Css.Tool);
             _toolButtons[tool] = btn;
             _editToolsContainer.Add(btn);
         }
@@ -841,7 +841,7 @@ namespace TwistedTangle.Editor
                 else
                     SelectBase(baseType);
             }) { text = label };
-            btn.AddToClassList("tt-tool");
+            btn.AddToClassList(Css.Tool);
             btn.style.borderLeftWidth = 6;
             btn.style.borderLeftColor = accent;
             if (baseType != null)
@@ -891,8 +891,8 @@ namespace TwistedTangle.Editor
             var s = MakeSection("New entity type", expanded: false);
 
             var btn = new Button { text = "+ New Entity Type" };
-            btn.AddToClassList("tt-btn");
-            btn.AddToClassList("tt-btn--primary");
+            btn.AddToClassList(Css.Btn);
+            btn.AddToClassList(Css.BtnPrimary);
             btn.clicked += () => UnityEditor.PopupWindow.Show(
                 btn.worldBound, new EntityTypePopup(new List<EntityBaseTypeSO>(_baseTypes), TryCreateEntityType));
             s.Add(btn);
@@ -909,13 +909,13 @@ namespace TwistedTangle.Editor
             {
                 _bgDimmerLayer.style.backgroundImage = StyleKeyword.None;
                 _bgDimmerLayer.style.backgroundColor = Color.clear;
-                _canvasHost.style.backgroundColor = new Color(0.067f, 0.067f, 0.067f);
+                _canvasHost.style.backgroundColor = EditorColors.CanvasBg;
                 if (_canvas != null)
                 {
-                    _canvas.GridStrokeColor  = new Color(1f, 1f, 1f, 0.18f);
-                    _canvas.RopeOutlineColor = new Color(1f, 1f, 1f, 0.72f);
+                    _canvas.GridStrokeColor  = EditorColors.GridDefault;
+                    _canvas.RopeOutlineColor = EditorColors.RopeOutlineDark;
                 }
-                _gridColorField?.SetValueWithoutNotify(new Color(1f, 1f, 1f, 0.18f));
+                _gridColorField?.SetValueWithoutNotify(EditorColors.GridDefault);
                 return;
             }
 
@@ -940,7 +940,7 @@ namespace TwistedTangle.Editor
             {
                 var derived = DeriveGridColor(effective);
                 _canvas.GridStrokeColor  = derived;
-                _canvas.RopeOutlineColor = new Color(0.06f, 0.06f, 0.06f, 0.60f);
+                _canvas.RopeOutlineColor = EditorColors.RopeOutlineLight;
                 _gridColorField?.SetValueWithoutNotify(derived);
             }
         }
@@ -969,7 +969,7 @@ namespace TwistedTangle.Editor
         private VisualElement BuildFloatingBottomPanel()
         {
             var panel = new VisualElement();
-            panel.AddToClassList("tt-canvas-bottom__half");
+            panel.AddToClassList(Css.CanvasBottomHalf);
             panel.style.position = Position.Absolute;
             panel.style.bottom = 0;
             panel.style.left = 0;
@@ -977,7 +977,7 @@ namespace TwistedTangle.Editor
             panel.style.height = 160f;
 
             var handle = new VisualElement();
-            handle.AddToClassList("tt-canvas-bottom__handle");
+            handle.AddToClassList(Css.CanvasBottomHandle);
             float startY = 0f, startH = 0f;
             handle.RegisterCallback<PointerDownEvent>(e =>
             {
@@ -1001,12 +1001,12 @@ namespace TwistedTangle.Editor
 
             var header = MakeRow();
             _validationStatusDot = new VisualElement();
-            _validationStatusDot.AddToClassList("tt-status-dot");
+            _validationStatusDot.AddToClassList(Css.StatusDot);
             header.Add(_validationStatusDot);
-            header.Add(MakeButton("Validate", RebuildValidation, "tt-btn--primary"));
+            header.Add(MakeButton("Validate", RebuildValidation, Css.BtnPrimary));
             panel.Add(header);
             var scroll = new ScrollView(ScrollViewMode.Vertical);
-            scroll.AddToClassList("tt-canvas-bottom__scroll");
+            scroll.AddToClassList(Css.CanvasBottomScroll);
             scroll.style.flexGrow = 1;
             _validationContainer = new VisualElement();
             scroll.Add(_validationContainer);
@@ -1071,7 +1071,7 @@ namespace TwistedTangle.Editor
                     "or click to create a starter Pin set.",
                     HelpBoxMessageType.Info));
                 _paletteContainer.Add(MakeButton("Create Default Entity Types", CreateDefaultEntityTypes,
-                    "tt-btn--primary"));
+                    Css.BtnPrimary));
                 return;
             }
 
@@ -1087,7 +1087,7 @@ namespace TwistedTangle.Editor
             }
 
             var header = new Label(_selectedBaseType != null ? $"{baseName} types  ⤢" : $"{baseName} types");
-            header.AddToClassList("tt-section__header");
+            header.AddToClassList(Css.SectionHeader);
             if (_selectedBaseType != null)
             {
                 header.tooltip = $"Click to locate {baseName} base asset in Project";
@@ -1098,7 +1098,7 @@ namespace TwistedTangle.Editor
             _paletteContainer.Add(header);
 
             var row = MakeRow();
-            row.AddToClassList("tt-row--wrap");
+            row.AddToClassList(Css.RowWrap);
             foreach (var def in subTypes)
             {
                 var captured = def;
@@ -1116,8 +1116,8 @@ namespace TwistedTangle.Editor
                 {
                     text = def.DisplayName
                 };
-                btn.AddToClassList("tt-tool");
-                if (def == _selectedEntity) btn.AddToClassList("tt-tool--active");
+                btn.AddToClassList(Css.Tool);
+                if (def == _selectedEntity) btn.AddToClassList(Css.ToolActive);
                 btn.style.borderLeftWidth = 6;
                 btn.style.borderLeftColor = def.EditorColor;
                 string shortcut = ShortcutTooltip(LevelEditorCommands.EntityCommandId(def.TypeId));
@@ -1134,7 +1134,7 @@ namespace TwistedTangle.Editor
         {
             if (_paletteAssets.Count == 0)
             {
-                _paletteContainer.Add(MakeButton("Create Default Palette", CreateDefaultPalette, "tt-btn--primary"));
+                _paletteContainer.Add(MakeButton("Create Default Palette", CreateDefaultPalette, Css.BtnPrimary));
             }
             else
             {
@@ -1144,11 +1144,11 @@ namespace TwistedTangle.Editor
                 var headerRow = MakeRow();
                 headerRow.style.marginBottom = 2;
                 var presetsLabel = new Label("Presets");
-                presetsLabel.AddToClassList("tt-palette-picker__label");
+                presetsLabel.AddToClassList(Css.PalettePickerLabel);
                 headerRow.Add(presetsLabel);
 
                 var selector = new DropdownField(paletteNames, _selectedPaletteIndex);
-                selector.AddToClassList("tt-palette-selector--compact");
+                selector.AddToClassList(Css.PaletteSelectorCompact);
                 selector.RegisterValueChangedCallback(e =>
                 {
                     _selectedPaletteIndex = paletteNames.IndexOf(e.newValue);
@@ -1160,7 +1160,7 @@ namespace TwistedTangle.Editor
                 var palette = _paletteAssets[_selectedPaletteIndex];
                 var filterBtn = new Button();
                 filterBtn.text = "⚙";
-                filterBtn.AddToClassList("tt-swatch-filter-btn");
+                filterBtn.AddToClassList(Css.SwatchFilterBtn);
                 filterBtn.tooltip = "Show / hide palette colors";
                 filterBtn.clicked += () => UnityEditor.PopupWindow.Show(
                     filterBtn.worldBound,
@@ -1169,7 +1169,7 @@ namespace TwistedTangle.Editor
                 _paletteContainer.Add(headerRow);
 
                 var swRow = new VisualElement();
-                swRow.AddToClassList("tt-swatch-grid");
+                swRow.AddToClassList(Css.SwatchGrid);
                 swRow.name = "swatchRow";
                 foreach (var entry in palette.Entries)
                 {
@@ -1182,16 +1182,16 @@ namespace TwistedTangle.Editor
                         UpdateSwatchSelection();
                         RefreshCanvas();
                     }) { tooltip = entry.Name };
-                    b.AddToClassList("tt-swatch");
+                    b.AddToClassList(Css.Swatch);
                     b.style.backgroundColor = color;
-                    if (ColorApproxEqual(color, _ropeColor)) b.AddToClassList("tt-swatch--selected");
+                    if (ColorApproxEqual(color, _ropeColor)) b.AddToClassList(Css.SwatchSelected);
                     swRow.Add(b);
                 }
                 _paletteContainer.Add(swRow);
             }
 
             var addBtn = new Button { text = "+ Add to Palette" };
-            addBtn.AddToClassList("tt-btn");
+            addBtn.AddToClassList(Css.Btn);
             addBtn.style.marginTop = 4;
             addBtn.clicked += () => UnityEditor.PopupWindow.Show(
                 addBtn.worldBound,
@@ -1200,8 +1200,8 @@ namespace TwistedTangle.Editor
 
             var actionRow = MakeRow();
             actionRow.style.marginTop = 6;
-            actionRow.Add(MakeButton("Finish Rope", FinishRope, "tt-btn--save"));
-            actionRow.Add(MakeButton("Cancel Rope", CancelRope, "tt-btn--danger"));
+            actionRow.Add(MakeButton("Finish Rope", FinishRope, Css.BtnSave));
+            actionRow.Add(MakeButton("Cancel Rope", CancelRope, Css.BtnDanger));
             _paletteContainer.Add(actionRow);
         }
 
@@ -1219,11 +1219,11 @@ namespace TwistedTangle.Editor
                 var captured = rope;
 
                 var row = new VisualElement();
-                row.AddToClassList("tt-rope-row");
-                if (rope.RopeId == _selectedRopeId) row.AddToClassList("tt-rope-row--selected");
+                row.AddToClassList(Css.RopeRow);
+                if (rope.RopeId == _selectedRopeId) row.AddToClassList(Css.RopeRowSelected);
 
                 var left = new VisualElement();
-                left.AddToClassList("tt-rope-row__left");
+                left.AddToClassList(Css.RopeRowLeft);
                 left.RegisterCallback<ClickEvent>(_ =>
                 {
                     _selectedRopeId = captured.RopeId;
@@ -1231,13 +1231,13 @@ namespace TwistedTangle.Editor
                 });
 
                 var handle = new Label("≡");
-                handle.AddToClassList("tt-rope-row__handle");
+                handle.AddToClassList(Css.RopeRowHandle);
                 left.Add(handle);
 
                 var swatch = new VisualElement();
-                swatch.AddToClassList("tt-rope-row__swatch");
+                swatch.AddToClassList(Css.RopeRowSwatch);
                 swatch.style.backgroundColor = rope.Tint;
-                if (_tool == Tool.Rope) swatch.AddToClassList("tt-rope-row__swatch--paintable");
+                if (_tool == Tool.Rope) swatch.AddToClassList(Css.RopeRowSwatchPaintable);
                 swatch.tooltip = _tool == Tool.Rope ? "Click to apply active palette color" : string.Empty;
                 swatch.RegisterCallback<ClickEvent>(e =>
                 {
@@ -1250,35 +1250,35 @@ namespace TwistedTangle.Editor
                 left.Add(swatch);
 
                 var info = new VisualElement();
-                info.AddToClassList("tt-rope-row__info");
+                info.AddToClassList(Css.RopeRowInfo);
                 var nameLabel = new Label($"Rope {rope.RopeId + 1}");
-                nameLabel.AddToClassList("tt-rope-row__name");
+                nameLabel.AddToClassList(Css.RopeRowName);
                 var metaLabel = new Label($"{rope.Path.Count} pts");
-                metaLabel.AddToClassList("tt-rope-row__meta");
+                metaLabel.AddToClassList(Css.RopeRowMeta);
                 info.Add(nameLabel);
                 info.Add(metaLabel);
                 left.Add(info);
 
                 var badge = new Label($"L{rope.Layer}");
-                badge.AddToClassList("tt-rope-row__badge");
+                badge.AddToClassList(Css.RopeRowBadge);
                 left.Add(badge);
 
                 row.Add(left);
 
                 var actions = new VisualElement();
-                actions.AddToClassList("tt-rope-row__actions");
+                actions.AddToClassList(Css.RopeRowActions);
 
                 var frontBtn = new Button(() => { BringToFront(captured); RefreshAll(); }) { text = "↑", tooltip = "Bring to front" };
-                frontBtn.AddToClassList("tt-rope-row__icon-btn");
+                frontBtn.AddToClassList(Css.RopeRowIconBtn);
                 actions.Add(frontBtn);
 
                 var backBtn = new Button(() => { SendToBack(captured); RefreshAll(); }) { text = "↓", tooltip = "Send to back" };
-                backBtn.AddToClassList("tt-rope-row__icon-btn");
+                backBtn.AddToClassList(Css.RopeRowIconBtn);
                 actions.Add(backBtn);
 
                 var deleteBtn = new Button(() => { DeleteRope(captured); RefreshAll(); }) { text = "✕", tooltip = "Delete rope" };
-                deleteBtn.AddToClassList("tt-rope-row__icon-btn");
-                deleteBtn.AddToClassList("tt-rope-row__icon-btn--danger");
+                deleteBtn.AddToClassList(Css.RopeRowIconBtn);
+                deleteBtn.AddToClassList(Css.RopeRowIconBtnDanger);
                 actions.Add(deleteBtn);
 
                 row.Add(actions);
@@ -1298,26 +1298,26 @@ namespace TwistedTangle.Editor
             var report = LevelValidator.Validate(_level, _entityLookup.Keys);
 
             var status = new Label(report.IsValid ? "✓ Level is valid" : $"✗ {report.Errors.Count} error(s)");
-            status.AddToClassList(report.IsValid ? "tt-validation__ok" : "tt-validation__error");
+            status.AddToClassList(report.IsValid ? Css.ValidationOk : Css.ValidationError);
             _validationContainer.Add(status);
 
             foreach (var err in report.Errors)
             {
                 var l = new Label("• " + err);
-                l.AddToClassList("tt-validation__error");
+                l.AddToClassList(Css.ValidationError);
                 _validationContainer.Add(l);
             }
 
             foreach (var warn in report.Warnings)
             {
                 var l = new Label("• " + warn);
-                l.AddToClassList("tt-validation__warn");
+                l.AddToClassList(Css.ValidationWarn);
                 _validationContainer.Add(l);
             }
 
             var m = report.Metrics;
             var metricsRow = MakeRow();
-            metricsRow.AddToClassList("tt-row--wrap");
+            metricsRow.AddToClassList(Css.RowWrap);
             AddMetricChip(metricsRow, m.EntityCount.ToString(),            "entities");
             AddMetricChip(metricsRow, m.RopeCount.ToString(),              "ropes");
             AddMetricChip(metricsRow, m.CrossingCount.ToString(),          "crossings", m.CrossingCount > 0);
@@ -1331,8 +1331,8 @@ namespace TwistedTangle.Editor
             var diffRow = MakeRow();
             diffRow.style.marginTop = 4;
             var diffBadge = new Label($"{m.Difficulty}  ·  {m.DifficultyScore:0.0}");
-            diffBadge.AddToClassList("tt-difficulty-badge");
-            diffBadge.AddToClassList($"tt-difficulty-badge--{m.Difficulty}");
+            diffBadge.AddToClassList(Css.DifficultyBadge);
+            diffBadge.AddToClassList($"{Css.DifficultyBadge}--{m.Difficulty}");
             diffRow.Add(diffBadge);
             _validationContainer.Add(diffRow);
 
@@ -1344,22 +1344,22 @@ namespace TwistedTangle.Editor
 
             if (_validationStatusDot != null)
             {
-                _validationStatusDot.EnableInClassList("tt-status-dot--ok",    report.IsValid);
-                _validationStatusDot.EnableInClassList("tt-status-dot--error", !report.IsValid);
-                _validationStatusDot.EnableInClassList("tt-status-dot--warn",  false);
+                _validationStatusDot.EnableInClassList(Css.StatusDotOk,    report.IsValid);
+                _validationStatusDot.EnableInClassList(Css.StatusDotError, !report.IsValid);
+                _validationStatusDot.EnableInClassList(Css.StatusDotWarn,  false);
             }
         }
 
         private static void AddMetricChip(VisualElement row, string value, string label, bool warn = false)
         {
             var chip = new VisualElement();
-            chip.AddToClassList("tt-metric-chip");
-            if (warn) chip.AddToClassList("tt-metric-chip--warn");
+            chip.AddToClassList(Css.MetricChip);
+            if (warn) chip.AddToClassList(Css.MetricChipWarn);
 
             var valLbl = new Label(value);
-            valLbl.AddToClassList("tt-metric-chip__val");
+            valLbl.AddToClassList(Css.MetricChipVal);
             var nameLbl = new Label(label);
-            nameLbl.AddToClassList("tt-metric-chip__lbl");
+            nameLbl.AddToClassList(Css.MetricChipLbl);
 
             chip.Add(valLbl);
             chip.Add(nameLbl);
@@ -1746,9 +1746,9 @@ namespace TwistedTangle.Editor
         private void UpdateToolActiveStates()
         {
             foreach (var kv in _toolButtons)
-                kv.Value.EnableInClassList("tt-tool--active", _tool == kv.Key);
+                kv.Value.EnableInClassList(Css.ToolActive, _tool == kv.Key);
             foreach (var (baseType, btn) in _baseButtons)
-                btn.EnableInClassList("tt-tool--active", _tool == Tool.Place && _selectedBaseType == baseType);
+                btn.EnableInClassList(Css.ToolActive, _tool == Tool.Place && _selectedBaseType == baseType);
         }
 
         private void RefreshPanels()
@@ -1916,21 +1916,21 @@ namespace TwistedTangle.Editor
         private static VisualElement MakeSection(string header, bool expanded = true)
         {
             var f = new Foldout { text = header, value = expanded };
-            f.AddToClassList("tt-section");
+            f.AddToClassList(Css.Section);
             return f;
         }
 
         private static VisualElement MakeRow()
         {
             var r = new VisualElement();
-            r.AddToClassList("tt-row");
+            r.AddToClassList(Css.Row);
             return r;
         }
 
         private static Button MakeButton(string text, System.Action onClick, string ussClass)
         {
             var b = new Button(onClick) { text = text };
-            b.AddToClassList("tt-btn");
+            b.AddToClassList(Css.Btn);
             if (!string.IsNullOrEmpty(ussClass)) b.AddToClassList(ussClass);
             return b;
         }
@@ -1938,7 +1938,7 @@ namespace TwistedTangle.Editor
         private static IntegerField CompactIntField(string label, int value)
         {
             var f = new IntegerField(label) { value = value };
-            f.AddToClassList("tt-num");
+            f.AddToClassList(Css.Num);
             return f;
         }
 
@@ -1950,7 +1950,7 @@ namespace TwistedTangle.Editor
             {
                 var c = child.resolvedStyle.backgroundColor;
                 bool sel = ColorApproxEqual(new Color(c.r, c.g, c.b, c.a), _ropeColor);
-                child.EnableInClassList("tt-swatch--selected", sel);
+                child.EnableInClassList(Css.SwatchSelected, sel);
             }
         }
 
@@ -2044,10 +2044,10 @@ namespace TwistedTangle.Editor
                 swatch.style.backgroundColor = color;
                 swatch.style.borderTopWidth    = 1; swatch.style.borderBottomWidth = 1;
                 swatch.style.borderLeftWidth   = 1; swatch.style.borderRightWidth  = 1;
-                swatch.style.borderTopColor    = new Color(0, 0, 0, 0.5f);
-                swatch.style.borderBottomColor = new Color(0, 0, 0, 0.5f);
-                swatch.style.borderLeftColor   = new Color(0, 0, 0, 0.5f);
-                swatch.style.borderRightColor  = new Color(0, 0, 0, 0.5f);
+                swatch.style.borderTopColor    = EditorColors.SwatchBorder;
+                swatch.style.borderBottomColor = EditorColors.SwatchBorder;
+                swatch.style.borderLeftColor   = EditorColors.SwatchBorder;
+                swatch.style.borderRightColor  = EditorColors.SwatchBorder;
                 swatch.style.marginRight = 6;
                 swatch.style.flexShrink  = 0;
                 item.Add(swatch);

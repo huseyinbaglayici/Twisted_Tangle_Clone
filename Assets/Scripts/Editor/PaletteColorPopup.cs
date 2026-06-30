@@ -54,7 +54,7 @@ namespace TwistedTangle.Editor
             root.style.paddingBottom = 8;
 
             var title = new Label("Add color to palette");
-            title.AddToClassList("tt-section__header");
+            title.AddToClassList(Css.SectionHeader);
             root.Add(title);
 
             var choices = _palettes.Select(p => p.DisplayName).ToList();
@@ -93,8 +93,8 @@ namespace TwistedTangle.Editor
             root.Add(_error);
 
             var addBtn = new Button(Submit) { text = "Add" };
-            addBtn.AddToClassList("tt-btn");
-            addBtn.AddToClassList("tt-btn--save");
+            addBtn.AddToClassList(Css.Btn);
+            addBtn.AddToClassList(Css.BtnSave);
             root.Add(addBtn);
 
             root.RegisterCallback<KeyDownEvent>(e =>

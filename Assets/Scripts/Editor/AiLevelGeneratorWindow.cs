@@ -36,18 +36,18 @@ namespace TwistedTangle.Editor
         public void CreateGUI()
         {
             var root = rootVisualElement;
-            root.AddToClassList("tt-root");
+            root.AddToClassList(Css.Root);
 
             var uss = AssetDatabase.LoadAssetAtPath<StyleSheet>(LevelEditorPaths.Uss);
             if (uss != null) root.styleSheets.Add(uss);
 
-            root.style.backgroundColor = new Color(0.102f, 0.102f, 0.102f);
+            root.style.backgroundColor = EditorColors.WindowBg;
 
             Refresh();
             LoadPrefs(); // restore field values + excluded set before building UI
 
             var scroll = new ScrollView(ScrollViewMode.Vertical);
-            scroll.AddToClassList("tt-right-scroll");
+            scroll.AddToClassList(Css.RightScroll);
             scroll.style.flexGrow      = 1;
             scroll.style.paddingTop    = 8;
             scroll.style.paddingBottom = 8;
@@ -113,7 +113,7 @@ namespace TwistedTangle.Editor
             var s = MakeSection("Generation settings");
 
             var gridRow = MakeRow();
-            gridRow.AddToClassList("tt-row--wrap");
+            gridRow.AddToClassList(Css.RowWrap);
             _gridWidth   = CompactInt("Width",    EditorPrefs.GetInt(P("W"),    6));
             _gridHeight  = CompactInt("Height",   EditorPrefs.GetInt(P("H"),    6));
             _timeSeconds = CompactInt("Time(s)",  EditorPrefs.GetInt(P("Time"), 45));
@@ -135,14 +135,14 @@ namespace TwistedTangle.Editor
             s.Add(diffRow);
 
             _diffHintLabel = new Label();
-            _diffHintLabel.AddToClassList("tt-hint");
+            _diffHintLabel.AddToClassList(Css.Hint);
             _diffHintLabel.style.whiteSpace = WhiteSpace.Normal;
             _diffHintLabel.style.marginBottom = 4;
             s.Add(_diffHintLabel);
             UpdateDiffHint();
 
             var refRow = MakeRow();
-            refRow.AddToClassList("tt-row--wrap");
+            refRow.AddToClassList(Css.RowWrap);
             _refLevelId = CompactInt("Ref level", EditorPrefs.GetInt(P("RefId"), 0));
             _refLevelId.Q<Label>().style.minWidth = 0;
             _refLevelId.Q<Label>().style.width    = StyleKeyword.Auto;
@@ -152,14 +152,14 @@ namespace TwistedTangle.Editor
             s.Add(refRow);
 
             _refLabel = new Label("No reference — AI generates freely.");
-            _refLabel.AddToClassList("tt-hint");
+            _refLabel.AddToClassList(Css.Hint);
             s.Add(_refLabel);
 
                 var sub = new Foldout { text = "Entity types", value = false };
-            sub.AddToClassList("tt-subgroup");
+            sub.AddToClassList(Css.Subgroup);
             sub.style.marginTop = 6;
 
-            var refreshBtn = Btn("↻ Refresh / Fetch", RefreshAndRebuild, "tt-tool");
+            var refreshBtn = Btn("↻ Refresh / Fetch", RefreshAndRebuild, Css.Tool);
             refreshBtn.style.alignSelf = Align.FlexStart;
             refreshBtn.style.marginBottom = 4;
             sub.Add(refreshBtn);
@@ -188,7 +188,7 @@ namespace TwistedTangle.Editor
             foreach (var def in _entityDefs)
             {
                 string g = def.BaseType != null ? def.BaseType.DisplayName : "Ungrouped";
-                Color  a = def.BaseType != null ? def.BaseType.EditorColor  : new Color(0.5f, 0.5f, 0.5f);
+                Color  a = def.BaseType != null ? def.BaseType.EditorColor  : EditorColors.EntityFallback;
                 if (!groups.ContainsKey(g)) { groups[g] = (a, new List<EntityDefinitionSO>()); order.Add(g); }
                 groups[g].defs.Add(def);
             }
@@ -197,7 +197,7 @@ namespace TwistedTangle.Editor
             {
                 var (accent, defs) = groups[g];
                 var header = new Label(g);
-                header.AddToClassList("tt-ai-group-header");
+                header.AddToClassList(Css.AiGroupHeader);
                 header.style.borderLeftColor = accent;
                 _entitiesContainer.Add(header);
 
@@ -207,7 +207,7 @@ namespace TwistedTangle.Editor
                     bool mandatory = !IsObstacle(def) && !LevelCreator.IsNailed(def);
 
                     var item = MakeRow();
-                    item.AddToClassList("tt-ai-entity-row");
+                    item.AddToClassList(Css.AiEntityRow);
 
                     var toggle = new Toggle { value = true };
                     toggle.style.marginRight = 4;
@@ -233,7 +233,7 @@ namespace TwistedTangle.Editor
                         : LevelCreator.IsNailed(def) ? " [nailed]"
                         : string.Empty;
                     var lbl = new Label(def.DisplayName + suffix);
-                    if (mandatory) lbl.AddToClassList("tt-ai-entity-required");
+                    if (mandatory) lbl.AddToClassList(Css.AiEntityRequired);
                     item.Add(lbl);
                     _entitiesContainer.Add(item);
                 }
@@ -245,10 +245,10 @@ namespace TwistedTangle.Editor
         {
             var s = MakeSection("1 · Copy prompt");
             var hint = new Label("Build a self-contained prompt and copy it to your clipboard. Paste it into any AI chat (Claude, ChatGPT, Gemini …).");
-            hint.AddToClassList("tt-hint");
+            hint.AddToClassList(Css.Hint);
             hint.style.whiteSpace = WhiteSpace.Normal;
             s.Add(hint);
-            s.Add(Btn("Copy prompt to clipboard", CopyPrompt, "tt-btn--primary"));
+            s.Add(Btn("Copy prompt to clipboard", CopyPrompt, Css.BtnPrimary));
             return s;
         }
 
@@ -257,7 +257,7 @@ namespace TwistedTangle.Editor
         {
             var s = MakeSection("2 · Import JSON");
             var hint = new Label("Paste the AI's JSON response below, then click Import. The level loads into the Level Creator for review — validate and solve before saving.");
-            hint.AddToClassList("tt-hint");
+            hint.AddToClassList(Css.Hint);
             hint.style.whiteSpace = WhiteSpace.Normal;
             s.Add(hint);
 
@@ -267,7 +267,7 @@ namespace TwistedTangle.Editor
             _jsonField.style.marginBottom = 6;
             s.Add(_jsonField);
 
-            s.Add(Btn("Import JSON → Level Creator", ImportJson, "tt-btn--save"));
+            s.Add(Btn("Import JSON → Level Creator", ImportJson, Css.BtnSave));
 
             _statusLabel = new Label(" ");
             _statusLabel.style.whiteSpace = WhiteSpace.Normal;
@@ -290,15 +290,15 @@ namespace TwistedTangle.Editor
             footer.style.paddingTop        = 6;
             footer.style.paddingBottom     = 6;
             footer.style.borderTopWidth    = 1;
-            footer.style.borderTopColor    = new Color(1f, 1f, 1f, 0.1f);
+            footer.style.borderTopColor    = EditorColors.FooterBorder;
             footer.style.backgroundColor   = new Color(0.13f, 0.13f, 0.13f, 1f);
 
             var hint = new Label("Reset all fields to defaults");
             hint.style.fontSize  = 11;
-            hint.style.color     = new Color(1f, 1f, 1f, 0.45f);
+            hint.style.color     = EditorColors.HintText;
             footer.Add(hint);
 
-            var btn = Btn("Reset", ResetPrefs, "tt-btn--danger");
+            var btn = Btn("Reset", ResetPrefs, Css.BtnDanger);
             btn.tooltip = "Clears all saved state and resets every field to its default value.";
             footer.Add(btn);
 
@@ -353,8 +353,8 @@ namespace TwistedTangle.Editor
         {
             if (_statusLabel == null) return;
             _statusLabel.text = msg;
-            _statusLabel.EnableInClassList("tt-validation__ok",    ok);
-            _statusLabel.EnableInClassList("tt-validation__error", !ok);
+            _statusLabel.EnableInClassList(Css.ValidationOk,    ok);
+            _statusLabel.EnableInClassList(Css.ValidationError, !ok);
         }
 
         private static bool IsObstacle(EntityDefinitionSO d) => d.CanvasMarker != CanvasMarker.None;
@@ -405,19 +405,19 @@ namespace TwistedTangle.Editor
         private static VisualElement MakeSection(string title)
         {
             var f = new Foldout { text = title, value = true };
-            f.AddToClassList("tt-section");
+            f.AddToClassList(Css.Section);
             return f;
         }
 
         private static VisualElement MakeRow()
         {
-            var r = new VisualElement(); r.AddToClassList("tt-row"); return r;
+            var r = new VisualElement(); r.AddToClassList(Css.Row); return r;
         }
 
         private static Button Btn(string text, System.Action onClick, string cls)
         {
             var b = new Button(onClick) { text = text };
-            b.AddToClassList("tt-btn");
+            b.AddToClassList(Css.Btn);
             if (!string.IsNullOrEmpty(cls)) b.AddToClassList(cls);
             return b;
         }
@@ -425,7 +425,7 @@ namespace TwistedTangle.Editor
         private static IntegerField CompactInt(string label, int val)
         {
             var f = new IntegerField(label) { value = val };
-            f.AddToClassList("tt-num");
+            f.AddToClassList(Css.Num);
             return f;
         }
     }

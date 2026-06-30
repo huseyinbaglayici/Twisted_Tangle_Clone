@@ -54,7 +54,7 @@ namespace TwistedTangle.Editor
             root.style.paddingBottom = 8;
 
             var title = new Label("New entity type");
-            title.AddToClassList("tt-section__header");
+            title.AddToClassList(Css.SectionHeader);
             root.Add(title);
 
             // Restore saved base index (clamp to valid range)
@@ -80,7 +80,7 @@ namespace TwistedTangle.Editor
             root.Add(_subName);
 
             // Restore saved color
-            Color savedColor = new Color(0.85f, 0.85f, 0.85f);
+            Color savedColor = EditorColors.PinDefault;
             string savedHex = EditorPrefs.GetString(PrefColor, string.Empty);
             if (!string.IsNullOrEmpty(savedHex))
                 ColorUtility.TryParseHtmlString("#" + savedHex, out savedColor);
@@ -100,8 +100,8 @@ namespace TwistedTangle.Editor
             root.Add(_error);
 
             var create = new Button(Submit) { text = "Create" };
-            create.AddToClassList("tt-btn");
-            create.AddToClassList("tt-btn--save");
+            create.AddToClassList(Css.Btn);
+            create.AddToClassList(Css.BtnSave);
             create.style.marginTop = 4;
             root.Add(create);
 
@@ -137,16 +137,16 @@ namespace TwistedTangle.Editor
             footer.style.paddingBottom   = 0;
             footer.style.marginTop       = 4;
             footer.style.borderTopWidth  = 1;
-            footer.style.borderTopColor  = new Color(1f, 1f, 1f, 0.1f);
+            footer.style.borderTopColor  = EditorColors.FooterBorder;
 
             var hint = new Label("Reset form fields");
             hint.style.fontSize = 11;
-            hint.style.color    = new Color(1f, 1f, 1f, 0.45f);
+            hint.style.color    = EditorColors.HintText;
             footer.Add(hint);
 
             var btn = new Button(ResetPrefs) { text = "Reset", tooltip = "Clear saved form state and restore defaults." };
-            btn.AddToClassList("tt-btn");
-            btn.AddToClassList("tt-btn--danger");
+            btn.AddToClassList(Css.Btn);
+            btn.AddToClassList(Css.BtnDanger);
             footer.Add(btn);
 
             return footer;
@@ -171,7 +171,7 @@ namespace TwistedTangle.Editor
             // Apply defaults to live fields immediately
             if (_baseDropdown != null) _baseDropdown.index = _bases.Count > 0 ? 0 : 0;
             if (_subName != null) _subName.value = string.Empty;
-            if (_color != null) _color.value = new Color(0.85f, 0.85f, 0.85f);
+            if (_color != null) _color.value = EditorColors.PinDefault;
             if (_error != null) _error.style.display = DisplayStyle.None;
         }
 

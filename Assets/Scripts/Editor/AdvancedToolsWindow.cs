@@ -27,16 +27,16 @@ namespace TwistedTangle.Editor
         public void CreateGUI()
         {
             var root = rootVisualElement;
-            root.AddToClassList("tt-root");
+            root.AddToClassList(Css.Root);
 
             var uss = AssetDatabase.LoadAssetAtPath<StyleSheet>(LevelEditorPaths.Uss);
             if (uss != null) root.styleSheets.Add(uss);
 
             var scroll = new ScrollView(ScrollViewMode.Vertical);
-            scroll.AddToClassList("tt-main-scroll");
+            scroll.AddToClassList(Css.MainScroll);
 
             var title = new Label("Advanced Tools");
-            title.AddToClassList("tt-title");
+            title.AddToClassList(Css.Title);
             scroll.Add(title);
 
             scroll.Add(BuildBatchCheckSection());
@@ -48,10 +48,10 @@ namespace TwistedTangle.Editor
         private VisualElement BuildDifficultySettingsSection()
         {
             var section = new Foldout { text = "Difficulty Parameters", value = false };
-            section.AddToClassList("tt-section");
+            section.AddToClassList(Css.Section);
 
             var hint = new Label("Weights and thresholds used by the validator and AI generator to score level difficulty.");
-            hint.AddToClassList("tt-hint");
+            hint.AddToClassList(Css.Hint);
             hint.style.whiteSpace = WhiteSpace.Normal;
             hint.style.marginBottom = 6;
             section.Add(hint);
@@ -66,25 +66,25 @@ namespace TwistedTangle.Editor
         private VisualElement BuildBatchCheckSection()
         {
             var section = new Foldout { text = "Batch Level Check", value = true };
-            section.AddToClassList("tt-section");
+            section.AddToClassList(Css.Section);
 
             var controls = new VisualElement();
-            controls.AddToClassList("tt-row");
+            controls.AddToClassList(Css.Row);
 
             _rangeFrom = new IntegerField("From") { value = 1 };
-            _rangeFrom.AddToClassList("tt-num");
+            _rangeFrom.AddToClassList(Css.Num);
             _rangeTo = new IntegerField("To") { value = 999 };
-            _rangeTo.AddToClassList("tt-num");
+            _rangeTo.AddToClassList(Css.Num);
             controls.Add(_rangeFrom);
             controls.Add(_rangeTo);
 
             var runBtn = new Button(RunBatchCheck) { text = "Check" };
-            runBtn.AddToClassList("tt-btn");
-            runBtn.AddToClassList("tt-btn--primary");
+            runBtn.AddToClassList(Css.Btn);
+            runBtn.AddToClassList(Css.BtnPrimary);
             controls.Add(runBtn);
 
             _batchSummary = new Label();
-            _batchSummary.AddToClassList("tt-metric");
+            _batchSummary.AddToClassList(Css.Metric);
             controls.Add(_batchSummary);
 
             section.Add(controls);
@@ -149,9 +149,9 @@ namespace TwistedTangle.Editor
                 : r.Crossings == 0                 ? "Clean"
                 : "Has crossings";
 
-            string statusCls = r.ValidationErrors > 0 ? "tt-validation__error"
-                : r.Crossings == 0                    ? "tt-validation__ok"
-                : "tt-validation__warn";
+            string statusCls = r.ValidationErrors > 0 ? Css.ValidationError
+                : r.Crossings == 0                    ? Css.ValidationOk
+                : Css.ValidationWarn;
 
             string errors = r.ValidationErrors > 0 ? r.ValidationErrors.ToString() : "";
 

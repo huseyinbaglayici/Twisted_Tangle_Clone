@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using TwistedTangle.Editor.Utils;
 using TwistedTangle.Runtime.Data.ScriptableObjects;
 using TwistedTangle.Runtime.Data.ValueObjects;
 using TwistedTangle.Editor.Geometry;
@@ -22,8 +23,8 @@ namespace TwistedTangle.Editor.Canvas
         public int SelectedRopeId = -1;
         public bool ShowCrossings; // highlight crossing points (flip tool)
         public bool ShowSubGrid;   // show sub-grid routing dots (rope tool)
-        public Color GridStrokeColor   = new Color(1f, 1f, 1f, 0.08f);
-        public Color RopeOutlineColor  = new Color(1f, 1f, 1f, 0.72f);
+        public Color GridStrokeColor   = EditorColors.Separator;
+        public Color RopeOutlineColor  = EditorColors.RopeOutlineDark;
 
         // --- callbacks to the window ---
         public Action<int, int, Vector2, int> CellClicked; // cellX, cellY, localPos, mouseButton
@@ -233,7 +234,7 @@ namespace TwistedTangle.Editor.Canvas
                 // Endpoint pins (pin A / pin B) take their rope's color; other entities use their type color.
                 Color fill = endpointColors.TryGetValue(CrossingSolver.PinToSub(entity.Coordinates), out var ropeColor)
                     ? ropeColor
-                    : PegColorResolver?.Invoke(entity.TypeId) ?? new Color(0.8f, 0.8f, 0.8f);
+                    : PegColorResolver?.Invoke(entity.TypeId) ?? EditorColors.PegFallback;
 
                 p.fillColor = fill;
                 p.BeginPath();
@@ -242,7 +243,7 @@ namespace TwistedTangle.Editor.Canvas
 
                 // Outer border
                 p.lineWidth = 3.5f;
-                p.strokeColor = new Color(0.06f, 0.06f, 0.06f, 0.88f);
+                p.strokeColor = EditorColors.PegShadow;
                 p.BeginPath();
                 p.Arc(c, r, Angle.Degrees(0f), Angle.Degrees(360f));
                 p.Stroke();
@@ -251,7 +252,7 @@ namespace TwistedTangle.Editor.Canvas
                 if (entity.Coordinates == _hoveredPeg)
                 {
                     p.lineWidth = 3f;
-                    p.strokeColor = new Color(1f, 1f, 1f, 0.4f);
+                    p.strokeColor = EditorColors.SelectionGlow;
                     p.BeginPath();
                     p.Arc(c, r + 5f, Angle.Degrees(0f), Angle.Degrees(360f));
                     p.Stroke();
@@ -273,7 +274,7 @@ namespace TwistedTangle.Editor.Canvas
 
             foreach (var entry in sorted)
                 if (entry.rope.RopeId == SelectedRopeId && entry.rope.Path.Count >= 2)
-                    StrokeRope(p, entry.rope, entry.idx, noGaps, new Color(1f, 1f, 1f, 0.4f), RopeWidth + 10f);
+                    StrokeRope(p, entry.rope, entry.idx, noGaps, EditorColors.SelectionGlow, RopeWidth + 10f);
 
             // Painter's algorithm: draw each rope (outline then fill) in layer order.
             // Under-rope gets a gap at each crossing so the over-rope appears on top.

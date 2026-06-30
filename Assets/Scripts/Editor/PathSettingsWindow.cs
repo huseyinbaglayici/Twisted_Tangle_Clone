@@ -30,22 +30,22 @@ namespace TwistedTangle.Editor
         public void CreateGUI()
         {
             var root = rootVisualElement;
-            root.AddToClassList("tt-root");
+            root.AddToClassList(Css.Root);
 
             var uss = AssetDatabase.LoadAssetAtPath<StyleSheet>(LevelEditorPaths.Uss);
             if (uss != null) root.styleSheets.Add(uss);
 
-            root.style.backgroundColor = new Color(0.102f, 0.102f, 0.102f);
+            root.style.backgroundColor = EditorColors.WindowBg;
 
             var scroll = new ScrollView();
-            scroll.AddToClassList("tt-right-scroll");
+            scroll.AddToClassList(Css.RightScroll);
             scroll.style.flexGrow    = 1;
             scroll.style.paddingLeft  = 8;
             scroll.style.paddingRight = 8;
             scroll.style.paddingTop   = 8;
 
             var title = new Label("Twisted Tangle — Editor Paths");
-            title.AddToClassList("tt-title");
+            title.AddToClassList(Css.Title);
             scroll.Add(title);
 
             scroll.Add(new HelpBox(
@@ -67,7 +67,7 @@ namespace TwistedTangle.Editor
                     LevelEditorPaths.ResetAll();
                     Rebuild();
                 }
-            }, "tt-btn--danger"));
+            }, Css.BtnDanger));
             scroll.Add(footer);
 
             root.Add(scroll);
@@ -85,7 +85,7 @@ namespace TwistedTangle.Editor
         {
             // One bordered section per path so the field, its path text and any warning stay grouped.
             var container = new VisualElement();
-            container.AddToClassList("tt-section");
+            container.AddToClassList(Css.Section);
 
             var row = MakeRow();
 
@@ -113,12 +113,12 @@ namespace TwistedTangle.Editor
             row.Add(field);
 
             var reveal = new Button(() => Reveal(current)) { text = "Reveal" };
-            reveal.AddToClassList("tt-tool");
+            reveal.AddToClassList(Css.Tool);
             reveal.tooltip = "Highlight this path in the Project window.";
             row.Add(reveal);
 
             var browse = new Button(() => Browse(def)) { text = "Browse…" };
-            browse.AddToClassList("tt-tool");
+            browse.AddToClassList(Css.Tool);
             browse.tooltip = "Pick via the OS file dialog.";
             row.Add(browse);
 
@@ -129,7 +129,7 @@ namespace TwistedTangle.Editor
                     LevelEditorPaths.Reset(def.Id);
                     Rebuild();
                 }) { text = "Default" };
-                reset.AddToClassList("tt-tool");
+                reset.AddToClassList(Css.Tool);
                 row.Add(reset);
             }
 
@@ -137,7 +137,7 @@ namespace TwistedTangle.Editor
 
             // The resolved project path, so designers can read/confirm it at a glance.
             var pathLabel = new Label(current);
-            pathLabel.AddToClassList("tt-metric");
+            pathLabel.AddToClassList(Css.Metric);
             pathLabel.style.marginLeft = 2;
             container.Add(pathLabel);
 
@@ -145,7 +145,7 @@ namespace TwistedTangle.Editor
             if (problem != null)
             {
                 var warn = new Label("⚠ " + problem);
-                warn.AddToClassList("tt-validation__warn");
+                warn.AddToClassList(Css.ValidationWarn);
                 container.Add(warn);
             }
 
@@ -264,15 +264,15 @@ namespace TwistedTangle.Editor
         private static VisualElement MakeRow()
         {
             var r = new VisualElement();
-            r.AddToClassList("tt-row");
-            r.AddToClassList("tt-row--wrap");
+            r.AddToClassList(Css.Row);
+            r.AddToClassList(Css.RowWrap);
             return r;
         }
 
         private static Button MakeButton(string text, System.Action onClick, string ussClass)
         {
             var b = new Button(onClick) { text = text };
-            b.AddToClassList("tt-btn");
+            b.AddToClassList(Css.Btn);
             if (!string.IsNullOrEmpty(ussClass)) b.AddToClassList(ussClass);
             return b;
         }

@@ -29,22 +29,22 @@ namespace TwistedTangle.Editor
         public void CreateGUI()
         {
             var root = rootVisualElement;
-            root.AddToClassList("tt-root");
+            root.AddToClassList(Css.Root);
 
             var uss = AssetDatabase.LoadAssetAtPath<StyleSheet>(LevelEditorPaths.Uss);
             if (uss != null) root.styleSheets.Add(uss);
 
-            root.style.backgroundColor = new Color(0.102f, 0.102f, 0.102f); // #1A1A1A
+            root.style.backgroundColor = EditorColors.WindowBg;
 
             var scroll = new ScrollView();
-            scroll.AddToClassList("tt-right-scroll");
+            scroll.AddToClassList(Css.RightScroll);
             scroll.style.flexGrow = 1;
             scroll.style.paddingLeft  = 8;
             scroll.style.paddingRight = 8;
             scroll.style.paddingTop   = 8;
 
             var title = new Label("Twisted Tangle — Key Bindings");
-            title.AddToClassList("tt-title");
+            title.AddToClassList(Css.Title);
             scroll.Add(title);
 
             scroll.Add(new HelpBox(
@@ -66,7 +66,7 @@ namespace TwistedTangle.Editor
                     _listeningId = null;
                     Rebuild();
                 }
-            }, "tt-btn--danger"));
+            }, Css.BtnDanger));
             scroll.Add(footer);
 
             root.Add(scroll);
@@ -134,7 +134,7 @@ namespace TwistedTangle.Editor
         private void AddHeader(string text)
         {
             var header = new Label(text);
-            header.AddToClassList("tt-section__header");
+            header.AddToClassList(Css.SectionHeader);
             header.style.marginTop = 8;
             _rowsHost.Add(header);
         }
@@ -152,7 +152,7 @@ namespace TwistedTangle.Editor
         private VisualElement BuildSubFoldout(string key, string title, IReadOnlyList<EditorCommand> subs)
         {
             var foldout = new Foldout { text = title, value = _expanded.Contains(key) };
-            foldout.AddToClassList("tt-subgroup"); // indent + accent so it reads as nested under its base
+            foldout.AddToClassList(Css.Subgroup); // indent + accent so it reads as nested under its base
             // The rows hold only buttons/labels (no bool fields), so every ChangeEvent<bool> here is the
             // foldout's own expand/collapse — safe to track directly.
             foldout.RegisterValueChangedCallback(e =>
@@ -174,7 +174,7 @@ namespace TwistedTangle.Editor
             // The name flexes (and ellipsises long text) so the fixed-width buttons always stay on one
             // line — otherwise "Default" wraps below on narrow windows / long command names.
             var name = new Label(cmd.DisplayName) { tooltip = cmd.DisplayName };
-            if (sub) name.AddToClassList("tt-subname"); // smaller + dimmer for nested sub-types
+            if (sub) name.AddToClassList(Css.Subname); // smaller + dimmer for nested sub-types
             name.style.flexGrow = 1;
             name.style.flexShrink = 1;
             name.style.minWidth = 60;
@@ -192,14 +192,14 @@ namespace TwistedTangle.Editor
             {
                 text = listening ? "Press keys…" : combo.ToString()
             };
-            bindBtn.AddToClassList("tt-tool");
+            bindBtn.AddToClassList(Css.Tool);
             bindBtn.style.minWidth = 110;
             bindBtn.style.flexShrink = 0;
-            if (listening) bindBtn.AddToClassList("tt-tool--active");
+            if (listening) bindBtn.AddToClassList(Css.ToolActive);
             row.Add(bindBtn);
 
             var clear = new Button(() => { KeyBindingStore.Set(cmd.Id, KeyCombo.None); Rebuild(); }) { text = "Clear" };
-            clear.AddToClassList("tt-tool");
+            clear.AddToClassList(Css.Tool);
             clear.style.flexShrink = 0;
             clear.SetEnabled(!combo.IsEmpty);
             row.Add(clear);
@@ -207,7 +207,7 @@ namespace TwistedTangle.Editor
             if (KeyBindingStore.IsOverridden(cmd.Id))
             {
                 var reset = new Button(() => { KeyBindingStore.Reset(cmd.Id); Rebuild(); }) { text = "Default" };
-                reset.AddToClassList("tt-tool");
+                reset.AddToClassList(Css.Tool);
                 reset.style.flexShrink = 0;
                 row.Add(reset);
             }
@@ -220,7 +220,7 @@ namespace TwistedTangle.Editor
                 {
                     tooltip = "This shortcut is bound to more than one action."
                 };
-                warn.AddToClassList("tt-validation__warn");
+                warn.AddToClassList(Css.ValidationWarn);
                 warn.style.marginLeft = 4;
                 row.Add(warn);
             }
@@ -253,15 +253,15 @@ namespace TwistedTangle.Editor
         private static VisualElement MakeRow()
         {
             var r = new VisualElement();
-            r.AddToClassList("tt-row");
-            r.AddToClassList("tt-row--wrap");
+            r.AddToClassList(Css.Row);
+            r.AddToClassList(Css.RowWrap);
             return r;
         }
 
         private static Button MakeButton(string text, System.Action onClick, string ussClass)
         {
             var b = new Button(onClick) { text = text };
-            b.AddToClassList("tt-btn");
+            b.AddToClassList(Css.Btn);
             if (!string.IsNullOrEmpty(ussClass)) b.AddToClassList(ussClass);
             return b;
         }
