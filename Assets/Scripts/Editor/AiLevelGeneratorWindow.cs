@@ -123,8 +123,8 @@ namespace TwistedTangle.Editor
             s.Add(gridRow);
 
             var diffRow = MakeRow();
-            string savedDiff = EditorPrefs.GetString(P("Diff"), "Medium");
-            var choices = new List<string> { "Easy", "Medium", "Hard" };
+            string savedDiff = EditorPrefs.GetString(P("Diff"), "Normal");
+            var choices = new List<string> { "Normal", "Hard", "VeryHard" };
             int diffIdx = Mathf.Max(0, choices.IndexOf(savedDiff));
             _difficulty = new DropdownField("Difficulty", choices, diffIdx);
             _difficulty.labelElement.style.minWidth = 0;
@@ -310,11 +310,11 @@ namespace TwistedTangle.Editor
         private void UpdateDiffHint()
         {
             if (_diffHintLabel == null) return;
-            _diffHintLabel.text = (_difficulty?.value ?? "Medium") switch
+            _diffHintLabel.text = (_difficulty?.value ?? "Normal") switch
             {
-                "Easy"  => "2–3 ropes · 1–3 crossings · 4–6 pegs · ≤2 moves · no nailed pins · ropes don't share pegs",
-                "Hard"  => "4–6 ropes · 5–9 crossings · 7–11 pegs · ≤6 moves · up to 3 nailed endpoints · hub pegs connecting multiple ropes",
-                _       => "3–4 ropes · 3–6 crossings · 5–8 pegs · ≤4 moves · up to 1 nailed endpoint · 1–2 shared hub pegs",
+                "Hard"     => "4–6 ropes · 5–9 crossings · 7–11 pegs · ≤6 moves · up to 3 nailed endpoints · hub pegs connecting multiple ropes",
+                "VeryHard" => "5–7 ropes · 7–12 crossings · 9–13 pegs · ≤9 moves · up to 4 nailed endpoints · complex web topology",
+                _          => "3–4 ropes · 3–6 crossings · 5–8 pegs · ≤4 moves · up to 1 nailed endpoint · 1–2 shared hub pegs",
             };
         }
 

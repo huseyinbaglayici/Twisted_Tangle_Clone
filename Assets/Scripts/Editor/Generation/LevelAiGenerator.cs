@@ -67,17 +67,6 @@ namespace TwistedTangle.Editor.Generation
 
             return difficulty switch
             {
-                "Easy" => new DifficultyProfile(
-                    ropeMin: 2,         ropeMax: 3 + bonus,
-                    crossingMin: 1,     crossingMax: 3,
-                    pegMin: 4,          pegMax: 6 + bonus,
-                    freeCellPercent: 45,
-                    maxNailedEndpoints: 0,
-                    maxSolveMoves: 2,
-                    allowSharedPegs: false,
-                    topologyHint: "LINEAR — each rope crosses at most one other rope. Example: A×B and B×C is fine; A×B, A×C and B×C (star/triangle) is NOT.",
-                    solveHint: "A single peg move should resolve every crossing. If not, two sequential moves must do it."
-                ),
                 "Hard" => new DifficultyProfile(
                     ropeMin: 4 + bonus, ropeMax: 6 + bonus,
                     crossingMin: 5,     crossingMax: 9,
@@ -89,7 +78,18 @@ namespace TwistedTangle.Editor.Generation
                     topologyHint: "NESTED — several ropes share pegs and cross each other in a 'star' or 'web' pattern. Moving one peg affects multiple ropes, so the order of moves matters.",
                     solveHint: "The solution requires 4–6 ordered moves. Some moves free space for later moves. There is no shortcut — every move is necessary."
                 ),
-                _ => new DifficultyProfile( // Medium
+                "VeryHard" => new DifficultyProfile(
+                    ropeMin: 5 + bonus, ropeMax: 7 + bonus,
+                    crossingMin: 7,     crossingMax: 12,
+                    pegMin: 9 + bonus,  pegMax: 13 + bonus,
+                    freeCellPercent: 20,
+                    maxNailedEndpoints: 4,
+                    maxSolveMoves: 9,
+                    allowSharedPegs: true,
+                    topologyHint: "WEB — most pegs are shared by 2–3 ropes, forming a dense interconnected web. Every move has cascading effects on multiple ropes.",
+                    solveHint: "The solution requires 7–9 strictly ordered moves. Multiple ropes must be partially freed before others can move at all."
+                ),
+                _ => new DifficultyProfile( // Normal
                     ropeMin: 3,         ropeMax: 4 + bonus,
                     crossingMin: 3,     crossingMax: 6,
                     pegMin: 5,          pegMax: 8 + bonus,

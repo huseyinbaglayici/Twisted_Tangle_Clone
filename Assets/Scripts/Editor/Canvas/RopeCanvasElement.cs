@@ -264,6 +264,7 @@ namespace TwistedTangle.Editor.Canvas
             if (Level == null || Level.Ropes.Count == 0) return;
 
             var noGaps = new Dictionary<(int, int), List<float>>();
+            var gapMap = BuildGapMap();
 
             var sorted = new List<(RopeData rope, int idx)>();
             for (int i = 0; i < Level.Ropes.Count; i++)
@@ -274,14 +275,13 @@ namespace TwistedTangle.Editor.Canvas
                 if (entry.rope.RopeId == SelectedRopeId && entry.rope.Path.Count >= 2)
                     StrokeRope(p, entry.rope, entry.idx, noGaps, new Color(1f, 1f, 1f, 0.4f), RopeWidth + 10f);
 
-            // Pure painter's algorithm: draw each rope (outline then fill) in layer order.
-            // Over-rope's outline (+7 px) naturally covers the under-rope at crossings,
-            // keeping the under-rope visible right up to the crossing edge — no void gap.
+            // Painter's algorithm: draw each rope (outline then fill) in layer order.
+            // Under-rope gets a gap at each crossing so the over-rope appears on top.
             foreach (var entry in sorted)
             {
                 if (entry.rope.Path.Count < 2) continue;
-                StrokeRope(p, entry.rope, entry.idx, noGaps, RopeOutlineColor, RopeWidth + 7f);
-                StrokeRope(p, entry.rope, entry.idx, noGaps, entry.rope.Tint, RopeWidth);
+                StrokeRope(p, entry.rope, entry.idx, gapMap, RopeOutlineColor, RopeWidth + 7f);
+                StrokeRope(p, entry.rope, entry.idx, gapMap, entry.rope.Tint, RopeWidth);
                 DrawEndpoints(p, entry.rope);
                 DrawExitGrommets(p, entry.rope);
             }

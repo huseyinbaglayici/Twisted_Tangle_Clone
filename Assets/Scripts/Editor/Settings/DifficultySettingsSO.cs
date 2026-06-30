@@ -14,22 +14,17 @@ namespace TwistedTangle.Editor.Settings
         public float WOverrides = 1.0f;
 
         [Header("Thresholds")]
-        [Tooltip("Score below this → Easy")]
-        public float NormalThreshold   = 10f;
         [Tooltip("Score below this → Normal")]
         public float HardThreshold     = 24f;
-        [Tooltip("Score below this → Hard")]
+        [Tooltip("Score below this → Hard; above → VeryHard")]
         public float VeryHardThreshold = 40f;
-        [Tooltip("Score below this → VeryHard; above → Special")]
-        public float SpecialThreshold  = 60f;
 
+        // Tutorial and Special are never auto-assigned — manually curated only.
         public LevelDifficulty Classify(float score)
         {
-            if (score < NormalThreshold)   return LevelDifficulty.Easy;
             if (score < HardThreshold)     return LevelDifficulty.Normal;
             if (score < VeryHardThreshold) return LevelDifficulty.Hard;
-            if (score < SpecialThreshold)  return LevelDifficulty.VeryHard;
-            return LevelDifficulty.Special;
+            return LevelDifficulty.VeryHard;
         }
 
         public float ComputeScore(int crossings, int ropes, int colors, float length, int overrides) =>

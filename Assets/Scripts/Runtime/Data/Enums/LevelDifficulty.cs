@@ -2,7 +2,7 @@ namespace TwistedTangle.Runtime.Data.Enums
 {
     public enum LevelDifficulty
     {
-        Easy,
+        Tutorial,
         Normal,
         Hard,
         VeryHard,
