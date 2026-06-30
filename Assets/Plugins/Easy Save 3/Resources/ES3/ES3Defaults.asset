@@ -35,9 +35,9 @@ MonoBehaviour:
     - UniTask
     - ToonyColorsPro.Editor
     - PPv2URPConverters
+    - Assembly-CSharp
     - ToonyColorsPro.Runtime
     - UniTask.Linq
-    - Assembly-CSharp
     - Zenject-TestFramework
     - UniTask.TextMeshPro
     - UniTask.Addressables

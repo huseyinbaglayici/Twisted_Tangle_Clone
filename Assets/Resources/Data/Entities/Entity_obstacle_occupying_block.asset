@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   typeId: obstacle.occupying_block
   displayName: occupying block
-  editorColor: {r: 0.8301887, g: 0.74012107, b: 0.76698333, a: 1}
+  editorColor: {r: 0.6698113, g: 0.4454877, b: 0.5154628, a: 1}
   baseType: {fileID: 11400000, guid: 39707d918ba6a5547bc710d645129690, type: 2}
   prefab: {fileID: 0}
   tags: []
