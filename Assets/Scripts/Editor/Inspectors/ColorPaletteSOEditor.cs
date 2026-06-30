@@ -1,4 +1,5 @@
 using TwistedTangle.Editor.Materials;
+using TwistedTangle.Editor.Utils;
 using TwistedTangle.Runtime.Data.ScriptableObjects;
 using UnityEditor;
 using UnityEngine;
@@ -14,8 +15,6 @@ namespace TwistedTangle.Editor.Inspectors
     [CustomEditor(typeof(ColorPaletteSO))]
     public class ColorPaletteSOEditor : UnityEditor.Editor
     {
-        private const string MaterialsBasePath = "Assets/Art/Materials/Game";
-
         public override void OnInspectorGUI()
         {
             DrawDefaultInspector();
@@ -43,7 +42,7 @@ namespace TwistedTangle.Editor.Inspectors
             if (template == null) return;
 
             // Factory builds the material; repository decides where/how it's stored.
-            string folder = $"{MaterialsBasePath}/{((ColorPaletteSO)target).name}";
+            string folder = LevelEditorPaths.MaterialsForPalette(((ColorPaletteSO)target).name);
             var repository = new MaterialVariantRepository(folder, new MaterialVariantFactory());
             var entries = so.FindProperty("entries");
 

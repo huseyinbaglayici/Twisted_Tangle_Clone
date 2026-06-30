@@ -15,7 +15,6 @@ namespace TwistedTangle.Runtime.Data.ValueObjects
     {
         public Vector2Int PegCoord;
         public WindSide Side;
-        /// <summary>When true this waypoint is a free bend point, not tied to a peg.</summary>
         public bool IsBendPoint;
 
         public RopeWaypoint(Vector2Int pegCoord, WindSide side = WindSide.None, bool isBendPoint = false)

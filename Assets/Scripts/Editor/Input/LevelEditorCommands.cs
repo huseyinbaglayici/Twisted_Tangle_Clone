@@ -8,14 +8,9 @@ using UnityEngine;
 namespace TwistedTangle.Editor.Input
 {
     /// <summary>
-    /// The catalog of Level Creator actions that can be bound to a shortcut. The built-in actions are
-    /// fixed; the placement actions are discovered dynamically — one tool per <see cref="EntityBaseTypeSO"/>
-    /// (listed by its name, e.g. "Pin") with its <see cref="EntityDefinitionSO"/> sub-types grouped under
-    /// it — so creating a new entity type in the Level Creator makes matching, bindable shortcuts appear in
-    /// the <see cref="KeyBindingWindow"/> automatically. This is pure metadata: <see cref="LevelCreator"/>
-    /// maps these ids to its own methods. Call <see cref="Refresh"/> after entity assets change to rebuild
-    /// (and announce) the dynamic list. <see cref="BaseGroups"/> exposes the base→sub-type hierarchy for the
-    /// bindings window; <see cref="All"/> stays flat for shortcut lookup and conflict detection.
+    /// Catalog of Level Creator shortcuts: fixed built-ins + dynamically-discovered entity tools (one per
+    /// EntityBaseTypeSO with sub-types). Pure metadata — LevelCreator maps ids to callbacks. Call Refresh
+    /// after entity assets change.
     /// </summary>
     public static class LevelEditorCommands
     {

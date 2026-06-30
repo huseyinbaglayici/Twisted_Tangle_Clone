@@ -293,7 +293,6 @@ namespace TwistedTangle.Editor
             RefreshBaseTypes();
             RefreshEntityDefinitions();
 
-            // Resolve or create the base type.
             var baseType = existingBase;
             if (baseType == null)
             {
@@ -309,7 +308,6 @@ namespace TwistedTangle.Editor
                 baseType = CreateBaseAsset(baseId, newBaseName, color, LevelEditorPaths.Bases);
             }
 
-            // Create the sub-type under that base.
             subName = subName?.Trim();
             if (string.IsNullOrEmpty(subName))
                 return (false, "Sub-type name is required.");
@@ -412,7 +410,7 @@ namespace TwistedTangle.Editor
             if (autoGenerate && palette.VariantTemplate != null)
             {
                 var repo = new TwistedTangle.Editor.Materials.MaterialVariantRepository(
-                    $"Assets/Art/Materials/Game/{palette.name}",
+                    LevelEditorPaths.MaterialsForPalette(palette.name),
                     new TwistedTangle.Editor.Materials.MaterialVariantFactory());
                 var variant = repo.GetOrCreate(palette.VariantTemplate, colorName, color);
                 el.FindPropertyRelative("Variant").objectReferenceValue = variant;
@@ -1017,8 +1015,6 @@ namespace TwistedTangle.Editor
             return panel;
         }
 
-
-
         public void LoadGeneratedLevel(LevelDataSO level)
         {
             level.LevelId = _levelIdField.value;
@@ -1044,9 +1040,6 @@ namespace TwistedTangle.Editor
                     return true;
             return false;
         }
-
-
-
 
         #endregion
 

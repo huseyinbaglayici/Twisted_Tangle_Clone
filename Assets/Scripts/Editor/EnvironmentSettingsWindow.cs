@@ -6,11 +6,6 @@ using UnityEngine.UIElements;
 
 namespace TwistedTangle.Editor
 {
-    /// <summary>
-    /// Project-scoped environment defaults: the default background material the canvas falls back to
-    /// when a level has no per-level background material assigned. Settings are saved in EditorPrefs
-    /// (machine-local, not committed) so they never dirty assets.
-    /// </summary>
     public class EnvironmentSettingsWindow : EditorWindow
     {
         [MenuItem("TwistedTangle/Environment Settings")]

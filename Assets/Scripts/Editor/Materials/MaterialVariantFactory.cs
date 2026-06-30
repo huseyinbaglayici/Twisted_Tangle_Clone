@@ -2,11 +2,6 @@ using UnityEngine;
 
 namespace TwistedTangle.Editor.Materials
 {
-    /// <summary>
-    /// Builds the in-memory material for an authored color. Pure creation — no disk I/O.
-    /// Saving/de-duplication is the repository's job (see <see cref="MaterialVariantRepository"/>).
-    /// Intentionally generic: works for any template (rope, pin, lock, future object types) + color.
-    /// </summary>
     public interface IMaterialVariantFactory
     {
         /// <summary>A new material variant of <paramref name="template"/> with only the color overridden.</summary>

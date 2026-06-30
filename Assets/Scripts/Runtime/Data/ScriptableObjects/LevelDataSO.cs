@@ -5,11 +5,6 @@ using UnityEngine;
 
 namespace TwistedTangle.Runtime.Data.ScriptableObjects
 {
-    /// <summary>
-    /// The complete, serialized definition of one level: the single source of truth shared by the
-    /// editor (authoring) and the runtime loader (playback). Everything authored in the tool must
-    /// round-trip through these fields with no loss.
-    /// </summary>
     [CreateAssetMenu(
         fileName = "Level_0",
         menuName = "TwistedTangle/Level Data",
@@ -50,7 +45,6 @@ namespace TwistedTangle.Runtime.Data.ScriptableObjects
             set => gridHeight = value;
         }
 
-        /// <summary>How long the level lasts, in seconds.</summary>
         public int TimeSeconds
         {
             get => timeSeconds;

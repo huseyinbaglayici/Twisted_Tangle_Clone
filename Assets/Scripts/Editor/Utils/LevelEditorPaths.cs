@@ -49,6 +49,10 @@ namespace TwistedTangle.Editor.Utils
         public static string Palettes => Get(PathId.Palettes);
         public static string Uss => Get(PathId.Uss);
 
+        // Material variants are written beside the palette they belong to — not user-configurable.
+        public static string MaterialsForPalette(string paletteName) =>
+            $"Assets/Art/Materials/Game/{paletteName}";
+
         // Scope the prefs key by project so two projects on the same machine don't share paths.
         private static readonly string PrefsKey =
             $"TwistedTangle.LevelEditor.Paths.{PlayerSettings.productGUID}";

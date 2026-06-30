@@ -287,7 +287,6 @@ namespace TwistedTangle.Editor.Canvas
             }
         }
 
-        /// <summary>Color each rope endpoint (pin A / pin B) gets, including the in-progress rope.</summary>
         private Dictionary<Vector2Int, Color> BuildEndpointColors()
         {
             var map = new Dictionary<Vector2Int, Color>();
@@ -308,7 +307,6 @@ namespace TwistedTangle.Editor.Canvas
             return map;
         }
 
-        /// <summary>For each segment of each rope, the parametric t-positions where it goes UNDER.</summary>
         private Dictionary<(int rope, int seg), List<float>> BuildGapMap()
         {
             var gaps = new Dictionary<(int, int), List<float>>();
