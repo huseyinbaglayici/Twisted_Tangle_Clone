@@ -33,10 +33,9 @@ MonoBehaviour:
     - Zenject
     - Zenject-IntegrationTests
     - UniTask
-    - Project.Editor
+    - Editor
     - ToonyColorsPro.Editor
     - PPv2URPConverters
-    - Assembly-CSharp
     - ToonyColorsPro.Runtime
     - UniTask.Linq
     - Zenject-TestFramework
