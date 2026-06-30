@@ -144,7 +144,8 @@ namespace TwistedTangle.Editor.Canvas
 
         #region Rendering
 
-        private float RopeWidth => Mathf.Max(6f, CellSize * 0.17f);
+        private float RopeWidth => Mathf.Max(5f, CellSize * 0.14f);
+        private float PinRadius => CellSize * 0.38f;
         private float GapPx => RopeWidth * 2.6f;
         private const int SplineSamples = 16; // subdivisions per segment — raise for smoother curves
 
@@ -166,32 +167,25 @@ namespace TwistedTangle.Editor.Canvas
 
         private void DrawGrid(Painter2D p)
         {
-            p.lineWidth = 1f;
-            p.strokeColor = GridStrokeColor;
-            float w = GridWidth * CellSize;
-            float h = GridHeight * CellSize;
-
-            for (int x = 0; x <= GridWidth; x++)
+            float pinVisualRadius = PinRadius + 1.75f; // fill radius + half of 3.5px stroke
+            float dotR = pinVisualRadius * 1.15f;
+            p.fillColor = GridStrokeColor;
+            for (int x = 0; x < GridWidth; x++)
             {
-                p.BeginPath();
-                p.MoveTo(new Vector2(x * CellSize, 0));
-                p.LineTo(new Vector2(x * CellSize, h));
-                p.Stroke();
-            }
-
-            for (int y = 0; y <= GridHeight; y++)
-            {
-                p.BeginPath();
-                p.MoveTo(new Vector2(0, y * CellSize));
-                p.LineTo(new Vector2(w, y * CellSize));
-                p.Stroke();
+                for (int y = 0; y < GridHeight; y++)
+                {
+                    var center = new Vector2((x + 0.5f) * CellSize, (y + 0.5f) * CellSize);
+                    p.BeginPath();
+                    p.Arc(center, dotR, Angle.Degrees(0f), Angle.Degrees(360f));
+                    p.Fill();
+                }
             }
         }
 
         private void DrawPegs(Painter2D p)
         {
             if (Level == null) return;
-            float r = CellSize * 0.30f;
+            float r = PinRadius;
             var endpointColors = BuildEndpointColors();
 
             foreach (var entity in Level.GridEntities)
@@ -420,7 +414,7 @@ namespace TwistedTangle.Editor.Canvas
         private void DrawExitGrommets(Painter2D p, RopeData rope)
         {
             if (rope.Path.Count < 2) return;
-            float pegR = CellSize * 0.30f;
+            float pegR = PinRadius;
             Color color = rope.Tint;
 
             Vector2 aC = ToPx(CrossingSolver.SubCenter(rope.Path[0].PegCoord));
@@ -463,7 +457,7 @@ namespace TwistedTangle.Editor.Canvas
             DrawDot(p, ToPx(CrossingSolver.SubCenter(rope.Path[^1].PegCoord)), r, color);
 
             // Inner grip ring on rope endpoints
-            float pegR = CellSize * 0.30f;
+            float pegR = PinRadius;
             p.lineWidth = 1.5f;
             p.strokeColor = new Color(0f, 0f, 0f, 0.82f);
             p.BeginPath();
