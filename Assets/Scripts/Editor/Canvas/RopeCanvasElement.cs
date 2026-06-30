@@ -27,6 +27,7 @@ namespace TwistedTangle.Editor.Canvas
         public int GridHeight;
         public LevelDataSO Level;
         public Func<string, Color> PegColorResolver;
+        public Func<string, bool> IsBlockingResolver;
         public RopeData PreviewRope; // in-progress rope being authored (null if none)
         public int SelectedRopeId = -1;
         public bool ShowCrossings; // highlight crossing points (flip tool)
@@ -159,9 +160,10 @@ namespace TwistedTangle.Editor.Canvas
 
             DrawGrid(p);
             DrawPegs(p);
+            DrawBlockingMarkers(p);
             DrawRopes(p);
             DrawPreview(p);
-            if (ShowSubGrid) DrawSubGridDots(p); // drawn last so dots are always visible over ropes
+            if (ShowSubGrid) DrawSubGridDots(p);
             if (ShowCrossings) DrawCrossingMarkers(p);
         }
 
@@ -179,6 +181,42 @@ namespace TwistedTangle.Editor.Canvas
                     p.Arc(center, dotR, Angle.Degrees(0f), Angle.Degrees(360f));
                     p.Fill();
                 }
+            }
+        }
+
+        private void DrawBlockingMarkers(Painter2D p)
+        {
+            if (Level == null || IsBlockingResolver == null) return;
+            float r    = CellSize * 0.30f;
+            float diag = r * 0.70f;
+
+            foreach (var entity in Level.GridEntities)
+            {
+                if (!IsBlockingResolver(entity.TypeId)) continue;
+                Vector2 c = ToPx(CrossingSolver.Center(entity.Coordinates));
+
+                // Shadow pass
+                p.lineWidth   = 5f;
+                p.strokeColor = new Color(0f, 0f, 0f, 0.50f);
+                p.lineCap     = LineCap.Round;
+                p.BeginPath();
+                p.Arc(c, r, Angle.Degrees(0f), Angle.Degrees(360f));
+                p.Stroke();
+                p.BeginPath();
+                p.MoveTo(c + new Vector2(-diag, -diag));
+                p.LineTo(c + new Vector2( diag,  diag));
+                p.Stroke();
+
+                // White symbol on top
+                p.lineWidth   = 2.5f;
+                p.strokeColor = new Color(1f, 1f, 1f, 0.90f);
+                p.BeginPath();
+                p.Arc(c, r, Angle.Degrees(0f), Angle.Degrees(360f));
+                p.Stroke();
+                p.BeginPath();
+                p.MoveTo(c + new Vector2(-diag, -diag));
+                p.LineTo(c + new Vector2( diag,  diag));
+                p.Stroke();
             }
         }
 

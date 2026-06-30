@@ -1,0 +1,21 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e6558c0148d099341a44ac3621135069, type: 3}
+  m_Name: Entity_obstacle_occupying_block
+  m_EditorClassIdentifier: 
+  typeId: obstacle.occupying_block
+  displayName: occupying block
+  editorColor: {r: 0.6698113, g: 0.4454877, b: 0.5154628, a: 1}
+  baseType: {fileID: 11400000, guid: 39707d918ba6a5547bc710d645129690, type: 2}
+  prefab: {fileID: 0}
+  tags: []
+  blocksCell: 1

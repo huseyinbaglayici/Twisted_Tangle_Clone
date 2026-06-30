@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using TwistedTangle.Editor.Utils;
 using TwistedTangle.Editor.Validation;
 using UnityEditor;
@@ -7,14 +8,11 @@ using UnityEngine.UIElements;
 
 namespace TwistedTangle.Editor
 {
-    /// <summary>
-    /// Admin/QA tools that operate across all levels at once, not per-level editing.
-    /// Open via TwistedTangle → Advanced Tools, or the button in the Level Creator.
-    /// </summary>
     public class AdvancedToolsWindow : EditorWindow
     {
         private VisualElement _batchResultsContainer;
         private Label _batchSummary;
+        private IntegerField _rangeFrom, _rangeTo;
 
         [MenuItem("TwistedTangle/Advanced Tools")]
         public static void ShowWindow()
@@ -52,7 +50,14 @@ namespace TwistedTangle.Editor
             var controls = new VisualElement();
             controls.AddToClassList("tt-row");
 
-            var runBtn = new Button(RunBatchCheck) { text = "Check All Levels" };
+            _rangeFrom = new IntegerField("From") { value = 1 };
+            _rangeFrom.AddToClassList("tt-num");
+            _rangeTo = new IntegerField("To") { value = 999 };
+            _rangeTo.AddToClassList("tt-num");
+            controls.Add(_rangeFrom);
+            controls.Add(_rangeTo);
+
+            var runBtn = new Button(RunBatchCheck) { text = "Check" };
             runBtn.AddToClassList("tt-btn");
             runBtn.AddToClassList("tt-btn--primary");
             controls.Add(runBtn);
@@ -75,17 +80,23 @@ namespace TwistedTangle.Editor
             _batchResultsContainer.Clear();
             _batchSummary.text = "Checking…";
 
-            var results = LevelBatchChecker.CheckAll();
+            int from = Mathf.Min(_rangeFrom.value, _rangeTo.value);
+            int to   = Mathf.Max(_rangeFrom.value, _rangeTo.value);
+
+            var all = LevelBatchChecker.CheckAll();
+            var results = all.Where(r => r.LevelId >= from && r.LevelId <= to).ToList();
 
             if (results.Count == 0)
             {
-                _batchSummary.text = "No levels found in: " + LevelEditorPaths.Levels;
+                _batchSummary.text = all.Count == 0
+                    ? "No levels found in: " + LevelEditorPaths.Levels
+                    : $"No levels in range {from}–{to}.";
                 return;
             }
 
             int ok = 0;
             foreach (var r in results) if (r.ValidationErrors == 0 && r.Crossings == 0) ok++;
-            _batchSummary.text = $"{ok}/{results.Count} valid & untangled";
+            _batchSummary.text = $"{ok}/{results.Count} valid & untangled ({from}–{to})";
 
             _batchResultsContainer.Add(MakeTableHeader());
             foreach (var r in results)
@@ -138,7 +149,7 @@ namespace TwistedTangle.Editor
                 var cell = new Label(values[i]);
                 cell.style.width = widths[i];
                 cell.style.color = new Color(0.72f, 0.72f, 0.72f);
-                if (i == 1) cell.AddToClassList(statusCls); // Status column gets the color
+                if (i == 1) cell.AddToClassList(statusCls);
                 row.Add(cell);
             }
             return row;

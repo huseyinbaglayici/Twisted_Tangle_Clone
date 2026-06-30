@@ -24,9 +24,21 @@ namespace TwistedTangle.Runtime.Data.ScriptableObjects
         [Tooltip("Accent color for the toolbar button so bases are easy to tell apart in the editor.")]
         [SerializeField] private Color editorColor = new(0.85f, 0.85f, 0.85f);
 
-        /// <summary>Stable id; falls back to the asset name if the field was left blank.</summary>
-        public string BaseId => string.IsNullOrEmpty(baseId) ? name : baseId;
-        public string DisplayName => string.IsNullOrEmpty(displayName) ? BaseId : displayName;
-        public Color EditorColor => editorColor;
+#if UNITY_EDITOR
+        [Tooltip("Toolbar position. Rope is fixed at 50. Values < 50 appear before Rope, values > 50 after. Ties broken alphabetically.")]
+        [SerializeField] private int sortOrder = 0;
+
+        [Tooltip("Show the ⊘ occupied marker on canvas cells of this type. Enable for Obstacle bases.")]
+        [SerializeField] private bool showOccupiedMarker = false;
+#endif
+
+        public string BaseId      => string.IsNullOrEmpty(baseId)      ? name   : baseId;
+        public string DisplayName => string.IsNullOrEmpty(displayName)  ? BaseId : displayName;
+        public Color  EditorColor => editorColor;
+
+#if UNITY_EDITOR
+        public int  SortOrder           => sortOrder;
+        public bool ShowOccupiedMarker  => showOccupiedMarker;
+#endif
     }
 }

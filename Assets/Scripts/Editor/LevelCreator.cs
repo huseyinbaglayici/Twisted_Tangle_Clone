@@ -15,12 +15,6 @@ using UnityEngine.UIElements;
 
 namespace TwistedTangle.Editor
 {
-    /// <summary>
-    /// Twisted Tangle visual level editor. A designer places entities on a grid, draws ropes between
-    /// them, picks each rope's color from a palette, controls which rope sits on top at each crossing,
-    /// and saves/loads/deletes levels by id — all without touching code. Entity types and palette colors
-    /// are data-driven (EntityDefinitionSO / ColorPaletteSO assets), so new content appears automatically.
-    /// </summary>
     public class LevelCreator : EditorWindow
     {
         private enum Tool
@@ -31,36 +25,30 @@ namespace TwistedTangle.Editor
             Flip
         }
 
-        // Filesystem paths are now editable via the "Level Editor Paths" window (LevelEditorPaths store).
         private const float FlipPickRadiusCells = 0.35f;
 
-        // --- model ---
         private LevelDataSO _level;
         private int _currentLevelId = 0;
         private bool _isEditMode;
         private int _nextRopeId;
 
-        // --- tool state ---
         private Tool _tool = Tool.Place;
-        private bool _isPainting; // when true, dragging paints (place/erase) across cells; off by default
-        private EntityBaseTypeSO _selectedBaseType; // active base in Place mode (null = Ungrouped)
-        private EntityDefinitionSO _selectedEntity; // active sub-type within that base
+        private bool _isPainting;
+        private EntityBaseTypeSO _selectedBaseType;
+        private EntityDefinitionSO _selectedEntity;
         private Color _ropeColor = new(0.90f, 0.20f, 0.20f);
         private RopeData _previewRope;
         private int _selectedRopeId = -1;
         private readonly Stack<List<RopeWaypoint>> _waypointHistory = new();
 
-        // --- data-driven content ---
         private readonly List<EntityBaseTypeSO> _baseTypes = new();
         private readonly List<EntityDefinitionSO> _entityDefs = new();
         private readonly Dictionary<string, EntityDefinitionSO> _entityLookup = new();
         private readonly List<(string name, Color color)> _swatches = new();
         private readonly List<ColorPaletteSO> _paletteAssets = new();
         private int _selectedPaletteIndex = 0;
-        // Names of palette entries hidden by the swatch filter (cleared on palette switch).
         private readonly HashSet<string> _hiddenSwatchNames = new();
 
-        // --- ui ---
         private IntegerField _levelIdField, _widthField, _heightField, _timeField;
         private RopeCanvasElement _canvas;
         private VisualElement _canvasHost;
@@ -86,13 +74,10 @@ namespace TwistedTangle.Editor
         private ColorField _gridColorField;
         private VisualElement _bgDimmerLayer;
 
-        private readonly Dictionary<Tool, Button> _toolButtons = new(); // built-in tools
-        private readonly List<(EntityBaseTypeSO baseType, Button btn)> _baseButtons = new(); // one per base + Ungrouped
+        private readonly Dictionary<Tool, Button> _toolButtons = new();
+        private readonly List<(EntityBaseTypeSO baseType, Button btn)> _baseButtons = new();
+        private readonly List<(EntityDefinitionSO def, Button btn)> _entityButtons = new();
 
-        private readonly List<(EntityDefinitionSO def, Button btn)>
-            _entityButtons = new(); // sub-type brush buttons (Place mode)
-
-        // --- keyboard shortcuts ---
         private readonly Dictionary<string, System.Action> _commands = new();
 
         private static readonly Dictionary<Tool, string> ToolCommandIds = new()
@@ -122,12 +107,10 @@ namespace TwistedTangle.Editor
             RefreshEntityDefinitions();
             RefreshPalettes();
 
-            // Default selection: Place mode on the first base if any exist, else the Rope tool.
             _selectedBaseType = _baseTypes.FirstOrDefault();
             _selectedEntity = SubTypesOf(_selectedBaseType).FirstOrDefault();
             _tool = (_baseTypes.Count > 0 || HasUngrouped()) ? Tool.Place : Tool.Rope;
 
-            // Two-panel layout: paths bar (collapsible) + top bar + body (canvas left, controls right).
             var app = new VisualElement();
             app.AddToClassList("tt-app-container");
 
@@ -183,7 +166,10 @@ namespace TwistedTangle.Editor
             }
 
             _baseTypes.Sort((a, b) =>
-                string.Compare(a.DisplayName, b.DisplayName, System.StringComparison.OrdinalIgnoreCase));
+            {
+                int cmp = a.SortOrder.CompareTo(b.SortOrder);
+                return cmp != 0 ? cmp : string.Compare(a.DisplayName, b.DisplayName, System.StringComparison.OrdinalIgnoreCase);
+            });
 
             if (_selectedBaseType != null && !_baseTypes.Contains(_selectedBaseType))
                 _selectedBaseType = _baseTypes.FirstOrDefault();
@@ -206,10 +192,6 @@ namespace TwistedTangle.Editor
                 _selectedEntity = SubTypesOf(_selectedBaseType).FirstOrDefault();
         }
 
-        /// <summary>
-        /// Sub-types belonging to a base (null base = the "Ungrouped" bucket), in shared display order
-        /// (untagged first) so the palette, the default selection, and the bindings dropdown all agree.
-        /// </summary>
         private IEnumerable<EntityDefinitionSO> SubTypesOf(EntityBaseTypeSO baseType) =>
             _entityDefs.Where(d => d.BaseType == baseType)
                 .OrderBy(d => d, Comparer<EntityDefinitionSO>.Create(LevelEditorCommands.CompareSubTypes));
@@ -232,7 +214,6 @@ namespace TwistedTangle.Editor
         private Color ResolveEntityColor(string typeId) =>
             _entityLookup.TryGetValue(typeId, out var def) ? def.EditorColor : new Color(0.5f, 0.5f, 0.5f);
 
-        /// <summary>Bootstraps a starter "Pin" base with two sub-types so an empty project is usable immediately.</summary>
         private void CreateDefaultEntityTypes()
         {
             EnsureFolder(LevelEditorPaths.Bases);
@@ -254,7 +235,6 @@ namespace TwistedTangle.Editor
             RefreshAll();
         }
 
-        /// <summary>Creates (or returns an existing) EntityBaseTypeSO asset.</summary>
         private static EntityBaseTypeSO CreateBaseAsset(string baseId, string displayName, Color color, string folder)
         {
             string path = $"{folder}/EntityBase_{Slugify(displayName)}.asset";
@@ -271,7 +251,6 @@ namespace TwistedTangle.Editor
             return so;
         }
 
-        /// <summary>Creates one EntityDefinitionSO (sub-type) asset. Returns null if one already exists at the path.</summary>
         private static EntityDefinitionSO CreateEntityAsset(string typeId, string displayName, Color color,
             GameObject prefab, EntityBaseTypeSO baseType, string folder, string[] tags = null)
         {
@@ -298,7 +277,6 @@ namespace TwistedTangle.Editor
             return so;
         }
 
-        /// <summary>Lowercases, turns spaces into underscores and drops other punctuation — for ids/filenames.</summary>
         private static string Slugify(string s)
         {
             if (string.IsNullOrEmpty(s)) return string.Empty;
@@ -308,11 +286,6 @@ namespace TwistedTangle.Editor
             return new string(chars.ToArray());
         }
 
-        /// <summary>
-        /// Creates a new sub-type (and, if needed, a new base type) from the creation popup, then selects it.
-        /// Returns (false, reason) on bad input so the popup can show it inline; (true, null) on success.
-        /// When <paramref name="existingBase"/> is null a new base named <paramref name="newBaseName"/> is created.
-        /// </summary>
         private (bool ok, string error) TryCreateEntityType(EntityBaseTypeSO existingBase, string newBaseName,
             string subName, Color color, GameObject prefab)
         {
@@ -364,7 +337,6 @@ namespace TwistedTangle.Editor
             return (true, null);
         }
 
-        /// <summary>Bootstraps a starter color palette so swatches exist out of the box.</summary>
         private void CreateDefaultPalette()
         {
             EnsureFolder(LevelEditorPaths.Palettes);
@@ -404,11 +376,6 @@ namespace TwistedTangle.Editor
             RebuildPalette();
         }
 
-        /// <summary>
-        /// Adds a named color to an existing palette asset, or creates a new palette first when
-        /// <paramref name="existingPalette"/> is null. Called from <see cref="PaletteColorPopup"/>.
-        /// Returns (false, reason) on bad input; (true, null) on success.
-        /// </summary>
         private (bool ok, string error) TryAddPaletteColor(ColorPaletteSO existingPalette,
             string newPaletteName, string colorName, Color color, bool autoGenerate)
         {
@@ -455,7 +422,6 @@ namespace TwistedTangle.Editor
             AssetDatabase.SaveAssets();
 
             RefreshPalettes();
-            // Re-anchor the selected index to the palette we just modified so the new swatch is visible.
             int idx = _paletteAssets.IndexOf(palette);
             if (idx >= 0) _selectedPaletteIndex = idx;
             _ropeColor = color; // auto-select the newly added color
@@ -467,7 +433,6 @@ namespace TwistedTangle.Editor
 
         #region UI: static sections
 
-        /// <summary>A collapsible "how to use" panel so a designer can follow the workflow without docs.</summary>
         private VisualElement BuildHelpSection()
         {
             var foldout = new Foldout { text = "ⓘ  How to use — click to expand", value = false };
@@ -592,8 +557,6 @@ namespace TwistedTangle.Editor
             var panel = new VisualElement();
             panel.AddToClassList("tt-canvas-panel");
 
-            // flexGrow:0 → scroll stays at content size (rope list docks right below grid drawing).
-            // flexShrink:1 + minHeight:0 → large grids shrink the scroll and scroll internally.
             var scroll = new ScrollView(ScrollViewMode.VerticalAndHorizontal);
             scroll.style.flexGrow   = 0;
             scroll.style.flexShrink = 1;
@@ -611,7 +574,12 @@ namespace TwistedTangle.Editor
             _bgDimmerLayer.style.backgroundColor = Color.clear;
             _canvasHost.Add(_bgDimmerLayer);
 
-            _canvas = new RopeCanvasElement { PegColorResolver = ResolveEntityColor };
+            _canvas = new RopeCanvasElement
+            {
+                PegColorResolver   = ResolveEntityColor,
+                IsBlockingResolver = typeId => _entityLookup.TryGetValue(typeId, out var def)
+                                              && def.BaseType != null && def.BaseType.ShowOccupiedMarker,
+            };
             _canvas.AddToClassList("tt-canvas");
             _canvas.CellClicked = OnCanvasCellClicked;
             _canvas.CellDragged = OnCanvasCellDragged;
@@ -629,13 +597,10 @@ namespace TwistedTangle.Editor
 
                 if (e.ctrlKey)
                 {
-                    // Ctrl+scroll: zoom toward center, pan stays at zero (canvas stays centered).
                     _canvas.transform.position = Vector3.zero;
                 }
                 else
                 {
-                    // Plain scroll: zoom toward mouse cursor.
-                    // q = mouse in canvas local space (includes current transform) — kept fixed.
                     Vector2 q      = _canvas.WorldToLocal(e.mousePosition);
                     Vector3 oldPos = _canvas.transform.position;
                     _canvas.transform.position = new Vector3(
@@ -649,7 +614,6 @@ namespace TwistedTangle.Editor
                 e.StopPropagation();
             }, TrickleDown.TrickleDown);
 
-            // Middle-mouse pan
             scroll.RegisterCallback<PointerDownEvent>(e =>
             {
                 if (e.button != 2) return;
@@ -677,7 +641,6 @@ namespace TwistedTangle.Editor
                 e.StopPropagation();
             }, TrickleDown.TrickleDown);
 
-            // Zoom overlay — top-right corner of the canvas panel
             var zoomRow = new VisualElement();
             zoomRow.style.position      = Position.Absolute;
             zoomRow.style.top           = 6f;
@@ -703,16 +666,13 @@ namespace TwistedTangle.Editor
             zoomRow.Add(resetZoomBtn);
             panel.Add(zoomRow);
 
-            // Rope bar — sits directly below the grid, fixed height, scrollable internally
             panel.Add(BuildRopeBar());
 
-            // Spacer — reserves the space the floating panels occupy so rope bar is never hidden
             var spacer = new VisualElement();
             spacer.style.flexShrink = 0;
             spacer.style.height     = 160f;
             panel.Add(spacer);
 
-            // Floating overlay panels — position:absolute at bottom, independent resize, untouched
             panel.Add(BuildFloatingBottomPanel());
             return panel;
         }
@@ -766,7 +726,6 @@ namespace TwistedTangle.Editor
             panel.AddToClassList("tt-right-panel");
             panel.style.width = 340f; // default — enough to show all content without clipping
 
-            // Sections — scrollbar hidden, mouse-wheel scroll only
             var scroll = new ScrollView(ScrollViewMode.Vertical);
             scroll.AddToClassList("tt-right-scroll");
 
@@ -797,7 +756,6 @@ namespace TwistedTangle.Editor
             RebuildToolbar();
             s.Add(_toolsContainer);
 
-            // Drag-to-paint is opt-in: off by default so a stray drag never alters many cells at once.
             var paintToggle = new Toggle("Paint on drag") { value = _isPainting };
             paintToggle.RegisterValueChangedCallback(e => _isPainting = e.newValue);
             s.Add(paintToggle);
@@ -805,7 +763,6 @@ namespace TwistedTangle.Editor
             return s;
         }
 
-        /// <summary>Rebuilds both toolbars: Entity Placement (Rope + bases) and Edit Tools (Erase, Flip).</summary>
         private void RebuildToolbar()
         {
             if (_toolsContainer == null) return;
@@ -813,9 +770,22 @@ namespace TwistedTangle.Editor
             _toolButtons.Clear();
             _baseButtons.Clear();
 
-            AddToolButton(Tool.Rope, "Rope");
+            // Rope sits at sort order 50. Base types with SortOrder < 50 appear before it,
+            // SortOrder >= 50 appear after. Ungrouped always last.
+            const int RopeSortOrder = 50;
+            var items = new List<(int order, string name, System.Action add)>();
+            items.Add((RopeSortOrder, "Rope", () => AddToolButton(Tool.Rope, "Rope")));
             foreach (var b in _baseTypes)
-                AddBaseButton(b, b.DisplayName, b.EditorColor);
+            {
+                var captured = b;
+                items.Add((b.SortOrder, b.DisplayName, () => AddBaseButton(captured, captured.DisplayName, captured.EditorColor)));
+            }
+            items.Sort((a, b) =>
+            {
+                int cmp = a.order.CompareTo(b.order);
+                return cmp != 0 ? cmp : string.Compare(a.name, b.name, System.StringComparison.OrdinalIgnoreCase);
+            });
+            foreach (var item in items) item.add();
             if (HasUngrouped())
                 AddBaseButton(null, "Ungrouped", new Color(0.5f, 0.5f, 0.5f));
 
@@ -829,8 +799,6 @@ namespace TwistedTangle.Editor
             UpdateToolActiveStates();
             UpdateShortcutHints();
 
-            // Publish the current entity types as bindable commands (so a new type shows up in the Key
-            // Bindings window as "Sub-type / Base type"), and keep the runnable command map in sync.
             LevelEditorCommands.Refresh();
             BuildCommandTable();
         }
@@ -861,7 +829,6 @@ namespace TwistedTangle.Editor
             _toolsContainer.Add(btn);
         }
 
-        /// <summary>Enters Place mode for a base type and auto-selects its first sub-type.</summary>
         private void SelectBase(EntityBaseTypeSO baseType)
         {
             _tool = Tool.Place;
@@ -872,7 +839,6 @@ namespace TwistedTangle.Editor
             RefreshCanvas();
         }
 
-        /// <summary>Enters Place mode for a specific sub-type (and its base) — the per-entity shortcut target.</summary>
         private void SelectEntity(EntityDefinitionSO def)
         {
             if (def == null) return;
@@ -896,8 +862,6 @@ namespace TwistedTangle.Editor
         {
             var s = MakeSection("New entity type", expanded: false);
 
-            // A transient popup (anchored under the button) keeps this occasional action out of the
-            // main panel — the button is the only thing that lives here permanently.
             var btn = new Button { text = "+ New Entity Type" };
             btn.AddToClassList("tt-btn");
             btn.AddToClassList("tt-btn--primary");
@@ -953,8 +917,6 @@ namespace TwistedTangle.Editor
             }
         }
 
-        // Reads _BaseColor / _Color from the material to estimate background luminance,
-        // then returns black or white at a fixed alpha — simple, predictable, edge-case safe.
         private static Color DeriveGridColor(Material m)
         {
             Color bg = m.HasProperty("_BaseColor") ? m.GetColor("_BaseColor")
@@ -974,14 +936,6 @@ namespace TwistedTangle.Editor
                 if (m.GetTexture(name) is Texture2D tex) return tex;
             }
             return null;
-        }
-
-        private VisualElement BuildRopeListSection()
-        {
-            var s = MakeSection("Ropes");
-            _ropeListContainer = new VisualElement();
-            s.Add(_ropeListContainer);
-            return s;
         }
 
         private VisualElement BuildFloatingBottomPanel()
@@ -1035,7 +989,6 @@ namespace TwistedTangle.Editor
 
 
 
-        /// <summary>Loads a generated/imported level into the editor for review (does not save).</summary>
         public void LoadGeneratedLevel(LevelDataSO level)
         {
             level.LevelId = _levelIdField.value;
@@ -1053,7 +1006,6 @@ namespace TwistedTangle.Editor
             ApplyBackgroundToCanvas(_level.BackgroundMaterial);
         }
 
-        /// <summary>True if an entity type is marked immovable via a "nailed" or "locked" tag.</summary>
         public static bool IsNailed(EntityDefinitionSO def)
         {
             foreach (var tag in def.Tags)
@@ -1070,11 +1022,10 @@ namespace TwistedTangle.Editor
 
         #region UI: dynamic panels
 
-        /// <summary>Context-sensitive palette: its content follows the active tool.</summary>
         private void RebuildPalette()
         {
             _paletteContainer.Clear();
-            _entityButtons.Clear(); // repopulated by BuildPlacePalette when in Place mode
+            _entityButtons.Clear();
             switch (_tool)
             {
                 case Tool.Place: BuildPlacePalette(); break;
@@ -1088,7 +1039,6 @@ namespace TwistedTangle.Editor
             }
         }
 
-        /// <summary>Place mode — the sub-types of the selected base type.</summary>
         private void BuildPlacePalette()
         {
             if (_entityDefs.Count == 0)
@@ -1143,7 +1093,6 @@ namespace TwistedTangle.Editor
             _paletteContainer.Add(row);
         }
 
-        /// <summary>Rope mode — palette presets + finish/cancel actions.</summary>
         private void BuildRopePalette()
         {
             if (_paletteAssets.Count == 0)
@@ -1236,7 +1185,6 @@ namespace TwistedTangle.Editor
                 row.AddToClassList("tt-rope-row");
                 if (rope.RopeId == _selectedRopeId) row.AddToClassList("tt-rope-row--selected");
 
-                // Clickable left area: handle + swatch + info + layer badge
                 var left = new VisualElement();
                 left.AddToClassList("tt-rope-row__left");
                 left.RegisterCallback<ClickEvent>(_ =>
@@ -1266,7 +1214,7 @@ namespace TwistedTangle.Editor
 
                 var info = new VisualElement();
                 info.AddToClassList("tt-rope-row__info");
-                var nameLabel = new Label($"Rope {rope.RopeId}");
+                var nameLabel = new Label($"Rope {rope.RopeId + 1}");
                 nameLabel.AddToClassList("tt-rope-row__name");
                 var metaLabel = new Label($"{rope.Path.Count} pts");
                 metaLabel.AddToClassList("tt-rope-row__meta");
@@ -1280,7 +1228,6 @@ namespace TwistedTangle.Editor
 
                 row.Add(left);
 
-                // Icon action buttons
                 var actions = new VisualElement();
                 actions.AddToClassList("tt-rope-row__actions");
 
@@ -1383,7 +1330,6 @@ namespace TwistedTangle.Editor
         private void OnCanvasCellClicked(int x, int y, Vector2 local, int button)
         {
             if (_level == null) return;
-            // x, y are sub-grid coords; derive coarse for non-rope tools
             var subCoord   = new Vector2Int(x, y);
             var coarseCoord = new Vector2Int(x / CrossingSolver.SubDiv, y / CrossingSolver.SubDiv);
             var coord = coarseCoord;
@@ -1417,7 +1363,6 @@ namespace TwistedTangle.Editor
             var coarseCoord = new Vector2Int(x / CrossingSolver.SubDiv, y / CrossingSolver.SubDiv);
             var coord = coarseCoord;
 
-            // Dragging while a rope is in progress extends its path.
             if (_tool == Tool.Rope && _previewRope != null)
             {
                 AddRopeWaypoint(subCoord);
@@ -1463,10 +1408,9 @@ namespace TwistedTangle.Editor
         private void PlaceEntity(Vector2Int coord)
         {
             if (_selectedEntity == null) return;
+            if (_level.GridEntities.Any(p => p.Coordinates == coord)) return;
             Undo.RecordObject(_level, "Place Entity");
-            int idx = _level.GridEntities.FindIndex(p => p.Coordinates == coord);
-            if (idx >= 0) _level.GridEntities[idx] = new GridEntityData(coord, _selectedEntity.TypeId);
-            else _level.GridEntities.Add(new GridEntityData(coord, _selectedEntity.TypeId));
+            _level.GridEntities.Add(new GridEntityData(coord, _selectedEntity.TypeId));
         }
 
         private void RemoveEntity(Vector2Int coord)
@@ -1474,7 +1418,6 @@ namespace TwistedTangle.Editor
             if (_level == null) return;
             Undo.RecordObject(_level, "Remove Entity");
             _level.GridEntities.RemoveAll(p => p.Coordinates == coord);
-            // A rope wrapping a now-deleted peg can no longer wrap → convert to virtual bend.
             foreach (var rope in _level.Ropes)
             {
                 if (rope?.Path == null) continue;
@@ -1493,14 +1436,10 @@ namespace TwistedTangle.Editor
             var coarseCoord = new Vector2Int(subCoord.x / CrossingSolver.SubDiv, subCoord.y / CrossingSolver.SubDiv);
             bool hasPeg = _level.GridEntities.FindIndex(e => e.Coordinates == coarseCoord) >= 0;
 
-            // Snap to the pin's center sub-cell when starting a rope (whole cell = ergonomic hit area)
-            // or when the user clicks the center sub-cell explicitly (intent to connect).
-            // Any other sub-cell in a pinned cell passes through as a bend point.
             bool connectingToPin = hasPeg &&
                 (isFirstPoint || subCoord == CrossingSolver.PinToSub(coarseCoord));
             if (connectingToPin) subCoord = CrossingSolver.PinToSub(coarseCoord);
 
-            // First waypoint must anchor on a pin.
             if (isFirstPoint && !hasPeg) return;
 
             if (isFirstPoint)
@@ -1509,17 +1448,14 @@ namespace TwistedTangle.Editor
                 _previewRope = new RopeData(_nextRopeId, _ropeColor, layer);
             }
 
-            // Skip duplicate position.
             if (_previewRope.Path.Count > 0 && _previewRope.Path[^1].PegCoord == subCoord) return;
 
-            // Max waypoints (endpoints + bends).
             if (_previewRope.Path.Count >= 5)
             {
                 ShowNotification(new GUIContent("Max 3 bend points reached."));
                 return;
             }
 
-            // Every segment must stay within reach (MaxRopeReach coarse cells = MaxRopeReach*SubDiv sub-cells).
             if (_previewRope.Path.Count > 0)
             {
                 Vector2Int last = _previewRope.Path[^1].PegCoord;
@@ -1679,7 +1615,6 @@ namespace TwistedTangle.Editor
                 return;
             }
 
-            // Work on an in-memory copy so edits don't dirty the asset until the next save.
             _level = CreateInstance<LevelDataSO>();
             LevelSaveUtility.CopyInto(asset, _level);
 
@@ -1702,11 +1637,8 @@ namespace TwistedTangle.Editor
         private void MigrateLevelToSubGrid()
         {
             if (_level == null) return;
-            // New-format levels have endpoint PegCoords that match PinToSub(entity.Coordinates).
-            // Old-format levels have endpoint PegCoords that match entity.Coordinates directly.
-            // We must check new-format first: a coarse entity coord can coincidentally equal a
-            // sub-grid pin coord (e.g. entity at (1,1) == PinToSub(0,0)), causing a false positive
-            // that triggers a second migration and corrupts coords by scaling them again by SubDiv.
+            // Check new-format first: a coarse coord can equal a sub-grid pin coord by coincidence,
+            // causing a false positive that would scale coords again by SubDiv and corrupt the level.
             bool alreadyMigrated = _level.Ropes.Any(r =>
                 r.Path.Count > 0 &&
                 _level.GridEntities.Any(e => CrossingSolver.PinToSub(e.Coordinates) == r.Path[0].PegCoord));
@@ -1766,7 +1698,6 @@ namespace TwistedTangle.Editor
             UpdateToolActiveStates();
         }
 
-        /// <summary>Highlights the active built-in tool, or the active base button when in Place mode.</summary>
         private void UpdateToolActiveStates()
         {
             foreach (var kv in _toolButtons)
@@ -1814,7 +1745,6 @@ namespace TwistedTangle.Editor
 
         #region Keyboard shortcuts
 
-        /// <summary>Maps each bindable command id to the method that runs it. See <see cref="LevelEditorCommands"/>.</summary>
         private void BuildCommandTable()
         {
             _commands.Clear();
@@ -1836,15 +1766,12 @@ namespace TwistedTangle.Editor
 
             _commands[LevelEditorCommands.Validate] = RebuildValidation;
 
-            // One tool command per base type — its shortcut enters Place mode for that base (first sub-type).
             foreach (var b in _baseTypes)
             {
                 var captured = b;
                 _commands[LevelEditorCommands.BaseCommandId(b.BaseId)] = () => SelectBase(captured);
             }
 
-            // One placement command per entity sub-type, matching the dynamic bindings in
-            // LevelEditorCommands so the "Sub-type / Base type" shortcuts in the Key Bindings window run.
             foreach (var def in _entityDefs)
             {
                 var captured = def;
@@ -1857,7 +1784,6 @@ namespace TwistedTangle.Editor
             var combo = KeyCombo.FromEvent(e);
             if (combo.IsEmpty) return;
 
-            // Don't hijack plain (unmodified) keys while the user is typing in a numeric/text field.
             if (!combo.Ctrl && !combo.Alt && IsEditingText()) return;
 
             // Rope çizimi aktifken Ctrl+Z son waypoint'i geri alır (Unity undo'suna düşmez).
@@ -1911,7 +1837,6 @@ namespace TwistedTangle.Editor
             RefreshAll();
         }
 
-        /// <summary>Shows each tool/entity button's current shortcut in its tooltip; refreshes when bindings change.</summary>
         private void UpdateShortcutHints()
         {
             foreach (var kv in _toolButtons)
@@ -1920,19 +1845,15 @@ namespace TwistedTangle.Editor
                 kv.Value.tooltip = ShortcutTooltip(id);
             }
 
-            // Custom entity sub-types are bound per type — show each one's hint on its brush button too.
             foreach (var (def, btn) in _entityButtons)
                 btn.tooltip = ShortcutTooltip(LevelEditorCommands.EntityCommandId(def.TypeId));
 
-            // Each base type has its own shortcut (like a built-in tool) — show it on its toolbar button.
-            // The synthetic "Ungrouped" bucket (null base) has no command, so it stays hint-free.
             foreach (var (baseType, btn) in _baseButtons)
                 btn.tooltip = baseType != null
                     ? ShortcutTooltip(LevelEditorCommands.BaseCommandId(baseType.BaseId))
                     : string.Empty;
         }
 
-        /// <summary>"Shortcut: X" for a bound command, or empty when the command has no shortcut.</summary>
         private static string ShortcutTooltip(string commandId)
         {
             var combo = KeyBindingStore.Get(commandId);
@@ -1943,16 +1864,8 @@ namespace TwistedTangle.Editor
 
         #region Small UI factory
 
-        private static Label MakeTitle(string text)
-        {
-            var l = new Label(text);
-            l.AddToClassList("tt-title");
-            return l;
-        }
-
         private static VisualElement MakeSection(string header, bool expanded = true)
         {
-            // Collapsible section (Unity-standard for long editor windows) so the panel stays compact.
             var f = new Foldout { text = header, value = expanded };
             f.AddToClassList("tt-section");
             return f;
@@ -2012,10 +1925,6 @@ namespace TwistedTangle.Editor
         #endregion
     }
 
-    /// <summary>
-    /// Mini popup that lets the designer show/hide individual palette colors in the swatch grid.
-    /// Toggling a color does not delete it from the palette — it only controls grid visibility.
-    /// </summary>
     sealed class SwatchFilterPopup : UnityEditor.PopupWindowContent
     {
         private readonly ColorPaletteSO _palette;

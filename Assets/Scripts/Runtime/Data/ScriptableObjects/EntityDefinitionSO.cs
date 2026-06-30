@@ -40,12 +40,11 @@ namespace TwistedTangle.Runtime.Data.ScriptableObjects
                  "editor does not interpret these, so new behaviors need no editor changes.")]
         [SerializeField] private string[] tags;
 
-        /// <summary>Stable id; falls back to the asset name if the field was left blank.</summary>
-        public string TypeId => string.IsNullOrEmpty(typeId) ? name : typeId;
-        public string DisplayName => string.IsNullOrEmpty(displayName) ? TypeId : displayName;
-        public Color EditorColor => editorColor;
+        public string TypeId      => string.IsNullOrEmpty(typeId)      ? name   : typeId;
+        public string DisplayName => string.IsNullOrEmpty(displayName)  ? TypeId : displayName;
+        public Color  EditorColor => editorColor;
         public EntityBaseTypeSO BaseType => baseType;
         public GameObject Prefab => prefab;
-        public string[] Tags => tags ?? System.Array.Empty<string>();
+        public string[] Tags     => tags ?? System.Array.Empty<string>();
     }
 }

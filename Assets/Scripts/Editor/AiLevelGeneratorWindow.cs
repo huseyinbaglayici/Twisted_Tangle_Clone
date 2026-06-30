@@ -9,26 +9,18 @@ using UnityEngine.UIElements;
 
 namespace TwistedTangle.Editor
 {
-    /// <summary>
-    /// Dedicated window for AI-assisted level generation.
-    /// Build a prompt → paste into any AI chat → paste JSON back → import into the Level Creator.
-    /// State persists across Unity sessions via EditorPrefs; Reset button restores defaults.
-    /// </summary>
     public class AiLevelGeneratorWindow : EditorWindow
     {
-        // EditorPrefs keys — scoped per project so two projects don't share state
         private static string P(string key) => $"TwistedTangle.AiGen.{PlayerSettings.productGUID}.{key}";
 
-        // --- data-driven content ---
-        private readonly List<EntityBaseTypeSO>       _baseTypes  = new();
-        private readonly List<EntityDefinitionSO>     _entityDefs = new();
-        private readonly List<(string name, Color color)> _swatches = new();
+        private readonly List<EntityBaseTypeSO>           _baseTypes  = new();
+        private readonly List<EntityDefinitionSO>         _entityDefs = new();
+        private readonly List<(string name, Color color)> _swatches   = new();
         private readonly HashSet<string> _excludedTypeIds = new();
 
-        // --- ui refs ---
         private IntegerField  _gridWidth, _gridHeight, _timeSeconds, _refLevelId;
         private DropdownField _difficulty;
-        private Label         _refLabel, _statusLabel;
+        private Label         _refLabel, _statusLabel, _diffHintLabel;
         private VisualElement _entitiesContainer;
         private TextField     _jsonField;
         private LevelDataSO   _refLevel;
@@ -72,11 +64,9 @@ namespace TwistedTangle.Editor
 
         private void OnDisable() => SavePrefs();
 
-        // ── Persistence ───────────────────────────────────────────────────────
 
         private void LoadPrefs()
         {
-            // Excluded type ids come from prefs; RebuildEntities will read _excludedTypeIds later
             var raw = EditorPrefs.GetString(P("Excluded"), string.Empty);
             _excludedTypeIds.Clear();
             foreach (var id in raw.Split(','))
@@ -104,21 +94,19 @@ namespace TwistedTangle.Editor
             EditorPrefs.DeleteKey(P("Json"));
             EditorPrefs.DeleteKey(P("Excluded"));
 
-            // Apply defaults immediately to live fields
             if (_gridWidth   != null) _gridWidth.value   = 6;
             if (_gridHeight  != null) _gridHeight.value  = 6;
             if (_timeSeconds != null) _timeSeconds.value = 45;
-            if (_difficulty  != null) _difficulty.value  = "Medium";
+            if (_difficulty  != null) { _difficulty.value = "Medium"; UpdateDiffHint(); }
             if (_refLevelId  != null) _refLevelId.value  = 0;
             if (_jsonField   != null) _jsonField.value   = string.Empty;
             _refLevel = null;
-            if (_refLabel   != null) _refLabel.text = "No reference — AI generates freely.";
+            if (_refLabel    != null) _refLabel.text = "No reference — AI generates freely.";
             if (_statusLabel != null) _statusLabel.text = " ";
             _excludedTypeIds.Clear();
             RebuildEntities();
         }
 
-        // ── Settings ─────────────────────────────────────────────────────────
 
         private VisualElement BuildSettingsSection()
         {
@@ -142,8 +130,16 @@ namespace TwistedTangle.Editor
             _difficulty.labelElement.style.minWidth = 0;
             _difficulty.labelElement.style.width    = StyleKeyword.Auto;
             _difficulty.style.flexShrink = 0;
+            _difficulty.RegisterValueChangedCallback(_ => UpdateDiffHint());
             diffRow.Add(_difficulty);
             s.Add(diffRow);
+
+            _diffHintLabel = new Label();
+            _diffHintLabel.AddToClassList("tt-hint");
+            _diffHintLabel.style.whiteSpace = WhiteSpace.Normal;
+            _diffHintLabel.style.marginBottom = 4;
+            s.Add(_diffHintLabel);
+            UpdateDiffHint();
 
             var refRow = MakeRow();
             refRow.AddToClassList("tt-row--wrap");
@@ -159,8 +155,7 @@ namespace TwistedTangle.Editor
             _refLabel.AddToClassList("tt-hint");
             s.Add(_refLabel);
 
-            // ── Entity types sub-foldout (collapsed by default) ───────────────
-            var sub = new Foldout { text = "Entity types", value = false };
+                var sub = new Foldout { text = "Entity types", value = false };
             sub.AddToClassList("tt-subgroup");
             sub.style.marginTop = 6;
 
@@ -241,7 +236,6 @@ namespace TwistedTangle.Editor
             }
         }
 
-        // ── Prompt ────────────────────────────────────────────────────────────
 
         private VisualElement BuildPromptSection()
         {
@@ -254,7 +248,6 @@ namespace TwistedTangle.Editor
             return s;
         }
 
-        // ── Import ────────────────────────────────────────────────────────────
 
         private VisualElement BuildImportSection()
         {
@@ -280,7 +273,6 @@ namespace TwistedTangle.Editor
             return s;
         }
 
-        // ── Reset footer (always visible, outside scroll) ─────────────────────
 
         private VisualElement BuildResetFooter()
         {
@@ -310,6 +302,17 @@ namespace TwistedTangle.Editor
         }
 
         // ── Logic ─────────────────────────────────────────────────────────────
+
+        private void UpdateDiffHint()
+        {
+            if (_diffHintLabel == null) return;
+            _diffHintLabel.text = (_difficulty?.value ?? "Medium") switch
+            {
+                "Easy"  => "2–3 ropes · 1–3 crossings · 4–6 pegs · ≤2 moves · no nailed pins · ropes don't share pegs",
+                "Hard"  => "4–6 ropes · 5–9 crossings · 7–11 pegs · ≤6 moves · up to 3 nailed endpoints · hub pegs connecting multiple ropes",
+                _       => "3–4 ropes · 3–6 crossings · 5–8 pegs · ≤4 moves · up to 1 nailed endpoint · 1–2 shared hub pegs",
+            };
+        }
 
         private void LoadReference()
         {
@@ -387,7 +390,6 @@ namespace TwistedTangle.Editor
 
         private void RefreshAndRebuild() { Refresh(); RebuildEntities(); }
 
-        // ── Helpers ───────────────────────────────────────────────────────────
 
         private static VisualElement MakeSection(string title)
         {
