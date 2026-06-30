@@ -39,3 +39,6 @@ MonoBehaviour:
   - Name: White
     Color: {r: 1, g: 1, b: 1, a: 1}
     Variant: {fileID: 2100000, guid: f3f29bc458690a040b384c8b743eafa5, type: 2}
+  - Name: light blue
+    Color: {r: 0, g: 0.77020633, b: 0.8584906, a: 1}
+    Variant: {fileID: 2100000, guid: 16793c8715fdd874d876359d94546854, type: 2}

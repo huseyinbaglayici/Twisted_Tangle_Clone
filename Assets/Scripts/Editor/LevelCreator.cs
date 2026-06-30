@@ -57,6 +57,8 @@ namespace TwistedTangle.Editor
         private readonly List<(string name, Color color)> _swatches = new();
         private readonly List<ColorPaletteSO> _paletteAssets = new();
         private int _selectedPaletteIndex = 0;
+        // Names of palette entries hidden by the swatch filter (cleared on palette switch).
+        private readonly HashSet<string> _hiddenSwatchNames = new();
 
         // --- ui ---
         private IntegerField _levelIdField, _widthField, _heightField, _timeField;
@@ -453,6 +455,10 @@ namespace TwistedTangle.Editor
             AssetDatabase.SaveAssets();
 
             RefreshPalettes();
+            // Re-anchor the selected index to the palette we just modified so the new swatch is visible.
+            int idx = _paletteAssets.IndexOf(palette);
+            if (idx >= 0) _selectedPaletteIndex = idx;
+            _ropeColor = color; // auto-select the newly added color
             RebuildPalette();
             return (true, null);
         }
@@ -1137,7 +1143,7 @@ namespace TwistedTangle.Editor
             _paletteContainer.Add(row);
         }
 
-        /// <summary>Rope mode — palette swatches and finish/cancel actions.</summary>
+        /// <summary>Rope mode — palette presets + finish/cancel actions.</summary>
         private void BuildRopePalette()
         {
             if (_paletteAssets.Count == 0)
@@ -1148,45 +1154,66 @@ namespace TwistedTangle.Editor
             {
                 _selectedPaletteIndex = Mathf.Clamp(_selectedPaletteIndex, 0, _paletteAssets.Count - 1);
                 var paletteNames = _paletteAssets.Select(p => p.DisplayName).ToList();
-                var selector = new DropdownField("Palette", paletteNames, _selectedPaletteIndex);
-                selector.AddToClassList("tt-palette-selector");
+
+                var headerRow = MakeRow();
+                headerRow.style.marginBottom = 2;
+                var presetsLabel = new Label("Presets");
+                presetsLabel.AddToClassList("tt-palette-picker__label");
+                headerRow.Add(presetsLabel);
+
+                var selector = new DropdownField(paletteNames, _selectedPaletteIndex);
+                selector.AddToClassList("tt-palette-selector--compact");
                 selector.RegisterValueChangedCallback(e =>
                 {
                     _selectedPaletteIndex = paletteNames.IndexOf(e.newValue);
+                    _hiddenSwatchNames.Clear();
                     RebuildPalette();
                 });
-                var selectorRow = MakeRow();
-                selectorRow.Add(selector);
-                _paletteContainer.Add(selectorRow);
+                headerRow.Add(selector);
 
-                var palette = _paletteAssets[Mathf.Clamp(_selectedPaletteIndex, 0, _paletteAssets.Count - 1)];
-                var swRow = MakeRow();
-                swRow.AddToClassList("tt-row--wrap");
+                var palette = _paletteAssets[_selectedPaletteIndex];
+                var filterBtn = new Button();
+                filterBtn.text = "⚙";
+                filterBtn.AddToClassList("tt-swatch-filter-btn");
+                filterBtn.tooltip = "Show / hide palette colors";
+                filterBtn.clicked += () => UnityEditor.PopupWindow.Show(
+                    filterBtn.worldBound,
+                    new SwatchFilterPopup(palette, _hiddenSwatchNames, RebuildPalette));
+                headerRow.Add(filterBtn);
+                _paletteContainer.Add(headerRow);
+
+                var swRow = new VisualElement();
+                swRow.AddToClassList("tt-swatch-grid");
+                swRow.name = "swatchRow";
                 foreach (var entry in palette.Entries)
                 {
+                    if (_hiddenSwatchNames.Contains(entry.Name)) continue;
                     var color = entry.Color;
                     var b = new Button(() =>
                     {
                         _ropeColor = color;
                         if (_previewRope != null) _previewRope.Tint = color;
+                        UpdateSwatchSelection();
                         RefreshCanvas();
                     }) { tooltip = entry.Name };
                     b.AddToClassList("tt-swatch");
                     b.style.backgroundColor = color;
+                    if (ColorApproxEqual(color, _ropeColor)) b.AddToClassList("tt-swatch--selected");
                     swRow.Add(b);
                 }
-
                 _paletteContainer.Add(swRow);
             }
 
-            var addBtn = new Button { text = "+ Add Color to Palette" };
+            var addBtn = new Button { text = "+ Add to Palette" };
             addBtn.AddToClassList("tt-btn");
+            addBtn.style.marginTop = 4;
             addBtn.clicked += () => UnityEditor.PopupWindow.Show(
                 addBtn.worldBound,
                 new PaletteColorPopup(new List<ColorPaletteSO>(_paletteAssets), _ropeColor, TryAddPaletteColor));
             _paletteContainer.Add(addBtn);
 
             var actionRow = MakeRow();
+            actionRow.style.marginTop = 6;
             actionRow.Add(MakeButton("Finish Rope", FinishRope, "tt-btn--save"));
             actionRow.Add(MakeButton("Cancel Rope", CancelRope, "tt-btn--danger"));
             _paletteContainer.Add(actionRow);
@@ -1939,6 +1966,22 @@ namespace TwistedTangle.Editor
             return f;
         }
 
+        private void UpdateSwatchSelection()
+        {
+            var swRow = _paletteContainer.Q<VisualElement>("swatchRow");
+            if (swRow == null) return;
+            foreach (var child in swRow.Children())
+            {
+                var c = child.resolvedStyle.backgroundColor;
+                bool sel = ColorApproxEqual(new Color(c.r, c.g, c.b, c.a), _ropeColor);
+                child.EnableInClassList("tt-swatch--selected", sel);
+            }
+        }
+
+        private static bool ColorApproxEqual(Color a, Color b, float eps = 0.01f) =>
+            Mathf.Abs(a.r - b.r) < eps && Mathf.Abs(a.g - b.g) < eps &&
+            Mathf.Abs(a.b - b.b) < eps && Mathf.Abs(a.a - b.a) < eps;
+
         private static void EnsureFolder(string folder)
         {
             if (AssetDatabase.IsValidFolder(folder)) return;
@@ -1953,6 +1996,105 @@ namespace TwistedTangle.Editor
         }
 
         #endregion
+    }
+
+    /// <summary>
+    /// Mini popup that lets the designer show/hide individual palette colors in the swatch grid.
+    /// Toggling a color does not delete it from the palette — it only controls grid visibility.
+    /// </summary>
+    sealed class SwatchFilterPopup : UnityEditor.PopupWindowContent
+    {
+        private readonly ColorPaletteSO _palette;
+        private readonly HashSet<string> _hidden;
+        private readonly System.Action _onChanged;
+
+        public SwatchFilterPopup(ColorPaletteSO palette, HashSet<string> hidden, System.Action onChanged)
+        {
+            _palette   = palette;
+            _hidden    = hidden;
+            _onChanged = onChanged;
+        }
+
+        private const float PopupWidth   = 230f;
+        private const float PopupMaxH    = 260f;
+        private const float ItemHeight   = 28f;
+        private const float HeaderHeight = 30f;
+
+        public override Vector2 GetWindowSize()
+        {
+            float contentH = HeaderHeight + _palette.Entries.Count * ItemHeight + 8f;
+            return new Vector2(PopupWidth, Mathf.Min(contentH, PopupMaxH));
+        }
+
+        public override void OnGUI(Rect rect) { }
+
+        public override void OnOpen()
+        {
+            var root = editorWindow.rootVisualElement;
+            root.style.paddingTop      = 6;
+            root.style.paddingLeft     = 8;
+            root.style.paddingRight    = 4;
+            root.style.paddingBottom   = 6;
+            root.style.backgroundColor = new Color(0.15f, 0.15f, 0.15f);
+            root.style.flexDirection   = FlexDirection.Column;
+
+            var title = new Label("Visible colors");
+            title.style.color                      = new Color(0.8f, 0.8f, 0.8f);
+            title.style.unityFontStyleAndWeight     = UnityEngine.FontStyle.Bold;
+            title.style.fontSize                   = 11;
+            title.style.marginBottom               = 4;
+            title.style.flexShrink                 = 0;
+            root.Add(title);
+
+            var scroll = new ScrollView(ScrollViewMode.Vertical);
+            scroll.style.flexGrow   = 1;
+            scroll.style.minHeight  = 0;
+
+            foreach (var entry in _palette.Entries)
+            {
+                var name    = entry.Name;
+                var color   = entry.Color;
+                bool visible = !_hidden.Contains(name);
+
+                var item = new VisualElement();
+                item.style.flexDirection = FlexDirection.Row;
+                item.style.alignItems    = Align.Center;
+                item.style.height        = ItemHeight;
+                item.style.paddingRight  = 4;
+
+                var swatch = new VisualElement();
+                swatch.style.width  = 16;
+                swatch.style.height = 16;
+                swatch.style.borderTopLeftRadius     = 8;
+                swatch.style.borderTopRightRadius    = 8;
+                swatch.style.borderBottomLeftRadius  = 8;
+                swatch.style.borderBottomRightRadius = 8;
+                swatch.style.backgroundColor = color;
+                swatch.style.borderTopWidth    = 1; swatch.style.borderBottomWidth = 1;
+                swatch.style.borderLeftWidth   = 1; swatch.style.borderRightWidth  = 1;
+                swatch.style.borderTopColor    = new Color(0, 0, 0, 0.5f);
+                swatch.style.borderBottomColor = new Color(0, 0, 0, 0.5f);
+                swatch.style.borderLeftColor   = new Color(0, 0, 0, 0.5f);
+                swatch.style.borderRightColor  = new Color(0, 0, 0, 0.5f);
+                swatch.style.marginRight = 6;
+                swatch.style.flexShrink  = 0;
+                item.Add(swatch);
+
+                var toggle = new Toggle { value = visible, text = name };
+                toggle.style.flexGrow = 1;
+                toggle.style.fontSize = 11;
+                toggle.RegisterValueChangedCallback(e =>
+                {
+                    if (e.newValue) _hidden.Remove(name);
+                    else            _hidden.Add(name);
+                    _onChanged?.Invoke();
+                });
+                item.Add(toggle);
+                scroll.Add(item);
+            }
+
+            root.Add(scroll);
+        }
     }
 
     [InitializeOnLoad]
