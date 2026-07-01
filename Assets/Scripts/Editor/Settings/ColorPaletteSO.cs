@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace TwistedTangle.Runtime.Data.ScriptableObjects
+namespace TwistedTangle.Editor.Settings
 {
     /// <summary>
     /// A designer-editable palette of named colors. Drives the rope color swatches in the editor so

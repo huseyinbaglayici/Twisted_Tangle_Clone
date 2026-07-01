@@ -19,7 +19,6 @@ namespace TwistedTangle.Editor.Utils
                 return null;
             }
 
-            var materialLookup = BuildMaterialLookup();
             EnsureFolder(folder);
             string path = PathFor(folder, working.LevelId);
             var asset = AssetDatabase.LoadAssetAtPath<LevelDataSO>(path);
@@ -27,12 +26,12 @@ namespace TwistedTangle.Editor.Utils
             if (asset == null)
             {
                 asset = ScriptableObject.CreateInstance<LevelDataSO>();
-                CopyInto(working, asset, materialLookup);
+                CopyInto(working, asset);
                 AssetDatabase.CreateAsset(asset, path);
             }
             else
             {
-                CopyInto(working, asset, materialLookup);
+                CopyInto(working, asset);
                 EditorUtility.SetDirty(asset);
             }
 
@@ -56,8 +55,7 @@ namespace TwistedTangle.Editor.Utils
             return ok;
         }
 
-        public static void CopyInto(LevelDataSO src, LevelDataSO dst,
-            Dictionary<Color, Material> materialLookup = null)
+        public static void CopyInto(LevelDataSO src, LevelDataSO dst)
         {
             dst.LevelId = src.LevelId;
             dst.Difficulty = src.Difficulty;
@@ -70,7 +68,7 @@ namespace TwistedTangle.Editor.Utils
 
             dst.Ropes.Clear();
             foreach (var rope in src.Ropes)
-                dst.Ropes.Add(CloneRope(rope, materialLookup));
+                dst.Ropes.Add(CloneRope(rope));
 
             dst.CrossingOverrides.Clear();
             dst.CrossingOverrides.AddRange(src.CrossingOverrides);
@@ -78,31 +76,12 @@ namespace TwistedTangle.Editor.Utils
             dst.BackgroundMaterial = src.BackgroundMaterial;
         }
 
-        private static Dictionary<Color, Material> BuildMaterialLookup()
-        {
-            var lookup = new Dictionary<Color, Material>();
-            foreach (var guid in AssetDatabase.FindAssets($"t:{nameof(ColorPaletteSO)}"))
+        private static RopeData CloneRope(RopeData src) =>
+            new(src.RopeId, src.Tint, src.Layer)
             {
-                var palette = AssetDatabase.LoadAssetAtPath<ColorPaletteSO>(AssetDatabase.GUIDToAssetPath(guid));
-                if (palette == null) continue;
-                foreach (var entry in palette.Entries)
-                    if (entry.Variant != null && !lookup.ContainsKey(entry.Color))
-                        lookup[entry.Color] = entry.Variant;
-            }
-
-            return lookup;
-        }
-
-        private static RopeData CloneRope(RopeData src, Dictionary<Color, Material> materialLookup)
-        {
-            Material material = null;
-            materialLookup?.TryGetValue(src.Tint, out material);
-            return new RopeData(src.RopeId, src.Tint, src.Layer)
-            {
-                Material = material ?? src.Material,
+                Material = src.Material,
                 Path = new List<RopeWaypoint>(src.Path)
             };
-        }
 
         private static void EnsureFolder(string folder)
         {

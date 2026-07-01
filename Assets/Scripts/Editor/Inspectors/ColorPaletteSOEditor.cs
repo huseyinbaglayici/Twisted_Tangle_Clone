@@ -1,6 +1,6 @@
 using TwistedTangle.Editor.Materials;
+using TwistedTangle.Editor.Settings;
 using TwistedTangle.Editor.Utils;
-using TwistedTangle.Runtime.Data.ScriptableObjects;
 using UnityEditor;
 using UnityEngine;
 

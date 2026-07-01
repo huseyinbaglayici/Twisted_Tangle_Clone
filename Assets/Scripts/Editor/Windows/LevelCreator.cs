@@ -39,6 +39,7 @@ namespace TwistedTangle.Editor
         private EntityBaseTypeSO _selectedBaseType;
         private EntityDefinitionSO _selectedEntity;
         private Color _ropeColor = new(0.90f, 0.20f, 0.20f);
+        private Material _ropeMaterial;
         private RopeData _previewRope;
         private int _selectedRopeId = -1;
         private readonly Stack<List<RopeWaypoint>> _waypointHistory = new();
@@ -453,12 +454,13 @@ namespace TwistedTangle.Editor
             el.FindPropertyRelative("Name").stringValue = colorName;
             el.FindPropertyRelative("Color").colorValue = color;
 
+            Material variant = null;
             if (autoGenerate && palette.VariantTemplate != null)
             {
                 var repo = new TwistedTangle.Editor.Materials.MaterialVariantRepository(
                     LevelEditorPaths.MaterialsForPalette(palette.name),
                     new TwistedTangle.Editor.Materials.MaterialVariantFactory());
-                var variant = repo.GetOrCreate(palette.VariantTemplate, colorName, color);
+                variant = repo.GetOrCreate(palette.VariantTemplate, colorName, color);
                 el.FindPropertyRelative("Variant").objectReferenceValue = variant;
             }
 
@@ -470,6 +472,7 @@ namespace TwistedTangle.Editor
             int idx = _paletteAssets.IndexOf(palette);
             if (idx >= 0) _selectedPaletteIndex = idx;
             _ropeColor = color; // auto-select the newly added color
+            _ropeMaterial = variant;
             RebuildPalette();
             return (true, null);
         }
@@ -1233,10 +1236,16 @@ namespace TwistedTangle.Editor
                 {
                     if (_hiddenSwatchNames.Contains(entry.Name)) continue;
                     var color = entry.Color;
+                    var variant = entry.Variant;
                     var b = new Button(() =>
                     {
                         _ropeColor = color;
-                        if (_previewRope != null) _previewRope.Tint = color;
+                        _ropeMaterial = variant;
+                        if (_previewRope != null)
+                        {
+                            _previewRope.Tint = color;
+                            _previewRope.Material = variant;
+                        }
                         UpdateSwatchSelection();
                         RefreshCanvas();
                     }) { tooltip = entry.Name };
@@ -1304,6 +1313,7 @@ namespace TwistedTangle.Editor
                     e.StopPropagation(); // don't also trigger the row selection click
                     Undo.RecordObject(_level, "Recolor Rope");
                     captured.Tint = _ropeColor;
+                    captured.Material = _ropeMaterial;
                     RefreshAll();
                 });
                 left.Add(swatch);
@@ -1559,7 +1569,7 @@ namespace TwistedTangle.Editor
             if (isFirstPoint)
             {
                 int layer = _level.Ropes.Count == 0 ? 0 : _level.Ropes.Max(r => r.Layer) + 1;
-                _previewRope = new RopeData(_nextRopeId, _ropeColor, layer);
+                _previewRope = new RopeData(_nextRopeId, _ropeColor, layer) { Material = _ropeMaterial };
             }
 
             if (_previewRope.Path.Count > 0 && _previewRope.Path[^1].PegCoord == subCoord) return;
