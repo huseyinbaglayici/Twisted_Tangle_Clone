@@ -68,7 +68,9 @@ namespace DG.DOTweenEditor
             }
             if (GUILayout.Button("► Play All <i>in Scene</i>", Styles.btPreview)) {
                 if (!isPreviewing) StartupGlobalPreview();
+#pragma warning disable CS0618 // Type or member is obsolete
                 DOTweenAnimation[] anims = Object.FindObjectsOfType<DOTweenAnimation>();
+#pragma warning restore CS0618 // Type or member is obsolete
                 foreach (DOTweenAnimation anim in anims) AddAnimationToGlobalPreview(anim);
             }
             EditorGUI.EndDisabledGroup();

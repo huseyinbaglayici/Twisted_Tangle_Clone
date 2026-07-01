@@ -64,8 +64,16 @@ namespace TwistedTangle.Editor.Geometry
         /// leading into it (t=1), so a render gap appears just before the waypoint, not under its pin.</summary>
         public static void WaypointSegT(int waypointIndex, out int seg, out float t)
         {
-            if (waypointIndex == 0) { seg = 0; t = 0f; }
-            else { seg = waypointIndex - 1; t = 1f; }
+            if (waypointIndex == 0)
+            {
+                seg = 0;
+                t = 0f;
+            }
+            else
+            {
+                seg = waypointIndex - 1;
+                t = 1f;
+            }
         }
 
         /// <summary>
@@ -245,7 +253,8 @@ namespace TwistedTangle.Editor.Geometry
 
             var ropeById = new Dictionary<int, RopeData>();
             foreach (var r in ropes)
-                if (r != null) ropeById[r.RopeId] = r;
+                if (r != null)
+                    ropeById[r.RopeId] = r;
 
             // Group by unordered rope-id pair; within each group sort along the lower-id rope's path
             // (seg * big + t) so the alternation follows the weave order physically.
@@ -303,7 +312,7 @@ namespace TwistedTangle.Editor.Geometry
             if (n == 0) return 0;
 
             var active = new bool[n];
-            var underCount = new Dictionary<int, int>();      // ropeId -> # active crossings it's UNDER at
+            var underCount = new Dictionary<int, int>(); // ropeId -> # active crossings it's UNDER at
             var ropeCrossings = new Dictionary<int, List<int>>();
             int activeCount = 0;
 
@@ -317,9 +326,11 @@ namespace TwistedTangle.Editor.Geometry
             for (int c = 0; c < n; c++)
             {
                 var x = crossings[c];
-                if (x.RopeIdA == x.RopeIdB) continue;          // self-crossing: not a link to peel
-                active[c] = true; activeCount++;
-                Ensure(x.RopeIdA); Ensure(x.RopeIdB);
+                if (x.RopeIdA == x.RopeIdB) continue; // self-crossing: not a link to peel
+                active[c] = true;
+                activeCount++;
+                Ensure(x.RopeIdA);
+                Ensure(x.RopeIdB);
                 ropeCrossings[x.RopeIdA].Add(c);
                 ropeCrossings[x.RopeIdB].Add(c);
                 int underId = aOver[c] ? x.RopeIdB : x.RopeIdA;
@@ -340,7 +351,8 @@ namespace TwistedTangle.Editor.Geometry
                     foreach (int c in ropeCrossings[id])
                     {
                         if (!active[c]) continue;
-                        active[c] = false; activeCount--;
+                        active[c] = false;
+                        activeCount--;
                         var x = crossings[c];
                         int underId = aOver[c] ? x.RopeIdB : x.RopeIdA; // the partner that was under
                         if (!peeled.Contains(underId)) underCount[underId]--;
@@ -350,7 +362,8 @@ namespace TwistedTangle.Editor.Geometry
 
             if (unpeeled != null)
                 foreach (int id in ids)
-                    if (!peeled.Contains(id)) unpeeled.Add(id);
+                    if (!peeled.Contains(id))
+                        unpeeled.Add(id);
 
             return activeCount;
         }
@@ -372,8 +385,10 @@ namespace TwistedTangle.Editor.Geometry
         /// <summary>True if two rope segments share a waypoint grid cell (a common pin/bend cell).</summary>
         private static bool SegmentsShareCell(RopeData a, int sa, RopeData b, int sb)
         {
-            var a0 = a.Path[sa].PegCoord; var a1 = a.Path[sa + 1].PegCoord;
-            var b0 = b.Path[sb].PegCoord; var b1 = b.Path[sb + 1].PegCoord;
+            var a0 = a.Path[sa].PegCoord;
+            var a1 = a.Path[sa + 1].PegCoord;
+            var b0 = b.Path[sb].PegCoord;
+            var b1 = b.Path[sb + 1].PegCoord;
             return a0 == b0 || a0 == b1 || a1 == b0 || a1 == b1;
         }
 
@@ -385,7 +400,8 @@ namespace TwistedTangle.Editor.Geometry
         public static bool SegmentsOverlapCollinear(Vector2 p1, Vector2 p2, Vector2 p3, Vector2 p4,
             out float ta, out float tb, out Vector2 mid)
         {
-            ta = tb = 0f; mid = default;
+            ta = tb = 0f;
+            mid = default;
             Vector2 d = p2 - p1;
             float len2 = d.sqrMagnitude;
             if (len2 < Eps) return false;

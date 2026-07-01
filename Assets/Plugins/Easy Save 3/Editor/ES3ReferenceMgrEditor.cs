@@ -7,7 +7,7 @@ using System.Collections.Generic;
 
 [CustomEditor(typeof(ES3ReferenceMgr))]
 [System.Serializable]
-public class ES3ReferenceMgrEditor : Editor
+public class ES3ReferenceMgrEditor : UnityEditor.Editor
 {
     private bool isDraggingOver = false;
     private bool openReferences = false;

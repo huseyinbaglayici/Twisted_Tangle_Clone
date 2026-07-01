@@ -38,6 +38,7 @@ namespace TwistedTangle.Runtime.Data.ValueObjects
     {
         public int RopeId;
         public Color Tint = Color.white;
+        public Material Material;
         public int Layer;
         public List<RopeWaypoint> Path = new();
 

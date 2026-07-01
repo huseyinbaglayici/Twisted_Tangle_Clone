@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using TwistedTangle.Editor.Settings;
 using TwistedTangle.Runtime.Data.ScriptableObjects;
 using UnityEditor;
 using UnityEngine;
@@ -163,15 +164,20 @@ namespace TwistedTangle.Editor.Input
             var baseTypes = LoadAll<EntityBaseTypeSO>();
             baseTypes.Sort((a, b) => string.Compare(a.DisplayName, b.DisplayName, StringComparison.OrdinalIgnoreCase));
 
+            var editorDataLookup = new Dictionary<EntityDefinitionSO, EntityDefinitionEditorDataSO>();
+            foreach (var data in LoadAll<EntityDefinitionEditorDataSO>())
+                if (data.Definition != null) editorDataLookup[data.Definition] = data;
+
             // Bucket sub-types under their base id (or the ungrouped bucket), each bucket sorted consistently.
             var subsByBase = new Dictionary<string, List<EntityDefinitionSO>>();
             var ungroupedDefs = new List<EntityDefinitionSO>();
             foreach (var def in LoadAll<EntityDefinitionSO>())
             {
-                if (def.BaseType != null)
+                editorDataLookup.TryGetValue(def, out var editorData);
+                if (editorData?.BaseType != null)
                 {
-                    if (!subsByBase.TryGetValue(def.BaseType.BaseId, out var bucket))
-                        subsByBase[def.BaseType.BaseId] = bucket = new List<EntityDefinitionSO>();
+                    if (!subsByBase.TryGetValue(editorData.BaseType.BaseId, out var bucket))
+                        subsByBase[editorData.BaseType.BaseId] = bucket = new List<EntityDefinitionSO>();
                     bucket.Add(def);
                 }
                 else

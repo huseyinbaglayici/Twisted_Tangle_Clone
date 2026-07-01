@@ -7,7 +7,7 @@ using System.Linq;
 
 namespace ES3Editor
 {
-	public class AddES3Prefab : Editor 
+	public class AddES3Prefab : UnityEditor.Editor 
 	{
         [MenuItem("GameObject/Easy Save 3/Enable Easy Save for Prefab(s)", false, 1001)]
         [MenuItem("Assets/Easy Save 3/Enable Easy Save for Prefab(s)", false, 1001)]

@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Level_1
   m_EditorClassIdentifier: 
   levelId: 1
+  difficulty: 2
   gridWidth: 4
   gridHeight: 6
   timeSeconds: 45

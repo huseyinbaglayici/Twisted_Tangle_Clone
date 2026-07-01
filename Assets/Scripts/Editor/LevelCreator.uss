@@ -92,31 +92,38 @@
 .tt-right-scroll > .unity-scroll-view__content-container {
     padding: 6px;
 }
+
 .tt-right-scroll > .unity-scroll-view__horizontal-scroller {
     display: none;
 }
+
 .tt-right-scroll > .unity-scroll-view__vertical-scroller {
     width: 6px;
     background-color: transparent;
 }
+
 .tt-right-scroll > .unity-scroll-view__vertical-scroller > .unity-scroller__low-button,
 .tt-right-scroll > .unity-scroll-view__vertical-scroller > .unity-scroller__high-button {
     display: none;
 }
+
 .tt-right-scroll > .unity-scroll-view__vertical-scroller > .unity-base-slider__tracker {
     background-color: #222222;
     border-radius: 3px;
     margin: 0;
 }
+
 .tt-right-scroll > .unity-scroll-view__vertical-scroller > .unity-base-slider__dragger-border {
     display: none;
 }
+
 .tt-right-scroll > .unity-scroll-view__vertical-scroller > .unity-base-slider__dragger {
     background-color: #444444;
     border-radius: 3px;
     border-width: 0;
     min-height: 24px;
 }
+
 .tt-right-scroll > .unity-scroll-view__vertical-scroller > .unity-base-slider__dragger:hover {
     background-color: #555555;
 }
@@ -135,17 +142,21 @@
 .tt-rope-bar__scroll > .unity-scroll-view__content-container {
     padding: 0;
 }
+
 .tt-rope-bar__scroll > .unity-scroll-view__horizontal-scroller {
     display: none;
 }
+
 .tt-rope-bar__scroll > .unity-scroll-view__vertical-scroller {
     width: 6px;
     background-color: transparent;
 }
+
 .tt-rope-bar__scroll > .unity-scroll-view__vertical-scroller > .unity-scroller__low-button,
 .tt-rope-bar__scroll > .unity-scroll-view__vertical-scroller > .unity-scroller__high-button {
     display: none;
 }
+
 .tt-rope-bar__scroll > .unity-scroll-view__vertical-scroller > .unity-base-slider__dragger {
     background-color: #444444;
     border-radius: 3px;
@@ -186,9 +197,11 @@
 .tt-canvas-bottom__scroll {
     flex-grow: 1;
 }
+
 .tt-canvas-bottom__scroll > .unity-scroll-view__vertical-scroller {
     display: none;
 }
+
 .tt-canvas-bottom__scroll > .unity-scroll-view__horizontal-scroller {
     display: none;
 }
@@ -490,13 +503,32 @@
     flex-shrink: 0;
 }
 
-.tt-status-dot--ok    { background-color: #26A6A6; }
-.tt-status-dot--error { background-color: #E55353; }
-.tt-status-dot--warn  { background-color: #E8A020; }
+.tt-status-dot--ok {
+    background-color: #26A6A6;
+}
 
-.tt-difficulty--Easy   { color: #26A6A6; -unity-font-style: bold; }
-.tt-difficulty--Medium { color: #E8A020; -unity-font-style: bold; }
-.tt-difficulty--Hard   { color: #E55353; -unity-font-style: bold; }
+.tt-status-dot--error {
+    background-color: #E55353;
+}
+
+.tt-status-dot--warn {
+    background-color: #E8A020;
+}
+
+.tt-difficulty--Easy {
+    color: #26A6A6;
+    -unity-font-style: bold;
+}
+
+.tt-difficulty--Medium {
+    color: #E8A020;
+    -unity-font-style: bold;
+}
+
+.tt-difficulty--Hard {
+    color: #E55353;
+    -unity-font-style: bold;
+}
 
 /* ── Rope list ───────────────────────────────────────────────────────────── */
 
@@ -547,11 +579,11 @@
     flex-shrink: 0;
     cursor: link;
     border-width: 1px;
-    border-color: rgba(0,0,0,0);
+    border-color: rgba(0, 0, 0, 0);
 }
 
 .tt-rope-row__swatch--paintable:hover {
-    border-color: rgba(255,255,255,0.6);
+    border-color: rgba(255, 255, 255, 0.6);
     width: 14px;
     height: 14px;
 }

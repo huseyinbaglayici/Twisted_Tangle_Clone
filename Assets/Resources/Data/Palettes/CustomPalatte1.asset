@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 103be95983ba8904f894e2fd6153c486, type: 3}
   m_Name: CustomPalatte1
   m_EditorClassIdentifier: 
-  displayName: 
+  displayName: CustomPalatte
   variantTemplate: {fileID: 2100000, guid: b769fd7691bd3774cb0b237e8765cf43, type: 2}
   entries:
   - Name: CYAN

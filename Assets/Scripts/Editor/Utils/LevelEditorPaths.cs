@@ -18,6 +18,7 @@ namespace TwistedTangle.Editor.Utils
         {
             Levels,
             Entities,
+            EntityEditorData,
             Bases,
             Palettes,
             Uss
@@ -37,6 +38,7 @@ namespace TwistedTangle.Editor.Utils
         {
             new PathDef { Id = PathId.Levels, DisplayName = "Levels folder", Default = "Assets/Resources/Data/Levels", IsFolder = true },
             new PathDef { Id = PathId.Entities, DisplayName = "Entities folder", Default = "Assets/Resources/Data/Entities", IsFolder = true },
+            new PathDef { Id = PathId.EntityEditorData, DisplayName = "Entity editor data folder", Default = "Assets/Resources/Data/EntityEditorData", IsFolder = true },
             new PathDef { Id = PathId.Bases, DisplayName = "Entity bases folder", Default = "Assets/Resources/Data/EntityBases", IsFolder = true },
             new PathDef { Id = PathId.Palettes, DisplayName = "Palettes folder", Default = "Assets/Resources/Data/Palettes", IsFolder = true },
             new PathDef { Id = PathId.Uss, DisplayName = "Editor stylesheet", Default = "Assets/Scripts/Editor/LevelCreator.uss", IsFolder = false, FileExtension = "uss" },
@@ -45,6 +47,7 @@ namespace TwistedTangle.Editor.Utils
         // Convenience accessors so call sites read like the old consts.
         public static string Levels => Get(PathId.Levels);
         public static string Entities => Get(PathId.Entities);
+        public static string EntityEditorData => Get(PathId.EntityEditorData);
         public static string Bases => Get(PathId.Bases);
         public static string Palettes => Get(PathId.Palettes);
         public static string Uss => Get(PathId.Uss);

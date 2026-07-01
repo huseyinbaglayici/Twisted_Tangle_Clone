@@ -6,19 +6,10 @@ using UnityEngine;
 
 namespace TwistedTangle.Editor.Utils
 {
-    /// <summary>
-    /// Persists levels as <see cref="LevelDataSO"/> assets named by id under a Resources folder, so
-    /// the runtime can load them by id too. Save/load go through a deep copy in both directions so a
-    /// save→close→reopen round-trip never loses or aliases data.
-    /// </summary>
     public static class LevelSaveUtility
     {
         public static string PathFor(string folder, int levelId) => $"{folder}/Level_{levelId}.asset";
 
-        /// <summary>
-        /// Writes the working level to <c>folder/Level_&lt;id&gt;.asset</c>, creating or updating the
-        /// asset in place (so existing references survive). Returns the on-disk asset, or null on error.
-        /// </summary>
         public static LevelDataSO SaveLevel(LevelDataSO working, string folder)
         {
             if (working == null) return null;
@@ -28,6 +19,7 @@ namespace TwistedTangle.Editor.Utils
                 return null;
             }
 
+            var materialLookup = BuildMaterialLookup();
             EnsureFolder(folder);
             string path = PathFor(folder, working.LevelId);
             var asset = AssetDatabase.LoadAssetAtPath<LevelDataSO>(path);
@@ -35,12 +27,12 @@ namespace TwistedTangle.Editor.Utils
             if (asset == null)
             {
                 asset = ScriptableObject.CreateInstance<LevelDataSO>();
-                CopyInto(working, asset);
+                CopyInto(working, asset, materialLookup);
                 AssetDatabase.CreateAsset(asset, path);
             }
             else
             {
-                CopyInto(working, asset);
+                CopyInto(working, asset, materialLookup);
                 EditorUtility.SetDirty(asset);
             }
 
@@ -49,14 +41,12 @@ namespace TwistedTangle.Editor.Utils
             return asset;
         }
 
-        /// <summary>Loads the level asset for the given id, or null if it does not exist.</summary>
         public static LevelDataSO GetSelectedLevel(int levelId, string folder)
         {
             if (levelId < 0) return null;
             return AssetDatabase.LoadAssetAtPath<LevelDataSO>(PathFor(folder, levelId));
         }
 
-        /// <summary>Deletes the level asset for the given id. Returns true if something was deleted.</summary>
         public static bool DeleteSelectedLevel(int levelId, string folder)
         {
             string path = PathFor(folder, levelId);
@@ -66,43 +56,59 @@ namespace TwistedTangle.Editor.Utils
             return ok;
         }
 
-        /// <summary>Deep-copies all level data from <paramref name="src"/> into <paramref name="dst"/>.</summary>
-        public static void CopyInto(LevelDataSO src, LevelDataSO dst)
+        public static void CopyInto(LevelDataSO src, LevelDataSO dst,
+            Dictionary<Color, Material> materialLookup = null)
         {
-            dst.LevelId     = src.LevelId;
-            dst.Difficulty  = src.Difficulty;
-            dst.GridWidth   = src.GridWidth;
-            dst.GridHeight  = src.GridHeight;
+            dst.LevelId = src.LevelId;
+            dst.Difficulty = src.Difficulty;
+            dst.GridWidth = src.GridWidth;
+            dst.GridHeight = src.GridHeight;
             dst.TimeSeconds = src.TimeSeconds;
 
             dst.GridEntities.Clear();
-            dst.GridEntities.AddRange(src.GridEntities); // GridEntityData is a value type — straight copy is a deep copy.
+            dst.GridEntities.AddRange(src.GridEntities);
 
             dst.Ropes.Clear();
             foreach (var rope in src.Ropes)
-                dst.Ropes.Add(CloneRope(rope));
+                dst.Ropes.Add(CloneRope(rope, materialLookup));
 
             dst.CrossingOverrides.Clear();
-            dst.CrossingOverrides.AddRange(src.CrossingOverrides); // value type
+            dst.CrossingOverrides.AddRange(src.CrossingOverrides);
 
             dst.BackgroundMaterial = src.BackgroundMaterial;
         }
 
-        private static RopeData CloneRope(RopeData src)
+        private static Dictionary<Color, Material> BuildMaterialLookup()
         {
-            var clone = new RopeData(src.RopeId, src.Tint, src.Layer)
+            var lookup = new Dictionary<Color, Material>();
+            foreach (var guid in AssetDatabase.FindAssets($"t:{nameof(ColorPaletteSO)}"))
             {
-                Path = new List<RopeWaypoint>(src.Path) // RopeWaypoint is a value type
+                var palette = AssetDatabase.LoadAssetAtPath<ColorPaletteSO>(AssetDatabase.GUIDToAssetPath(guid));
+                if (palette == null) continue;
+                foreach (var entry in palette.Entries)
+                    if (entry.Variant != null && !lookup.ContainsKey(entry.Color))
+                        lookup[entry.Color] = entry.Variant;
+            }
+
+            return lookup;
+        }
+
+        private static RopeData CloneRope(RopeData src, Dictionary<Color, Material> materialLookup)
+        {
+            Material material = null;
+            materialLookup?.TryGetValue(src.Tint, out material);
+            return new RopeData(src.RopeId, src.Tint, src.Layer)
+            {
+                Material = material ?? src.Material,
+                Path = new List<RopeWaypoint>(src.Path)
             };
-            return clone;
         }
 
         private static void EnsureFolder(string folder)
         {
             if (AssetDatabase.IsValidFolder(folder)) return;
-
             string[] parts = folder.Split('/');
-            string current = parts[0]; // expected to be "Assets"
+            string current = parts[0];
             for (int i = 1; i < parts.Length; i++)
             {
                 string next = $"{current}/{parts[i]}";

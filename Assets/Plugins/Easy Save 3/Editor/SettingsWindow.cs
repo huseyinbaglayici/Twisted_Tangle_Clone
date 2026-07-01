@@ -6,21 +6,23 @@ using ES3Internal;
 
 namespace ES3Editor
 {
-	public class SettingsWindow : SubWindow
-	{
-		public ES3Defaults editorSettings = null;
-		public ES3SerializableSettings settings = null;
-		public SerializedObject so = null;
-		public SerializedProperty assemblyNamesProperty = null;
+    public class SettingsWindow : SubWindow
+    {
+        public ES3Defaults editorSettings = null;
+        public ES3SerializableSettings settings = null;
+        public SerializedObject so = null;
+        public SerializedProperty assemblyNamesProperty = null;
 
         private Vector2 scrollPos = Vector2.zero;
 
-		public SettingsWindow(EditorWindow window) : base("Settings", window){}
+        public SettingsWindow(EditorWindow window) : base("Settings", window)
+        {
+        }
 
-		public override void OnGUI()
-		{
-			if(settings == null || editorSettings == null || assemblyNamesProperty == null)
-				Init();
+        public override void OnGUI()
+        {
+            if (settings == null || editorSettings == null || assemblyNamesProperty == null)
+                Init();
 
             var style = EditorStyle.Get;
 
@@ -78,36 +80,47 @@ namespace ES3Editor
                     using (new EditorGUILayout.HorizontalScope())
                     {
                         EditorGUILayout.PrefixLabel("Auto Update References");
-                        editorSettings.autoUpdateReferences = EditorGUILayout.Toggle(editorSettings.autoUpdateReferences);
+                        editorSettings.autoUpdateReferences =
+                            EditorGUILayout.Toggle(editorSettings.autoUpdateReferences);
                     }
 
                     using (new EditorGUILayout.HorizontalScope())
                     {
                         EditorGUILayout.PrefixLabel("Use Global References");
 
-                        var symbols = PlayerSettings.GetScriptingDefineSymbolsForGroup(EditorUserBuildSettings.selectedBuildTargetGroup);
+                        var symbols =
+#pragma warning disable CS0618 // Type or member is obsolete
+                            PlayerSettings.GetScriptingDefineSymbolsForGroup(EditorUserBuildSettings
+                                .selectedBuildTargetGroup);
+#pragma warning restore CS0618 // Type or member is obsolete
                         bool useGlobalReferences = !symbols.Contains("ES3GLOBAL_DISABLED");
-                        if(EditorGUILayout.Toggle(useGlobalReferences) != useGlobalReferences)
+                        if (EditorGUILayout.Toggle(useGlobalReferences) != useGlobalReferences)
                         {
                             // Remove the existing symbol even if we're disabling global references, just incase it's already in there.
                             symbols = symbols.Replace("ES3GLOBAL_DISABLED;", ""); // With semicolon
-                            symbols = symbols.Replace("ES3GLOBAL_DISABLED", "");  // Without semicolon
+                            symbols = symbols.Replace("ES3GLOBAL_DISABLED", ""); // Without semicolon
 
                             // Add the symbol if useGlobalReferences is currently true, meaning that we want to disable it.
                             if (useGlobalReferences)
                                 symbols = "ES3GLOBAL_DISABLED;" + symbols;
 
-                            PlayerSettings.SetScriptingDefineSymbolsForGroup(EditorUserBuildSettings.selectedBuildTargetGroup, symbols);
+#pragma warning disable CS0618 // Type or member is obsolete
+                            PlayerSettings.SetScriptingDefineSymbolsForGroup(
+                                EditorUserBuildSettings.selectedBuildTargetGroup, symbols);
+#pragma warning restore CS0618 // Type or member is obsolete
 
-                            if(useGlobalReferences)
-                                EditorUtility.DisplayDialog("Global references disabled for build platform", "This will only disable Global References for this build platform. To disable it for other build platforms, open that platform in the Build Settings and uncheck this box again.", "Ok");
+                            if (useGlobalReferences)
+                                EditorUtility.DisplayDialog("Global references disabled for build platform",
+                                    "This will only disable Global References for this build platform. To disable it for other build platforms, open that platform in the Build Settings and uncheck this box again.",
+                                    "Ok");
                         }
                     }
 
                     using (new EditorGUILayout.HorizontalScope())
                     {
                         EditorGUILayout.PrefixLabel("Add All Prefabs to Manager");
-                        editorSettings.addAllPrefabsToManager = EditorGUILayout.Toggle(editorSettings.addAllPrefabsToManager);
+                        editorSettings.addAllPrefabsToManager =
+                            EditorGUILayout.Toggle(editorSettings.addAllPrefabsToManager);
                     }
 
                     EditorGUILayout.Space();
@@ -118,18 +131,16 @@ namespace ES3Editor
                 EditorUtility.SetDirty(editorSettings);
 
             EditorGUIUtility.labelWidth = labelWidth; // Set the label width back to default
-		}
+        }
 
-		public void Init()
-		{
+        public void Init()
+        {
             editorSettings = ES3Settings.defaultSettingsScriptableObject;
 
-			settings = editorSettings.settings;
-			/*so = new SerializedObject(editorSettings);
-			var settingsProperty = so.FindProperty("settings");
-			assemblyNamesProperty = settingsProperty.FindPropertyRelative("assemblyNames");*/
-			
-		}
-	}
-
+            settings = editorSettings.settings;
+            /*so = new SerializedObject(editorSettings);
+            var settingsProperty = so.FindProperty("settings");
+            assemblyNamesProperty = settingsProperty.FindPropertyRelative("assemblyNames");*/
+        }
+    }
 }

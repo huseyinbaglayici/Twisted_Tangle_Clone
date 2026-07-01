@@ -4,23 +4,31 @@ using UnityEngine;
 namespace ES3Types
 {
     [UnityEngine.Scripting.Preserve]
-    [ES3PropertiesAttribute("width", "height", "dimension", "graphicsFormat", "useMipMap", "vrUsage", "memorylessMode", "format", "stencilFormat", "autoGenerateMips", "volumeDepth", "antiAliasing", "bindTextureMS", "enableRandomWrite", "useDynamicScale", "isPowerOfTwo", "depth", "descriptor", "masterTextureLimit", "anisotropicFiltering", "wrapMode", "wrapModeU", "wrapModeV", "wrapModeW", "filterMode", "anisoLevel", "mipMapBias", "imageContentsHash", "streamingTextureForceLoadAll", "streamingTextureDiscardUnusedMips", "allowThreadedTextureCreation", "name")]
+    [ES3PropertiesAttribute("width", "height", "dimension", "graphicsFormat", "useMipMap", "vrUsage", "memorylessMode",
+        "format", "stencilFormat", "autoGenerateMips", "volumeDepth", "antiAliasing", "bindTextureMS",
+        "enableRandomWrite", "useDynamicScale", "isPowerOfTwo", "depth", "descriptor", "masterTextureLimit",
+        "anisotropicFiltering", "wrapMode", "wrapModeU", "wrapModeV", "wrapModeW", "filterMode", "anisoLevel",
+        "mipMapBias", "imageContentsHash", "streamingTextureForceLoadAll", "streamingTextureDiscardUnusedMips",
+        "allowThreadedTextureCreation", "name")]
     public class ES3Type_RenderTexture : ES3ObjectType
     {
         public static ES3Type Instance = null;
 
-        public ES3Type_RenderTexture() : base(typeof(UnityEngine.RenderTexture)) { Instance = this; }
+        public ES3Type_RenderTexture() : base(typeof(UnityEngine.RenderTexture))
+        {
+            Instance = this;
+        }
 
 
         protected override void WriteObject(object obj, ES3Writer writer)
         {
-            var instance = (UnityEngine.RenderTexture)obj;
+            var instance = (RenderTexture)obj;
 
             writer.WriteProperty("descriptor", instance.descriptor);
             writer.WriteProperty("antiAliasing", instance.antiAliasing, ES3Type_int.Instance);
             writer.WriteProperty("isPowerOfTwo", instance.isPowerOfTwo, ES3Type_bool.Instance);
-            writer.WriteProperty("masterTextureLimit", UnityEngine.RenderTexture.globalMipmapLimit, ES3Type_int.Instance);
-            writer.WriteProperty("anisotropicFiltering", UnityEngine.RenderTexture.anisotropicFiltering);
+            writer.WriteProperty("masterTextureLimit", Texture.globalMipmapLimit, ES3Type_int.Instance);
+            writer.WriteProperty("anisotropicFiltering", RenderTexture.anisotropicFiltering);
             writer.WriteProperty("wrapMode", instance.wrapMode);
             writer.WriteProperty("wrapModeU", instance.wrapModeU);
             writer.WriteProperty("wrapModeV", instance.wrapModeV);
@@ -30,9 +38,12 @@ namespace ES3Types
             writer.WriteProperty("mipMapBias", instance.mipMapBias, ES3Type_float.Instance);
 
 #if UNITY_2020_1_OR_NEWER
-            writer.WriteProperty("streamingTextureForceLoadAll", UnityEngine.RenderTexture.streamingTextureForceLoadAll, ES3Type_bool.Instance);
-			writer.WriteProperty("streamingTextureDiscardUnusedMips", UnityEngine.RenderTexture.streamingTextureDiscardUnusedMips, ES3Type_bool.Instance);
-			writer.WriteProperty("allowThreadedTextureCreation", UnityEngine.RenderTexture.allowThreadedTextureCreation, ES3Type_bool.Instance);
+            writer.WriteProperty("streamingTextureForceLoadAll", RenderTexture.streamingTextureForceLoadAll,
+                ES3Type_bool.Instance);
+            writer.WriteProperty("streamingTextureDiscardUnusedMips", RenderTexture.streamingTextureDiscardUnusedMips,
+                ES3Type_bool.Instance);
+            writer.WriteProperty("allowThreadedTextureCreation", RenderTexture.allowThreadedTextureCreation,
+                ES3Type_bool.Instance);
 #endif
         }
 
@@ -83,10 +94,10 @@ namespace ES3Types
                         instance.descriptor = reader.Read<UnityEngine.RenderTextureDescriptor>();
                         break;
                     case "masterTextureLimit":
-                        UnityEngine.RenderTexture.globalMipmapLimit = reader.Read<System.Int32>(ES3Type_int.Instance);
+                        RenderTexture.globalMipmapLimit = reader.Read<System.Int32>(ES3Type_int.Instance);
                         break;
                     case "anisotropicFiltering":
-                        UnityEngine.RenderTexture.anisotropicFiltering = reader.Read<UnityEngine.AnisotropicFiltering>();
+                        RenderTexture.anisotropicFiltering = reader.Read<UnityEngine.AnisotropicFiltering>();
                         break;
                     case "wrapMode":
                         instance.wrapMode = reader.Read<UnityEngine.TextureWrapMode>();
@@ -130,14 +141,17 @@ namespace ES3Types
                         instance.useDynamicScale = reader.Read<System.Boolean>(ES3Type_bool.Instance);
                         break;
                     case "streamingTextureForceLoadAll":
-						UnityEngine.RenderTexture.streamingTextureForceLoadAll = reader.Read<System.Boolean>(ES3Type_bool.Instance);
-						break;
-					case "streamingTextureDiscardUnusedMips":
-						UnityEngine.RenderTexture.streamingTextureDiscardUnusedMips = reader.Read<System.Boolean>(ES3Type_bool.Instance);
-						break;
-					case "allowThreadedTextureCreation":
-						UnityEngine.RenderTexture.allowThreadedTextureCreation = reader.Read<System.Boolean>(ES3Type_bool.Instance);
-						break;
+                        UnityEngine.RenderTexture.streamingTextureForceLoadAll =
+                            reader.Read<System.Boolean>(ES3Type_bool.Instance);
+                        break;
+                    case "streamingTextureDiscardUnusedMips":
+                        UnityEngine.RenderTexture.streamingTextureDiscardUnusedMips =
+                            reader.Read<System.Boolean>(ES3Type_bool.Instance);
+                        break;
+                    case "allowThreadedTextureCreation":
+                        UnityEngine.RenderTexture.allowThreadedTextureCreation =
+                            reader.Read<System.Boolean>(ES3Type_bool.Instance);
+                        break;
 #endif
 
                     default:

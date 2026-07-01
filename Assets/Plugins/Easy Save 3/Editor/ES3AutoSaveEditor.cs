@@ -7,7 +7,7 @@ using System.Collections.Generic;
 namespace ES3Internal
 {
     [CustomEditor(typeof(ES3AutoSave))]
-    public class ES3AutoSaveEditor : Editor
+    public class ES3AutoSaveEditor : UnityEditor.Editor
     {
         public override void OnInspectorGUI()
         {
