@@ -124,16 +124,17 @@ namespace TwistedTangle.Editor.Input
         public static string EntityCommandId(string typeId) => EntityPrefix + typeId;
 
         /// <summary>
-        /// Shared ordering for a base's sub-types: untagged variants first (so a plain "Standard" beats a
-        /// "Nailed"/"locked" one), then alphabetically. Used for the palette, the default selection, and
-        /// the bindings dropdown so all three agree.
+        /// Shared ordering for a base's sub-types: by <see cref="EntityDefinitionEditorDataSO.SortOrder"/>,
+        /// then alphabetically. Used for the palette, the default selection, and the bindings dropdown so
+        /// all three agree.
         /// </summary>
-        public static int CompareSubTypes(EntityDefinitionSO a, EntityDefinitionSO b)
+        public static int CompareSubTypes(EntityDefinitionSO a, EntityDefinitionSO b,
+            Dictionary<EntityDefinitionSO, EntityDefinitionEditorDataSO> editorDataLookup)
         {
-            bool aTagged = a.Tags.Length > 0;
-            bool bTagged = b.Tags.Length > 0;
-            if (aTagged != bTagged) return aTagged ? 1 : -1;
-            return string.Compare(a.DisplayName, b.DisplayName, StringComparison.OrdinalIgnoreCase);
+            editorDataLookup.TryGetValue(a, out var dataA);
+            editorDataLookup.TryGetValue(b, out var dataB);
+            int cmp = (dataA?.SortOrder ?? 0).CompareTo(dataB?.SortOrder ?? 0);
+            return cmp != 0 ? cmp : string.Compare(a.DisplayName, b.DisplayName, StringComparison.OrdinalIgnoreCase);
         }
 
         /// <summary>Rescans entity assets, rebuilds the dynamic commands, and announces any change.</summary>
@@ -186,8 +187,9 @@ namespace TwistedTangle.Editor.Input
                 }
             }
 
-            foreach (var bucket in subsByBase.Values) bucket.Sort(CompareSubTypes);
-            ungroupedDefs.Sort(CompareSubTypes);
+            foreach (var bucket in subsByBase.Values)
+                bucket.Sort((x, y) => CompareSubTypes(x, y, editorDataLookup));
+            ungroupedDefs.Sort((x, y) => CompareSubTypes(x, y, editorDataLookup));
 
             flat = new List<EditorCommand>();
             groups = new List<BaseGroup>();

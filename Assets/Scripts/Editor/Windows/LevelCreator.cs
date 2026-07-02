@@ -216,7 +216,8 @@ namespace TwistedTangle.Editor
 
         private IEnumerable<EntityDefinitionSO> SubTypesOf(EntityBaseTypeSO baseType) =>
             _entityDefs.Where(d => EditorDataFor(d)?.BaseType == baseType)
-                .OrderBy(d => d, Comparer<EntityDefinitionSO>.Create(LevelEditorCommands.CompareSubTypes));
+                .OrderBy(d => d, Comparer<EntityDefinitionSO>.Create(
+                    (a, b) => LevelEditorCommands.CompareSubTypes(a, b, _editorDataLookup)));
 
         private bool HasUngrouped() => _entityDefs.Any(d => EditorDataFor(d)?.BaseType == null);
 

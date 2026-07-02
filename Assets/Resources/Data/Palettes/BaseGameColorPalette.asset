@@ -1,0 +1,41 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8c2116424f8c8db4ab233be29787359f, type: 3}
+  m_Name: BaseGameColorPalette
+  m_EditorClassIdentifier: 
+  displayName: 
+  variantTemplate: {fileID: 2100000, guid: 547b8ba5e45adc249a11dccf009ff753, type: 2}
+  entries:
+  - Name: Red
+    Color: {r: 0.9, g: 0.2, b: 0.2, a: 1}
+    Variant: {fileID: 2100000, guid: 92759881d9fc0ca438bb827d1aec7599, type: 2}
+  - Name: Orange
+    Color: {r: 1, g: 0.55, b: 0, a: 1}
+    Variant: {fileID: 2100000, guid: acd2203f34df19a4e8dc49666992952a, type: 2}
+  - Name: Yellow
+    Color: {r: 0.95, g: 0.85, b: 0.1, a: 1}
+    Variant: {fileID: 2100000, guid: 949c371eeac6ef442b06c6d72ed2224e, type: 2}
+  - Name: Green
+    Color: {r: 0.3, g: 0.75, b: 0.35, a: 1}
+    Variant: {fileID: 2100000, guid: 97caae5ae1c0e6947872de5e1232d44f, type: 2}
+  - Name: Blue
+    Color: {r: 0.2, g: 0.55, b: 0.95, a: 1}
+    Variant: {fileID: 2100000, guid: c4647ab595d52554b809db1a05845f89, type: 2}
+  - Name: Purple
+    Color: {r: 0.55, g: 0.25, b: 0.8, a: 1}
+    Variant: {fileID: 2100000, guid: 148e3643c39e2f44b87a12b1bb9c5360, type: 2}
+  - Name: Pink
+    Color: {r: 0.95, g: 0.4, b: 0.7, a: 1}
+    Variant: {fileID: 2100000, guid: e4f95c79fac99bc45a0f53f52085f713, type: 2}
+  - Name: White
+    Color: {r: 1, g: 1, b: 1, a: 1}
+    Variant: {fileID: 2100000, guid: 7927d3c93d5e9c5438177a3ac6ad4ab2, type: 2}

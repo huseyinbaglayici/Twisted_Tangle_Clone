@@ -9,11 +9,10 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 2a07346c4a3abab4badc3e59ea5d237e, type: 3}
-  m_Name: EntityBase_obstacle
+  m_Script: {fileID: 11500000, guid: e6558c0148d099341a44ac3621135069, type: 3}
+  m_Name: Entity_obstacle_pin_blocker
   m_EditorClassIdentifier: 
-  baseId: obstacle
-  displayName: Obstacle
-  editorColor: {r: 0.6698113, g: 0.4454877, b: 0.5154628, a: 1}
-  sortOrder: 51
-  showOccupiedMarker: 1
+  typeId: obstacle.pin_blocker
+  displayName: Pin Blocker
+  prefab: {fileID: 0}
+  tags: []

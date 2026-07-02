@@ -9,10 +9,10 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 2a07346c4a3abab4badc3e59ea5d237e, type: 3}
+  m_Script: {fileID: 11500000, guid: 3003f3c3b9c43144ab4c3b40204b2df4, type: 3}
   m_Name: EntityBase_pin
   m_EditorClassIdentifier: 
   baseId: pin
   displayName: Pin
-  editorColor: {r: 0.85, g: 0.85, b: 0.85, a: 1}
-  sortOrder: -1
+  editorColor: {r: 1, g: 1, b: 1, a: 1}
+  sortOrder: 0

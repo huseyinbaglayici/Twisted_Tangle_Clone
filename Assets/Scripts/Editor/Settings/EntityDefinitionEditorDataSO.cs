@@ -14,10 +14,12 @@ namespace TwistedTangle.Editor.Settings
         [SerializeField] private EntityBaseTypeSO baseType;
         [SerializeField] private Color editorColor = new(0.85f, 0.85f, 0.85f);
         [SerializeField] private CanvasMarker canvasMarker = CanvasMarker.None;
+        [SerializeField] private int sortOrder = 0;
 
         public EntityDefinitionSO Definition  => definition;
         public EntityBaseTypeSO   BaseType    => baseType;
         public Color              EditorColor => editorColor;
         public CanvasMarker       CanvasMarker => canvasMarker;
+        public int                SortOrder   => sortOrder;
     }
 }

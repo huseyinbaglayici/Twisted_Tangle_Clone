@@ -9,10 +9,10 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e6558c0148d099341a44ac3621135069, type: 3}
-  m_Name: Entity_obstacle_funnel
+  m_Script: {fileID: 11500000, guid: 3003f3c3b9c43144ab4c3b40204b2df4, type: 3}
+  m_Name: EntityBase_obstacle
   m_EditorClassIdentifier: 
-  typeId: obstacle.funnel
-  displayName: Funnel
-  prefab: {fileID: 0}
-  tags: []
+  baseId: obstacle
+  displayName: Obstacle
+  editorColor: {r: 0.990566, g: 0.990566, b: 0, a: 1}
+  sortOrder: 0

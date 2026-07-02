@@ -10,12 +10,9 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: e6558c0148d099341a44ac3621135069, type: 3}
-  m_Name: Entity_pin_nailed
+  m_Name: "Entity_p\u0131n_standart"
   m_EditorClassIdentifier: 
-  typeId: pin.nailed
-  displayName: Nailed
-  editorColor: {r: 0.6226415, g: 0.6226415, b: 0.6226415, a: 1}
-  baseType: {fileID: 11400000, guid: a1ac0eac33b07b7488fabf1acb1e88fe, type: 2}
-  prefab: {fileID: 0}
-  tags:
-  - nailed
+  typeId: "p\u0131n.standart"
+  displayName: Standart
+  prefab: {fileID: 919132149155446097, guid: 43931d88ee69c9046aba81f8595b99f2, type: 3}
+  tags: []
