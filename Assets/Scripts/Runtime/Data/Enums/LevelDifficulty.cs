@@ -1,4 +1,4 @@
-namespace TwistedTangle.Runtime.Data.Enums
+namespace Runtime.Data.Enums
 {
     public enum LevelDifficulty
     {

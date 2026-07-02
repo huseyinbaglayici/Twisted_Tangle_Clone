@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Editor.Geometry;
 using TwistedTangle.Editor.Utils;
 using TwistedTangle.Runtime.Data.ScriptableObjects;
 using UnityEditor;
@@ -41,7 +42,7 @@ namespace TwistedTangle.Editor.Validation
         private static LevelCheckResult Check(LevelDataSO level, HashSet<string> knownTypeIds)
         {
             var validation = LevelValidator.Validate(level, knownTypeIds);
-            var crossings  = TwistedTangle.Editor.Geometry.CrossingSolver.FindCrossings(level.Ropes);
+            var crossings  = CrossingSolver.FindCrossings(level.Ropes);
             int inter = 0;
             foreach (var c in crossings) if (c.RopeIndexA != c.RopeIndexB) inter++;
 

@@ -1,5 +1,5 @@
 using System.Collections.Generic;
-using TwistedTangle.Editor.Input;
+using Editor.Input;
 using TwistedTangle.Editor.Utils;
 using UnityEditor;
 using UnityEngine;

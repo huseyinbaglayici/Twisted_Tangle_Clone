@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
 
-namespace TwistedTangle.Editor.Input
+namespace Editor.Input
 {
     /// <summary>
     /// Persists the user's Level Creator key bindings. Only overrides are stored — a command with no
@@ -83,7 +83,8 @@ namespace TwistedTangle.Editor.Input
         {
             if (combo.IsEmpty) return null;
             foreach (var cmd in LevelEditorCommands.All)
-                if (Get(cmd.Id).Equals(combo)) return cmd.Id;
+                if (Get(cmd.Id).Equals(combo))
+                    return cmd.Id;
             return null;
         }
 
@@ -96,6 +97,7 @@ namespace TwistedTangle.Editor.Input
                 if (cmd.Id == exceptId) continue;
                 if (Get(cmd.Id).Equals(combo)) return cmd.Id;
             }
+
             return null;
         }
 

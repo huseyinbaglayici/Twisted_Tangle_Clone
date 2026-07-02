@@ -1,4 +1,4 @@
-namespace TwistedTangle.Editor.Input
+namespace Editor.Input
 {
     /// <summary>
     /// Metadata for one bindable Level Creator action: a stable id (used as the persistence key and to

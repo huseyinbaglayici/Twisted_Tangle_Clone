@@ -2,7 +2,7 @@ using System;
 using UnityEngine;
 using UnityEngine.UIElements;
 
-namespace TwistedTangle.Editor.Input
+namespace Editor.Input
 {
     /// <summary>
     /// A keyboard shortcut: one main key plus optional Ctrl / Alt / Shift modifiers.

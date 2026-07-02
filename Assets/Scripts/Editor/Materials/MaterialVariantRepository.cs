@@ -1,7 +1,7 @@
 using UnityEditor;
 using UnityEngine;
 
-namespace TwistedTangle.Editor.Materials
+namespace Editor.Materials
 {
     /// <summary>
     /// Persistence layer for color-variant materials: owns the asset path + folder, de-duplicates

@@ -6,7 +6,7 @@ using TwistedTangle.Runtime.Data.ScriptableObjects;
 using UnityEditor;
 using UnityEngine;
 
-namespace TwistedTangle.Editor.Input
+namespace Editor.Input
 {
     /// <summary>
     /// Catalog of Level Creator shortcuts: fixed built-ins + dynamically-discovered entity tools (one per

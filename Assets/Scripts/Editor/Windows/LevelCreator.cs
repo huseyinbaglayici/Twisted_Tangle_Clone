@@ -1,21 +1,23 @@
 using System.Collections.Generic;
 using System.Linq;
-using Editor.Windows;
-using TwistedTangle.Editor.Canvas;
-using TwistedTangle.Editor.Input;
+using Editor.Canvas;
+using Editor.Geometry;
+using Editor.Input;
+using Editor.Materials;
+using Runtime.Data.Enums;
+using TwistedTangle.Editor;
 using TwistedTangle.Editor.Settings;
 using TwistedTangle.Editor.Utils;
 using TwistedTangle.Editor.Validation;
+using TwistedTangle.Runtime.Data.Enums;
 using TwistedTangle.Runtime.Data.ScriptableObjects;
 using TwistedTangle.Runtime.Data.ValueObjects;
-using TwistedTangle.Editor.Geometry;
-using TwistedTangle.Runtime.Data.Enums;
 using UnityEditor;
 using UnityEditor.UIElements;
 using UnityEngine;
 using UnityEngine.UIElements;
 
-namespace TwistedTangle.Editor
+namespace Editor.Windows
 {
     public class LevelCreator : EditorWindow
     {
@@ -216,8 +218,9 @@ namespace TwistedTangle.Editor
 
         private IEnumerable<EntityDefinitionSO> SubTypesOf(EntityBaseTypeSO baseType) =>
             _entityDefs.Where(d => EditorDataFor(d)?.BaseType == baseType)
-                .OrderBy(d => d, Comparer<EntityDefinitionSO>.Create(
-                    (a, b) => LevelEditorCommands.CompareSubTypes(a, b, _editorDataLookup)));
+                .OrderBy(d => d,
+                    Comparer<EntityDefinitionSO>.Create((a, b) =>
+                        LevelEditorCommands.CompareSubTypes(a, b, _editorDataLookup)));
 
         private bool HasUngrouped() => _entityDefs.Any(d => EditorDataFor(d)?.BaseType == null);
 
@@ -458,9 +461,9 @@ namespace TwistedTangle.Editor
             Material variant = null;
             if (autoGenerate && palette.VariantTemplate != null)
             {
-                var repo = new TwistedTangle.Editor.Materials.MaterialVariantRepository(
+                var repo = new MaterialVariantRepository(
                     LevelEditorPaths.MaterialsForPalette(palette.name),
-                    new TwistedTangle.Editor.Materials.MaterialVariantFactory());
+                    new MaterialVariantFactory());
                 variant = repo.GetOrCreate(palette.VariantTemplate, colorName, color);
                 el.FindPropertyRelative("Variant").objectReferenceValue = variant;
             }
@@ -1247,6 +1250,7 @@ namespace TwistedTangle.Editor
                             _previewRope.Tint = color;
                             _previewRope.Material = variant;
                         }
+
                         UpdateSwatchSelection();
                         RefreshCanvas();
                     }) { tooltip = entry.Name };

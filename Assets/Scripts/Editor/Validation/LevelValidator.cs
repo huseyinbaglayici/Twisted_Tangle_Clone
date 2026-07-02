@@ -1,9 +1,10 @@
 using System.Collections.Generic;
 using System.Linq;
+using Editor.Geometry;
+using Runtime.Data.Enums;
 using TwistedTangle.Editor.Settings;
 using TwistedTangle.Runtime.Data.Enums;
 using TwistedTangle.Runtime.Data.ScriptableObjects;
-using TwistedTangle.Editor.Geometry;
 using UnityEngine;
 
 namespace TwistedTangle.Editor.Validation

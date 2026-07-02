@@ -1,10 +1,10 @@
-using TwistedTangle.Editor.Materials;
+using Editor.Materials;
 using TwistedTangle.Editor.Settings;
 using TwistedTangle.Editor.Utils;
 using UnityEditor;
 using UnityEngine;
 
-namespace TwistedTangle.Editor.Inspectors
+namespace Editor.Inspectors
 {
     /// <summary>
     /// Adds a "Generate Material Variants" button to the ColorPaletteSO inspector. It takes the

@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
-using TwistedTangle.Editor;
-using TwistedTangle.Editor.Canvas;
+using Editor.Canvas;
 using TwistedTangle.Editor.Generation;
 using TwistedTangle.Editor.Settings;
 using TwistedTangle.Editor.Utils;

@@ -1,14 +1,14 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Editor.Geometry;
 using TwistedTangle.Editor.Utils;
 using TwistedTangle.Runtime.Data.ScriptableObjects;
 using TwistedTangle.Runtime.Data.ValueObjects;
-using TwistedTangle.Editor.Geometry;
 using UnityEngine;
 using UnityEngine.UIElements;
 
-namespace TwistedTangle.Editor.Canvas
+namespace Editor.Canvas
 {
     public class RopeCanvasElement : VisualElement
     {
@@ -22,9 +22,9 @@ namespace TwistedTangle.Editor.Canvas
         public RopeData PreviewRope; // in-progress rope being authored (null if none)
         public int SelectedRopeId = -1;
         public bool ShowCrossings; // highlight crossing points (flip tool)
-        public bool ShowSubGrid;   // show sub-grid routing dots (rope tool)
-        public Color GridStrokeColor   = EditorColors.Separator;
-        public Color RopeOutlineColor  = EditorColors.RopeOutlineDark;
+        public bool ShowSubGrid; // show sub-grid routing dots (rope tool)
+        public Color GridStrokeColor = EditorColors.Separator;
+        public Color RopeOutlineColor = EditorColors.RopeOutlineDark;
 
         // --- callbacks to the window ---
         public Action<int, int, Vector2, int> CellClicked; // cellX, cellY, localPos, mouseButton
@@ -101,16 +101,28 @@ namespace TwistedTangle.Editor.Canvas
             if (TryCell(evt.localPosition, out int hx, out int hy))
             {
                 var hc = new Vector2Int(hx, hy);
-                if (hc != _hoveredPeg) { _hoveredPeg = hc; dirty = true; }
+                if (hc != _hoveredPeg)
+                {
+                    _hoveredPeg = hc;
+                    dirty = true;
+                }
             }
 
             // Sub-grid hover — dot highlight when rope tool is active
             if (ShowSubGrid && TrySubCell(evt.localPosition, out int shx, out int shy))
             {
                 var hs = new Vector2Int(shx, shy);
-                if (hs != _hoveredSubCell) { _hoveredSubCell = hs; dirty = true; }
+                if (hs != _hoveredSubCell)
+                {
+                    _hoveredSubCell = hs;
+                    dirty = true;
+                }
             }
-            else if (_hoveredSubCell.x != -1) { _hoveredSubCell = new Vector2Int(-1, -1); dirty = true; }
+            else if (_hoveredSubCell.x != -1)
+            {
+                _hoveredSubCell = new Vector2Int(-1, -1);
+                dirty = true;
+            }
 
             if (dirty) MarkDirtyRepaint();
 
@@ -195,31 +207,55 @@ namespace TwistedTangle.Editor.Canvas
 
         private void DrawBlocked(Painter2D p, Vector2 c)
         {
-            float r    = CellSize * 0.30f;
+            float r = CellSize * 0.30f;
             float diag = r * 0.70f;
 
-            p.lineWidth = 5f; p.strokeColor = new Color(0f, 0f, 0f, 0.50f);
-            p.BeginPath(); p.Arc(c, r, Angle.Degrees(0f), Angle.Degrees(360f)); p.Stroke();
-            p.BeginPath(); p.MoveTo(c + new Vector2(-diag, -diag)); p.LineTo(c + new Vector2(diag, diag)); p.Stroke();
+            p.lineWidth = 5f;
+            p.strokeColor = new Color(0f, 0f, 0f, 0.50f);
+            p.BeginPath();
+            p.Arc(c, r, Angle.Degrees(0f), Angle.Degrees(360f));
+            p.Stroke();
+            p.BeginPath();
+            p.MoveTo(c + new Vector2(-diag, -diag));
+            p.LineTo(c + new Vector2(diag, diag));
+            p.Stroke();
 
-            p.lineWidth = 2.5f; p.strokeColor = new Color(1f, 1f, 1f, 0.90f);
-            p.BeginPath(); p.Arc(c, r, Angle.Degrees(0f), Angle.Degrees(360f)); p.Stroke();
-            p.BeginPath(); p.MoveTo(c + new Vector2(-diag, -diag)); p.LineTo(c + new Vector2(diag, diag)); p.Stroke();
+            p.lineWidth = 2.5f;
+            p.strokeColor = new Color(1f, 1f, 1f, 0.90f);
+            p.BeginPath();
+            p.Arc(c, r, Angle.Degrees(0f), Angle.Degrees(360f));
+            p.Stroke();
+            p.BeginPath();
+            p.MoveTo(c + new Vector2(-diag, -diag));
+            p.LineTo(c + new Vector2(diag, diag));
+            p.Stroke();
         }
 
         private void DrawFunnel(Painter2D p, Vector2 c)
         {
             float r = CellSize * 0.30f;
             // △ upward triangle
-            var top   = c + new Vector2(0f,   -r);
-            var left  = c + new Vector2(-r,    r * 0.80f);
-            var right = c + new Vector2( r,    r * 0.80f);
+            var top = c + new Vector2(0f, -r);
+            var left = c + new Vector2(-r, r * 0.80f);
+            var right = c + new Vector2(r, r * 0.80f);
 
-            p.lineWidth = 5f; p.strokeColor = new Color(0f, 0f, 0f, 0.50f);
-            p.BeginPath(); p.MoveTo(top); p.LineTo(left); p.LineTo(right); p.ClosePath(); p.Stroke();
+            p.lineWidth = 5f;
+            p.strokeColor = new Color(0f, 0f, 0f, 0.50f);
+            p.BeginPath();
+            p.MoveTo(top);
+            p.LineTo(left);
+            p.LineTo(right);
+            p.ClosePath();
+            p.Stroke();
 
-            p.lineWidth = 2.5f; p.strokeColor = new Color(1f, 1f, 1f, 0.90f);
-            p.BeginPath(); p.MoveTo(top); p.LineTo(left); p.LineTo(right); p.ClosePath(); p.Stroke();
+            p.lineWidth = 2.5f;
+            p.strokeColor = new Color(1f, 1f, 1f, 0.90f);
+            p.BeginPath();
+            p.MoveTo(top);
+            p.LineTo(left);
+            p.LineTo(right);
+            p.ClosePath();
+            p.Stroke();
         }
 
         private void DrawPegs(Painter2D p)
@@ -412,7 +448,8 @@ namespace TwistedTangle.Editor.Canvas
             var placedWaypoints = new HashSet<Vector2Int>();
             if (PreviewRope != null)
                 foreach (var wp in PreviewRope.Path)
-                    if (wp.IsBendPoint) placedWaypoints.Add(wp.PegCoord);
+                    if (wp.IsBendPoint)
+                        placedWaypoints.Add(wp.PegCoord);
 
             for (int cx = 0; cx < GridWidth; cx++)
             {
@@ -429,7 +466,7 @@ namespace TwistedTangle.Editor.Canvas
                             Vector2 pos = ToPx(CrossingSolver.SubCenter(sub));
 
                             bool isHovered = sub == _hoveredSubCell;
-                            bool isPlaced  = placedWaypoints.Contains(sub);
+                            bool isPlaced = placedWaypoints.Contains(sub);
 
                             float radius = isHovered || isPlaced ? 4.5f : 2.5f;
                             // Dark halo so the dot reads on any rope color underneath.
@@ -437,9 +474,9 @@ namespace TwistedTangle.Editor.Canvas
                             p.BeginPath();
                             p.Arc(pos, radius + 2f, Angle.Degrees(0f), Angle.Degrees(360f));
                             p.Fill();
-                            p.fillColor = isPlaced  ? new Color(1f, 1f, 1f, 0.90f) :
-                                          isHovered ? new Color(1f, 1f, 1f, 0.70f) :
-                                                      new Color(1f, 1f, 1f, 0.40f);
+                            p.fillColor = isPlaced ? new Color(1f, 1f, 1f, 0.90f) :
+                                isHovered ? new Color(1f, 1f, 1f, 0.70f) :
+                                new Color(1f, 1f, 1f, 0.40f);
                             p.BeginPath();
                             p.Arc(pos, radius, Angle.Degrees(0f), Angle.Degrees(360f));
                             p.Fill();
@@ -469,7 +506,7 @@ namespace TwistedTangle.Editor.Canvas
             // Small socket dot INSIDE the pin, offset toward rope — "hole where rope exits" illusion.
             // Stays within pin boundary so it never needs to merge with the rope.
             Vector2 sockCenter = pinCenter + exitDir * (pegR * 0.44f);
-            float holeR  = pegR * 0.13f;
+            float holeR = pegR * 0.13f;
             float frameR = holeR + 2.5f;
 
             // Rope-colored frame ring
@@ -499,10 +536,12 @@ namespace TwistedTangle.Editor.Canvas
             p.lineWidth = 1.5f;
             p.strokeColor = new Color(0f, 0f, 0f, 0.82f);
             p.BeginPath();
-            p.Arc(ToPx(CrossingSolver.SubCenter(rope.Path[0].PegCoord)), pegR * 0.38f, Angle.Degrees(0f), Angle.Degrees(360f));
+            p.Arc(ToPx(CrossingSolver.SubCenter(rope.Path[0].PegCoord)), pegR * 0.38f, Angle.Degrees(0f),
+                Angle.Degrees(360f));
             p.Stroke();
             p.BeginPath();
-            p.Arc(ToPx(CrossingSolver.SubCenter(rope.Path[^1].PegCoord)), pegR * 0.38f, Angle.Degrees(0f), Angle.Degrees(360f));
+            p.Arc(ToPx(CrossingSolver.SubCenter(rope.Path[^1].PegCoord)), pegR * 0.38f, Angle.Degrees(0f),
+                Angle.Degrees(360f));
             p.Stroke();
 
             // Hollow ring at each bend point.

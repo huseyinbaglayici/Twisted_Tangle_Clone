@@ -1,4 +1,4 @@
-using TwistedTangle.Editor.Canvas;
+using Editor.Canvas;
 using TwistedTangle.Runtime.Data.ScriptableObjects;
 using UnityEngine;
 

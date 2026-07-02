@@ -1,4 +1,4 @@
-namespace TwistedTangle.Editor.Canvas
+namespace Editor.Canvas
 {
     public enum CanvasMarker
     {

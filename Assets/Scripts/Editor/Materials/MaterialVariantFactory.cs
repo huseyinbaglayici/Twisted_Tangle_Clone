@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace TwistedTangle.Editor.Materials
+namespace Editor.Materials
 {
     public interface IMaterialVariantFactory
     {
@@ -27,9 +27,9 @@ namespace TwistedTangle.Editor.Materials
         public void ApplyColor(Material material, Color color)
         {
             if (material == null) return;
-            material.color = color;                                                        // shader's [MainColor]
-            if (material.HasProperty(BaseColorId)) material.SetColor(BaseColorId, color);  // URP/TCP
-            if (material.HasProperty(ColorId)) material.SetColor(ColorId, color);          // built-in/legacy
+            material.color = color; // shader's [MainColor]
+            if (material.HasProperty(BaseColorId)) material.SetColor(BaseColorId, color); // URP/TCP
+            if (material.HasProperty(ColorId)) material.SetColor(ColorId, color); // built-in/legacy
         }
     }
 }

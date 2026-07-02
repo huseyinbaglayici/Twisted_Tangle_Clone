@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using TwistedTangle.Runtime.Data.ValueObjects;
 using UnityEngine;
 
-namespace TwistedTangle.Editor.Geometry
+namespace Editor.Geometry
 {
     /// <summary>
     /// A point where two rope segments cross. Coordinates are in grid cell-center space (peg at
