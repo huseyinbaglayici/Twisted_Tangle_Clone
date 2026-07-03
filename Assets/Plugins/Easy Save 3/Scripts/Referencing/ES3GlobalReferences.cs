@@ -29,8 +29,10 @@ namespace ES3Internal
         {
             get
             {
-                // If Global References is disabled, we still keep it enabled unless we're playing so that ES3ReferenceMgrs in different scenes still use the same IDs.
-                if (Application.isPlaying && !useGlobalReferences)
+                if (Application.isPlaying)
+                    return null;
+
+                if (!useGlobalReferences)
                     return null;
 
                 if (_globalReferences == null)
@@ -87,7 +89,9 @@ namespace ES3Internal
                 if (obj == null)
                     continue;
 
-                if ((((obj.hideFlags & HideFlags.DontSave) == HideFlags.DontSave) ||
+                if ((
+                 ((obj.hideFlags & HideFlags.HideInInspector) == HideFlags.HideInInspector) ||
+                 ((obj.hideFlags & HideFlags.DontSave) == HideFlags.DontSave) ||
                  ((obj.hideFlags & HideFlags.DontSaveInBuild) == HideFlags.DontSaveInBuild) ||
                  ((obj.hideFlags & HideFlags.DontSaveInEditor) == HideFlags.DontSaveInEditor) ||
                  ((obj.hideFlags & HideFlags.HideAndDontSave) == HideFlags.HideAndDontSave)))

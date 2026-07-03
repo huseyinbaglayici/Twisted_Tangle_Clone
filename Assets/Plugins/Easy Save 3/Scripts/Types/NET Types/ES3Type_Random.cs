@@ -1,9 +1,15 @@
+/*
+ * System.Random is no longer serializable at runtime due to Unity changing the implementation away from .NET.
+ */
+
 using System;
 using UnityEngine;
 
 namespace ES3Types
 {
-	[UnityEngine.Scripting.Preserve]
+#if !UNITY_2021_2_OR_NEWER
+
+    [UnityEngine.Scripting.Preserve]
 	[ES3PropertiesAttribute("inext", "inextp", "SeedArray")]
 	public class ES3Type_Random : ES3ObjectType
 	{
@@ -61,4 +67,5 @@ namespace ES3Types
 			Instance = this;
 		}
 	}
+#endif
 }

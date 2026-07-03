@@ -1,15 +1,15 @@
 <?php
 /* 
 ------------------------------------------------------------------------------------
-	IT IS NOT NECESSARY TO MODIFY THIS SCRIPT TO USE EASY SAVE 3 CLOUD
+			IT IS NOT NECESSARY TO MODIFY THIS SCRIPT TO USE EASY SAVE 3 CLOUD
 ------------------------------------------------------------------------------------
 */
 	
 	
-$tableName 		= 	"es3cloud";		// The name of the table used to store file names.
+$tableName 			= 	"es3cloud";		// The name of the table used to store file names.
 $filenameField 		= 	"filename";		// The name of the field where we save our file name.
 $fileDataField 		= 	"data";			// The name of the field containing the data relating to.
-$userField	  	=	"user";			// The name of the field containing the name of the user this file relates to, if any.
+$userField	  		=	"user";			// The name of the field containing the name of the user this file relates to, if any.
 $lastUpdatedField 	= 	"lastUpdated"; 	// The name of the field containing the last updated timestamp.
 	
 // Handles installation of the database tables and variables script.
@@ -35,10 +35,8 @@ catch(PDOException $e)
 }
 
 if(!isset($_POST["apiKey"]))
-{
-	echo "ES3Cloud is functioning correctly.";
-	exit();
-}
+	// Throw this message as an error so that if this is encountered via ES3Cloud it is put into an error state.
+	Error("ES3Cloud is functioning correctly.", "ES3Cloud is functioning correctly.", 403);
 
 if($_POST["apiKey"] != $api_key)
 	Error("Incorrect API Key", "Incorrect API Key", 403);
@@ -73,8 +71,12 @@ else if(isset($_POST["putFile"]))
 	$filePath = $_FILES["data"]["tmp_name"];
 	
 	// If file doesn't exist or it contains no data, throw an error.
-	if(!file_exists($filePath) || filesize($filePath) == 0)
-		Error("Uploaded file does not exist or is empty.", "Uploaded file does not exist or is empty.", 400);
+	if(!file_exists($filePath))
+		Error("Uploaded file does not exist.", "Uploaded file does not exist.", 400);
+	
+	// If file doesn't exist or it contains no data, throw an error.
+	if(filesize($filePath) == 0)
+		Error("Uploaded file is empty.", "Uploaded file is empty.", 400);
 	
 	$fp = fopen($filePath, 'rb');
 	

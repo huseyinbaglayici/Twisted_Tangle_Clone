@@ -7,6 +7,11 @@ using UnityEngine.Networking;
 using System;
 using ES3Internal;
 
+#if UNITY_VISUAL_SCRIPTING
+[Unity.VisualScripting.IncludeInSettings(true)]
+#elif BOLT_VISUAL_SCRIPTING
+[Ludiq.IncludeInSettings(true)]
+#endif
 public class ES3Cloud : ES3WebClass
 {
     int timeout = 20;
@@ -53,7 +58,7 @@ public class ES3Cloud : ES3WebClass
 		{
 			if(data == null || data.Length == 0)
 				return new string[0];
-			return text.Split(';');
+			return text.Split(new char[]{';'}, StringSplitOptions.RemoveEmptyEntries);
 		}
 		
 	}

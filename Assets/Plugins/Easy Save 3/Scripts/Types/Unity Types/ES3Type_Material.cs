@@ -15,463 +15,506 @@ namespace ES3Types
 		{
 			var instance = (UnityEngine.Material)obj;
 
+            // Uncomment if you want "instance" to be removed from the name.
+            //instance.name = instance.name.Replace(" (Instance)", "");
+
 			writer.WriteProperty("name", instance.name);
 			writer.WriteProperty("shader", instance.shader);
 			writer.WriteProperty("renderQueue", instance.renderQueue, ES3Type_int.Instance);
 			writer.WriteProperty("shaderKeywords", instance.shaderKeywords);
 			writer.WriteProperty("globalIlluminationFlags", instance.globalIlluminationFlags);
-			if(instance.HasProperty("_Color"))
-				writer.WriteProperty("_Color", instance.GetColor("_Color"));
-			if(instance.HasProperty("_SpecColor"))
-				writer.WriteProperty("_SpecColor", instance.GetColor("_SpecColor"));
-			if(instance.HasProperty("_Shininess"))
-				writer.WriteProperty("_Shininess", instance.GetFloat("_Shininess"));
-			if(instance.HasProperty("_MainTex"))
-			{
-				writer.WriteProperty<Texture>("_MainTex", instance.GetTexture("_MainTex"));
-				writer.WriteProperty<Vector2>("_MainTex_Scale", instance.GetTextureScale("_MainTex"));
-			}
-			if(instance.HasProperty("_MainTex_TextureOffset"))
-				writer.WriteProperty("_MainTex_TextureOffset", instance.GetTextureOffset("_MainTex_TextureOffset"));
-			if(instance.HasProperty("_MainTex_TextureScale"))
-				writer.WriteProperty("_MainTex_TextureScale", instance.GetTextureScale("_MainTex_TextureScale"));
-			if(instance.HasProperty("_Illum"))
-				writer.WriteProperty<Texture>("_Illum", instance.GetTexture("_Illum"));
-			if(instance.HasProperty("_Illum_TextureOffset"))
-				writer.WriteProperty("_Illum_TextureOffset", instance.GetTextureOffset("_Illum_TextureOffset"));
-			if(instance.HasProperty("_Illum_TextureScale"))
-				writer.WriteProperty("_Illum_TextureScale", instance.GetTextureScale("_Illum_TextureScale"));
-			if(instance.HasProperty("_BumpMap"))
-				writer.WriteProperty<Texture>("_BumpMap", instance.GetTexture("_BumpMap"));
-			if(instance.HasProperty("_BumpMap_TextureOffset"))
-				writer.WriteProperty("_BumpMap_TextureOffset", instance.GetTextureOffset("_BumpMap_TextureOffset"));
-			if(instance.HasProperty("_BumpMap_TextureScale"))
-				writer.WriteProperty("_BumpMap_TextureScale", instance.GetTextureScale("_BumpMap_TextureScale"));
-			if(instance.HasProperty("_Emission"))
-				writer.WriteProperty("_Emission", instance.GetFloat("_Emission"));
-			if(instance.HasProperty("_Specular"))
-				writer.WriteProperty("_Specular", instance.GetColor("_Specular"));
-			if(instance.HasProperty("_MainBump"))
-				writer.WriteProperty<Texture>("_MainBump", instance.GetTexture("_MainBump"));
-			if(instance.HasProperty("_MainBump_TextureOffset"))
-				writer.WriteProperty("_MainBump_TextureOffset", instance.GetTextureOffset("_MainBump_TextureOffset"));
-			if(instance.HasProperty("_MainBump_TextureScale"))
-				writer.WriteProperty("_MainBump_TextureScale", instance.GetTextureScale("_MainBump_TextureScale"));
-			if(instance.HasProperty("_Mask"))
-				writer.WriteProperty<Texture>("_Mask", instance.GetTexture("_Mask"));
-			if(instance.HasProperty("_Mask_TextureOffset"))
-				writer.WriteProperty("_Mask_TextureOffset", instance.GetTextureOffset("_Mask_TextureOffset"));
-			if(instance.HasProperty("_Mask_TextureScale"))
-				writer.WriteProperty("_Mask_TextureScale", instance.GetTextureScale("_Mask_TextureScale"));
-			if(instance.HasProperty("_Focus"))
-				writer.WriteProperty("_Focus", instance.GetFloat("_Focus"));
-			if(instance.HasProperty("_StencilComp"))
-				writer.WriteProperty("_StencilComp", instance.GetFloat("_StencilComp"));
-			if(instance.HasProperty("_Stencil"))
-				writer.WriteProperty("_Stencil", instance.GetFloat("_Stencil"));
-			if(instance.HasProperty("_StencilOp"))
-				writer.WriteProperty("_StencilOp", instance.GetFloat("_StencilOp"));
-			if(instance.HasProperty("_StencilWriteMask"))
-				writer.WriteProperty("_StencilWriteMask", instance.GetFloat("_StencilWriteMask"));
-			if(instance.HasProperty("_StencilReadMask"))
-				writer.WriteProperty("_StencilReadMask", instance.GetFloat("_StencilReadMask"));
-			if(instance.HasProperty("_ColorMask"))
-				writer.WriteProperty("_ColorMask", instance.GetFloat("_ColorMask"));
-			if(instance.HasProperty("_UseUIAlphaClip"))
-				writer.WriteProperty("_UseUIAlphaClip", instance.GetFloat("_UseUIAlphaClip"));
-			if(instance.HasProperty("_SrcBlend"))
-				writer.WriteProperty("_SrcBlend", instance.GetFloat("_SrcBlend"));
-			if(instance.HasProperty("_DstBlend"))
-				writer.WriteProperty("_DstBlend", instance.GetFloat("_DstBlend"));
-			if(instance.HasProperty("_ReflectColor"))
-				writer.WriteProperty("_ReflectColor", instance.GetColor("_ReflectColor"));
-			if(instance.HasProperty("_Cube"))
-				writer.WriteProperty<Texture>("_Cube", instance.GetTexture("_Cube"));
-			if(instance.HasProperty("_Cube_TextureOffset"))
-				writer.WriteProperty("_Cube_TextureOffset", instance.GetTextureOffset("_Cube_TextureOffset"));
-			if(instance.HasProperty("_Cube_TextureScale"))
-				writer.WriteProperty("_Cube_TextureScale", instance.GetTextureScale("_Cube_TextureScale"));
-			if(instance.HasProperty("_Tint"))
-				writer.WriteProperty("_Tint", instance.GetColor("_Tint"));
-			if(instance.HasProperty("_Exposure"))
-				writer.WriteProperty("_Exposure", instance.GetFloat("_Exposure"));
-			if(instance.HasProperty("_Rotation"))
-				writer.WriteProperty("_Rotation", instance.GetFloat("_Rotation"));
-			if(instance.HasProperty("_Tex"))
-				writer.WriteProperty<Texture>("_Tex", instance.GetTexture("_Tex"));
-			if(instance.HasProperty("_Tex_TextureOffset"))
-				writer.WriteProperty("_Tex_TextureOffset", instance.GetTextureOffset("_Tex_TextureOffset"));
-			if(instance.HasProperty("_Tex_TextureScale"))
-				writer.WriteProperty("_Tex_TextureScale", instance.GetTextureScale("_Tex_TextureScale"));
-			if(instance.HasProperty("_Control"))
-				writer.WriteProperty<Texture>("_Control", instance.GetTexture("_Control"));
-			if(instance.HasProperty("_Control_TextureOffset"))
-				writer.WriteProperty("_Control_TextureOffset", instance.GetTextureOffset("_Control_TextureOffset"));
-			if(instance.HasProperty("_Control_TextureScale"))
-				writer.WriteProperty("_Control_TextureScale", instance.GetTextureScale("_Control_TextureScale"));
-			if(instance.HasProperty("_Splat3"))
-				writer.WriteProperty<Texture>("_Splat3", instance.GetTexture("_Splat3"));
-			if(instance.HasProperty("_Splat3_TextureOffset"))
-				writer.WriteProperty("_Splat3_TextureOffset", instance.GetTextureOffset("_Splat3_TextureOffset"));
-			if(instance.HasProperty("_Splat3_TextureScale"))
-				writer.WriteProperty("_Splat3_TextureScale", instance.GetTextureScale("_Splat3_TextureScale"));
-			if(instance.HasProperty("_Splat2"))
-				writer.WriteProperty<Texture>("_Splat2", instance.GetTexture("_Splat2"));
-			if(instance.HasProperty("_Splat2_TextureOffset"))
-				writer.WriteProperty("_Splat2_TextureOffset", instance.GetTextureOffset("_Splat2_TextureOffset"));
-			if(instance.HasProperty("_Splat2_TextureScale"))
-				writer.WriteProperty("_Splat2_TextureScale", instance.GetTextureScale("_Splat2_TextureScale"));
-			if(instance.HasProperty("_Splat1"))
-				writer.WriteProperty<Texture>("_Splat1", instance.GetTexture("_Splat1"));
-			if(instance.HasProperty("_Splat1_TextureOffset"))
-				writer.WriteProperty("_Splat1_TextureOffset", instance.GetTextureOffset("_Splat1_TextureOffset"));
-			if(instance.HasProperty("_Splat1_TextureScale"))
-				writer.WriteProperty("_Splat1_TextureScale", instance.GetTextureScale("_Splat1_TextureScale"));
-			if(instance.HasProperty("_Splat0"))
-				writer.WriteProperty<Texture>("_Splat0", instance.GetTexture("_Splat0"));
-			if(instance.HasProperty("_Splat0_TextureOffset"))
-				writer.WriteProperty("_Splat0_TextureOffset", instance.GetTextureOffset("_Splat0_TextureOffset"));
-			if(instance.HasProperty("_Splat0_TextureScale"))
-				writer.WriteProperty("_Splat0_TextureScale", instance.GetTextureScale("_Splat0_TextureScale"));
-			if(instance.HasProperty("_Normal3"))
-				writer.WriteProperty<Texture>("_Normal3", instance.GetTexture("_Normal3"));
-			if(instance.HasProperty("_Normal3_TextureOffset"))
-				writer.WriteProperty("_Normal3_TextureOffset", instance.GetTextureOffset("_Normal3_TextureOffset"));
-			if(instance.HasProperty("_Normal3_TextureScale"))
-				writer.WriteProperty("_Normal3_TextureScale", instance.GetTextureScale("_Normal3_TextureScale"));
-			if(instance.HasProperty("_Normal2"))
-				writer.WriteProperty<Texture>("_Normal2", instance.GetTexture("_Normal2"));
-			if(instance.HasProperty("_Normal2_TextureOffset"))
-				writer.WriteProperty("_Normal2_TextureOffset", instance.GetTextureOffset("_Normal2_TextureOffset"));
-			if(instance.HasProperty("_Normal2_TextureScale"))
-				writer.WriteProperty("_Normal2_TextureScale", instance.GetTextureScale("_Normal2_TextureScale"));
-			if(instance.HasProperty("_Normal1"))
-				writer.WriteProperty<Texture>("_Normal1", instance.GetTexture("_Normal1"));
-			if(instance.HasProperty("_Normal1_TextureOffset"))
-				writer.WriteProperty("_Normal1_TextureOffset", instance.GetTextureOffset("_Normal1_TextureOffset"));
-			if(instance.HasProperty("_Normal1_TextureScale"))
-				writer.WriteProperty("_Normal1_TextureScale", instance.GetTextureScale("_Normal1_TextureScale"));
-			if(instance.HasProperty("_Normal0"))
-				writer.WriteProperty<Texture>("_Normal0", instance.GetTexture("_Normal0"));
-			if(instance.HasProperty("_Normal0_TextureOffset"))
-				writer.WriteProperty("_Normal0_TextureOffset", instance.GetTextureOffset("_Normal0_TextureOffset"));
-			if(instance.HasProperty("_Normal0_TextureScale"))
-				writer.WriteProperty("_Normal0_TextureScale", instance.GetTextureScale("_Normal0_TextureScale"));
-			if(instance.HasProperty("_Cutoff"))
-				writer.WriteProperty("_Cutoff", instance.GetFloat("_Cutoff"));
-			if(instance.HasProperty("_BaseLight"))
-				writer.WriteProperty("_BaseLight", instance.GetFloat("_BaseLight"));
-			if(instance.HasProperty("_AO"))
-				writer.WriteProperty("_AO", instance.GetFloat("_AO"));
-			if(instance.HasProperty("_Occlusion"))
-				writer.WriteProperty("_Occlusion", instance.GetFloat("_Occlusion"));
-			if(instance.HasProperty("_TreeInstanceColor"))
-				writer.WriteProperty("_TreeInstanceColor", instance.GetVector("_TreeInstanceColor"));
-			if(instance.HasProperty("_TreeInstanceScale"))
-				writer.WriteProperty("_TreeInstanceScale", instance.GetVector("_TreeInstanceScale"));
-			if(instance.HasProperty("_SquashAmount"))
-				writer.WriteProperty("_SquashAmount", instance.GetFloat("_SquashAmount"));
-			if(instance.HasProperty("_TranslucencyColor"))
-				writer.WriteProperty("_TranslucencyColor", instance.GetColor("_TranslucencyColor"));
-			if(instance.HasProperty("_TranslucencyViewDependency"))
-				writer.WriteProperty("_TranslucencyViewDependency", instance.GetFloat("_TranslucencyViewDependency"));
-			if(instance.HasProperty("_ShadowStrength"))
-				writer.WriteProperty("_ShadowStrength", instance.GetFloat("_ShadowStrength"));
-			if(instance.HasProperty("_ShadowOffsetScale"))
-				writer.WriteProperty("_ShadowOffsetScale", instance.GetFloat("_ShadowOffsetScale"));
-			if(instance.HasProperty("_ShadowTex"))
-				writer.WriteProperty<Texture>("_ShadowTex", instance.GetTexture("_ShadowTex"));
-			if(instance.HasProperty("_ShadowTex_TextureOffset"))
-				writer.WriteProperty("_ShadowTex_TextureOffset", instance.GetTextureOffset("_ShadowTex_TextureOffset"));
-			if(instance.HasProperty("_ShadowTex_TextureScale"))
-				writer.WriteProperty("_ShadowTex_TextureScale", instance.GetTextureScale("_ShadowTex_TextureScale"));
-			if(instance.HasProperty("_BumpSpecMap"))
-				writer.WriteProperty<Texture>("_BumpSpecMap", instance.GetTexture("_BumpSpecMap"));
-			if(instance.HasProperty("_BumpSpecMap_TextureOffset"))
-				writer.WriteProperty("_BumpSpecMap_TextureOffset", instance.GetTextureOffset("_BumpSpecMap_TextureOffset"));
-			if(instance.HasProperty("_BumpSpecMap_TextureScale"))
-				writer.WriteProperty("_BumpSpecMap_TextureScale", instance.GetTextureScale("_BumpSpecMap_TextureScale"));
-			if(instance.HasProperty("_TranslucencyMap"))
-				writer.WriteProperty<Texture>("_TranslucencyMap", instance.GetTexture("_TranslucencyMap"));
-			if(instance.HasProperty("_TranslucencyMap_TextureOffset"))
-				writer.WriteProperty("_TranslucencyMap_TextureOffset", instance.GetTextureOffset("_TranslucencyMap_TextureOffset"));
-			if(instance.HasProperty("_TranslucencyMap_TextureScale"))
-				writer.WriteProperty("_TranslucencyMap_TextureScale", instance.GetTextureScale("_TranslucencyMap_TextureScale"));
-			if(instance.HasProperty("_LightMap"))
-				writer.WriteProperty<Texture>("_LightMap", instance.GetTexture("_LightMap"));
-			if(instance.HasProperty("_LightMap_TextureOffset"))
-				writer.WriteProperty("_LightMap_TextureOffset", instance.GetTextureOffset("_LightMap_TextureOffset"));
-			if(instance.HasProperty("_LightMap_TextureScale"))
-				writer.WriteProperty("_LightMap_TextureScale", instance.GetTextureScale("_LightMap_TextureScale"));
-			if(instance.HasProperty("_DetailTex"))
-				writer.WriteProperty<Texture>("_DetailTex", instance.GetTexture("_DetailTex"));
-			if(instance.HasProperty("_DetailTex_TextureOffset"))
-				writer.WriteProperty("_DetailTex_TextureOffset", instance.GetTextureOffset("_DetailTex_TextureOffset"));
-			if(instance.HasProperty("_DetailTex_TextureScale"))
-				writer.WriteProperty("_DetailTex_TextureScale", instance.GetTextureScale("_DetailTex_TextureScale"));
-			if(instance.HasProperty("_DetailBump"))
-				writer.WriteProperty<Texture>("_DetailBump", instance.GetTexture("_DetailBump"));
-			if(instance.HasProperty("_DetailBump_TextureOffset"))
-				writer.WriteProperty("_DetailBump_TextureOffset", instance.GetTextureOffset("_DetailBump_TextureOffset"));
-			if(instance.HasProperty("_DetailBump_TextureScale"))
-				writer.WriteProperty("_DetailBump_TextureScale", instance.GetTextureScale("_DetailBump_TextureScale"));
-			if(instance.HasProperty("_Strength"))
-				writer.WriteProperty("_Strength", instance.GetFloat("_Strength"));
-			if(instance.HasProperty("_InvFade"))
-				writer.WriteProperty("_InvFade", instance.GetFloat("_InvFade"));
-			if(instance.HasProperty("_EmisColor"))
-				writer.WriteProperty("_EmisColor", instance.GetColor("_EmisColor"));
-			if(instance.HasProperty("_Parallax"))
-				writer.WriteProperty("_Parallax", instance.GetFloat("_Parallax"));
-			if(instance.HasProperty("_ParallaxMap"))
-				writer.WriteProperty<Texture>("_ParallaxMap", instance.GetTexture("_ParallaxMap"));
-			if(instance.HasProperty("_ParallaxMap_TextureOffset"))
-				writer.WriteProperty("_ParallaxMap_TextureOffset", instance.GetTextureOffset("_ParallaxMap_TextureOffset"));
-			if(instance.HasProperty("_ParallaxMap_TextureScale"))
-				writer.WriteProperty("_ParallaxMap_TextureScale", instance.GetTextureScale("_ParallaxMap_TextureScale"));
-			if(instance.HasProperty("_DecalTex"))
-				writer.WriteProperty<Texture>("_DecalTex", instance.GetTexture("_DecalTex"));
-			if(instance.HasProperty("_DecalTex_TextureOffset"))
-				writer.WriteProperty("_DecalTex_TextureOffset", instance.GetTextureOffset("_DecalTex_TextureOffset"));
-			if(instance.HasProperty("_DecalTex_TextureScale"))
-				writer.WriteProperty("_DecalTex_TextureScale", instance.GetTextureScale("_DecalTex_TextureScale"));
-			if(instance.HasProperty("_GlossMap"))
-				writer.WriteProperty<Texture>("_GlossMap", instance.GetTexture("_GlossMap"));
-			if(instance.HasProperty("_GlossMap_TextureOffset"))
-				writer.WriteProperty("_GlossMap_TextureOffset", instance.GetTextureOffset("_GlossMap_TextureOffset"));
-			if(instance.HasProperty("_GlossMap_TextureScale"))
-				writer.WriteProperty("_GlossMap_TextureScale", instance.GetTextureScale("_GlossMap_TextureScale"));
-			if(instance.HasProperty("_ShadowOffset"))
-				writer.WriteProperty<Texture>("_ShadowOffset", instance.GetTexture("_ShadowOffset"));
-			if(instance.HasProperty("_ShadowOffset_TextureOffset"))
-				writer.WriteProperty("_ShadowOffset_TextureOffset", instance.GetTextureOffset("_ShadowOffset_TextureOffset"));
-			if(instance.HasProperty("_ShadowOffset_TextureScale"))
-				writer.WriteProperty("_ShadowOffset_TextureScale", instance.GetTextureScale("_ShadowOffset_TextureScale"));
-			if(instance.HasProperty("_SunDisk"))
-				writer.WriteProperty("_SunDisk", instance.GetFloat("_SunDisk"));
-			if(instance.HasProperty("_SunSize"))
-				writer.WriteProperty("_SunSize", instance.GetFloat("_SunSize"));
-			if(instance.HasProperty("_AtmosphereThickness"))
-				writer.WriteProperty("_AtmosphereThickness", instance.GetFloat("_AtmosphereThickness"));
-			if(instance.HasProperty("_SkyTint"))
-				writer.WriteProperty("_SkyTint", instance.GetColor("_SkyTint"));
-			if(instance.HasProperty("_GroundColor"))
-				writer.WriteProperty("_GroundColor", instance.GetColor("_GroundColor"));
-			if(instance.HasProperty("_WireThickness"))
-				writer.WriteProperty("_WireThickness", instance.GetFloat("_WireThickness"));
-			if(instance.HasProperty("_ZWrite"))
-				writer.WriteProperty("_ZWrite", instance.GetFloat("_ZWrite"));
-			if(instance.HasProperty("_ZTest"))
-				writer.WriteProperty("_ZTest", instance.GetFloat("_ZTest"));
-			if(instance.HasProperty("_Cull"))
-				writer.WriteProperty("_Cull", instance.GetFloat("_Cull"));
-			if(instance.HasProperty("_ZBias"))
-				writer.WriteProperty("_ZBias", instance.GetFloat("_ZBias"));
-			if(instance.HasProperty("_HueVariation"))
-				writer.WriteProperty("_HueVariation", instance.GetColor("_HueVariation"));
-			if(instance.HasProperty("_WindQuality"))
-				writer.WriteProperty("_WindQuality", instance.GetFloat("_WindQuality"));
-			if(instance.HasProperty("_DetailMask"))
-				writer.WriteProperty<Texture>("_DetailMask", instance.GetTexture("_DetailMask"));
-			if(instance.HasProperty("_DetailMask_TextureOffset"))
-				writer.WriteProperty("_DetailMask_TextureOffset", instance.GetTextureOffset("_DetailMask_TextureOffset"));
-			if(instance.HasProperty("_DetailMask_TextureScale"))
-				writer.WriteProperty("_DetailMask_TextureScale", instance.GetTextureScale("_DetailMask_TextureScale"));
-			if(instance.HasProperty("_MetallicTex"))
-				writer.WriteProperty<Texture>("_MetallicTex", instance.GetTexture("_MetallicTex"));
-			if(instance.HasProperty("_MetallicTex_TextureOffset"))
-				writer.WriteProperty("_MetallicTex_TextureOffset", instance.GetTextureOffset("_MetallicTex_TextureOffset"));
-			if(instance.HasProperty("_MetallicTex_TextureScale"))
-				writer.WriteProperty("_MetallicTex_TextureScale", instance.GetTextureScale("_MetallicTex_TextureScale"));
-			if(instance.HasProperty("_Glossiness"))
-				writer.WriteProperty("_Glossiness", instance.GetFloat("_Glossiness"));
-			if(instance.HasProperty("_GlossMapScale"))
-				writer.WriteProperty("_GlossMapScale", instance.GetFloat("_GlossMapScale"));
-			if(instance.HasProperty("_SmoothnessTextureChannel"))
-				writer.WriteProperty("_SmoothnessTextureChannel", instance.GetFloat("_SmoothnessTextureChannel"));
-			if(instance.HasProperty("_Metallic"))
-				writer.WriteProperty("_Metallic", instance.GetFloat("_Metallic"));
-			if(instance.HasProperty("_MetallicGlossMap"))
-				writer.WriteProperty<Texture>("_MetallicGlossMap", instance.GetTexture("_MetallicGlossMap"));
-			if(instance.HasProperty("_MetallicGlossMap_TextureOffset"))
-				writer.WriteProperty("_MetallicGlossMap_TextureOffset", instance.GetTextureOffset("_MetallicGlossMap_TextureOffset"));
-			if(instance.HasProperty("_MetallicGlossMap_TextureScale"))
-				writer.WriteProperty("_MetallicGlossMap_TextureScale", instance.GetTextureScale("_MetallicGlossMap_TextureScale"));
-			if(instance.HasProperty("_SpecularHighlights"))
-				writer.WriteProperty("_SpecularHighlights", instance.GetFloat("_SpecularHighlights"));
-			if(instance.HasProperty("_GlossyReflections"))
-				writer.WriteProperty("_GlossyReflections", instance.GetFloat("_GlossyReflections"));
-			if(instance.HasProperty("_BumpScale"))
-				writer.WriteProperty("_BumpScale", instance.GetFloat("_BumpScale"));
-			if(instance.HasProperty("_OcclusionStrength"))
-				writer.WriteProperty("_OcclusionStrength", instance.GetFloat("_OcclusionStrength"));
-			if(instance.HasProperty("_OcclusionMap"))
-				writer.WriteProperty<Texture>("_OcclusionMap", instance.GetTexture("_OcclusionMap"));
-			if(instance.HasProperty("_OcclusionMap_TextureOffset"))
-				writer.WriteProperty("_OcclusionMap_TextureOffset", instance.GetTextureOffset("_OcclusionMap_TextureOffset"));
-			if(instance.HasProperty("_OcclusionMap_TextureScale"))
-				writer.WriteProperty("_OcclusionMap_TextureScale", instance.GetTextureScale("_OcclusionMap_TextureScale"));
-			if(instance.HasProperty("_EmissionColor"))
-				writer.WriteProperty("_EmissionColor", instance.GetColor("_EmissionColor"));
-			if(instance.HasProperty("_EmissionMap"))
-				writer.WriteProperty<Texture>("_EmissionMap", instance.GetTexture("_EmissionMap"));
-			if(instance.HasProperty("_EmissionMap_TextureOffset"))
-				writer.WriteProperty("_EmissionMap_TextureOffset", instance.GetTextureOffset("_EmissionMap_TextureOffset"));
-			if(instance.HasProperty("_EmissionMap_TextureScale"))
-				writer.WriteProperty("_EmissionMap_TextureScale", instance.GetTextureScale("_EmissionMap_TextureScale"));
-			if(instance.HasProperty("_DetailAlbedoMap"))
-				writer.WriteProperty<Texture>("_DetailAlbedoMap", instance.GetTexture("_DetailAlbedoMap"));
-			if(instance.HasProperty("_DetailAlbedoMap_TextureOffset"))
-				writer.WriteProperty("_DetailAlbedoMap_TextureOffset", instance.GetTextureOffset("_DetailAlbedoMap_TextureOffset"));
-			if(instance.HasProperty("_DetailAlbedoMap_TextureScale"))
-				writer.WriteProperty("_DetailAlbedoMap_TextureScale", instance.GetTextureScale("_DetailAlbedoMap_TextureScale"));
-			if(instance.HasProperty("_DetailNormalMapScale"))
-				writer.WriteProperty("_DetailNormalMapScale", instance.GetFloat("_DetailNormalMapScale"));
-			if(instance.HasProperty("_DetailNormalMap"))
-				writer.WriteProperty<Texture>("_DetailNormalMap", instance.GetTexture("_DetailNormalMap"));
-			if(instance.HasProperty("_DetailNormalMap_TextureOffset"))
-				writer.WriteProperty("_DetailNormalMap_TextureOffset", instance.GetTextureOffset("_DetailNormalMap_TextureOffset"));
-			if(instance.HasProperty("_DetailNormalMap_TextureScale"))
-				writer.WriteProperty("_DetailNormalMap_TextureScale", instance.GetTextureScale("_DetailNormalMap_TextureScale"));
-			if(instance.HasProperty("_UVSec"))
-				writer.WriteProperty("_UVSec", instance.GetFloat("_UVSec"));
-			if(instance.HasProperty("_Mode"))
-				writer.WriteProperty("_Mode", instance.GetFloat("_Mode"));
-			if(instance.HasProperty("_TintColor"))
-				writer.WriteProperty("_TintColor", instance.GetColor("_TintColor"));
-			if(instance.HasProperty("_WavingTint"))
-				writer.WriteProperty("_WavingTint", instance.GetColor("_WavingTint"));
-			if(instance.HasProperty("_WaveAndDistance"))
-				writer.WriteProperty("_WaveAndDistance", instance.GetVector("_WaveAndDistance"));
-			if(instance.HasProperty("_LightTexture0"))
-				writer.WriteProperty<Texture>("_LightTexture0", instance.GetTexture("_LightTexture0"));
-			if(instance.HasProperty("_LightTexture0_TextureOffset"))
-				writer.WriteProperty("_LightTexture0_TextureOffset", instance.GetTextureOffset("_LightTexture0_TextureOffset"));
-			if(instance.HasProperty("_LightTexture0_TextureScale"))
-				writer.WriteProperty("_LightTexture0_TextureScale", instance.GetTextureScale("_LightTexture0_TextureScale"));
-			if(instance.HasProperty("_LightTextureB0"))
-				writer.WriteProperty<Texture>("_LightTextureB0", instance.GetTexture("_LightTextureB0"));
-			if(instance.HasProperty("_LightTextureB0_TextureOffset"))
-				writer.WriteProperty("_LightTextureB0_TextureOffset", instance.GetTextureOffset("_LightTextureB0_TextureOffset"));
-			if(instance.HasProperty("_LightTextureB0_TextureScale"))
-				writer.WriteProperty("_LightTextureB0_TextureScale", instance.GetTextureScale("_LightTextureB0_TextureScale"));
-			if(instance.HasProperty("_ShadowMapTexture"))
-				writer.WriteProperty<Texture>("_ShadowMapTexture", instance.GetTexture("_ShadowMapTexture"));
-			if(instance.HasProperty("_ShadowMapTexture_TextureOffset"))
-				writer.WriteProperty("_ShadowMapTexture_TextureOffset", instance.GetTextureOffset("_ShadowMapTexture_TextureOffset"));
-			if(instance.HasProperty("_ShadowMapTexture_TextureScale"))
-				writer.WriteProperty("_ShadowMapTexture_TextureScale", instance.GetTextureScale("_ShadowMapTexture_TextureScale"));
-			if(instance.HasProperty("_SecondTex"))
-				writer.WriteProperty<Texture>("_SecondTex", instance.GetTexture("_SecondTex"));
-			if(instance.HasProperty("_SecondTex_TextureOffset"))
-				writer.WriteProperty("_SecondTex_TextureOffset", instance.GetTextureOffset("_SecondTex_TextureOffset"));
-			if(instance.HasProperty("_SecondTex_TextureScale"))
-				writer.WriteProperty("_SecondTex_TextureScale", instance.GetTextureScale("_SecondTex_TextureScale"));
-			if(instance.HasProperty("_ThirdTex"))
-				writer.WriteProperty<Texture>("_ThirdTex", instance.GetTexture("_ThirdTex"));
-			if(instance.HasProperty("_ThirdTex_TextureOffset"))
-				writer.WriteProperty("_ThirdTex_TextureOffset", instance.GetTextureOffset("_ThirdTex_TextureOffset"));
-			if(instance.HasProperty("_ThirdTex_TextureScale"))
-				writer.WriteProperty("_ThirdTex_TextureScale", instance.GetTextureScale("_ThirdTex_TextureScale"));
-			if(instance.HasProperty("PixelSnap"))
-				writer.WriteProperty("PixelSnap", instance.GetFloat("PixelSnap"));
-			if(instance.HasProperty("_RendererColor"))
-				writer.WriteProperty("_RendererColor", instance.GetColor("_RendererColor"));
-			if(instance.HasProperty("_Flip"))
-				writer.WriteProperty("_Flip", instance.GetVector("_Flip"));
-			if(instance.HasProperty("_AlphaTex"))
-				writer.WriteProperty<Texture>("_AlphaTex", instance.GetTexture("_AlphaTex"));
-			if(instance.HasProperty("_AlphaTex_TextureOffset"))
-				writer.WriteProperty("_AlphaTex_TextureOffset", instance.GetTextureOffset("_AlphaTex_TextureOffset"));
-			if(instance.HasProperty("_AlphaTex_TextureScale"))
-				writer.WriteProperty("_AlphaTex_TextureScale", instance.GetTextureScale("_AlphaTex_TextureScale"));
-			if(instance.HasProperty("_EnableExternalAlpha"))
-				writer.WriteProperty("_EnableExternalAlpha", instance.GetFloat("_EnableExternalAlpha"));
-			if(instance.HasProperty("_Level"))
-				writer.WriteProperty("_Level", instance.GetFloat("_Level"));
-			if(instance.HasProperty("_SpecGlossMap"))
-				writer.WriteProperty<Texture>("_SpecGlossMap", instance.GetTexture("_SpecGlossMap"));
-			if(instance.HasProperty("_SpecGlossMap_TextureOffset"))
-				writer.WriteProperty("_SpecGlossMap_TextureOffset", instance.GetTextureOffset("_SpecGlossMap_TextureOffset"));
-			if(instance.HasProperty("_SpecGlossMap_TextureScale"))
-				writer.WriteProperty("_SpecGlossMap_TextureScale", instance.GetTextureScale("_SpecGlossMap_TextureScale"));
-			if(instance.HasProperty("_FrontTex"))
-				writer.WriteProperty<Texture>("_FrontTex", instance.GetTexture("_FrontTex"));
-			if(instance.HasProperty("_FrontTex_TextureOffset"))
-				writer.WriteProperty("_FrontTex_TextureOffset", instance.GetTextureOffset("_FrontTex_TextureOffset"));
-			if(instance.HasProperty("_FrontTex_TextureScale"))
-				writer.WriteProperty("_FrontTex_TextureScale", instance.GetTextureScale("_FrontTex_TextureScale"));
-			if(instance.HasProperty("_BackTex"))
-				writer.WriteProperty<Texture>("_BackTex", instance.GetTexture("_BackTex"));
-			if(instance.HasProperty("_BackTex_TextureOffset"))
-				writer.WriteProperty("_BackTex_TextureOffset", instance.GetTextureOffset("_BackTex_TextureOffset"));
-			if(instance.HasProperty("_BackTex_TextureScale"))
-				writer.WriteProperty("_BackTex_TextureScale", instance.GetTextureScale("_BackTex_TextureScale"));
-			if(instance.HasProperty("_LeftTex"))
-				writer.WriteProperty<Texture>("_LeftTex", instance.GetTexture("_LeftTex"));
-			if(instance.HasProperty("_LeftTex_TextureOffset"))
-				writer.WriteProperty("_LeftTex_TextureOffset", instance.GetTextureOffset("_LeftTex_TextureOffset"));
-			if(instance.HasProperty("_LeftTex_TextureScale"))
-				writer.WriteProperty("_LeftTex_TextureScale", instance.GetTextureScale("_LeftTex_TextureScale"));
-			if(instance.HasProperty("_RightTex"))
-				writer.WriteProperty<Texture>("_RightTex", instance.GetTexture("_RightTex"));
-			if(instance.HasProperty("_RightTex_TextureOffset"))
-				writer.WriteProperty("_RightTex_TextureOffset", instance.GetTextureOffset("_RightTex_TextureOffset"));
-			if(instance.HasProperty("_RightTex_TextureScale"))
-				writer.WriteProperty("_RightTex_TextureScale", instance.GetTextureScale("_RightTex_TextureScale"));
-			if(instance.HasProperty("_UpTex"))
-				writer.WriteProperty<Texture>("_UpTex", instance.GetTexture("_UpTex"));
-			if(instance.HasProperty("_UpTex_TextureOffset"))
-				writer.WriteProperty("_UpTex_TextureOffset", instance.GetTextureOffset("_UpTex_TextureOffset"));
-			if(instance.HasProperty("_UpTex_TextureScale"))
-				writer.WriteProperty("_UpTex_TextureScale", instance.GetTextureScale("_UpTex_TextureScale"));
-			if(instance.HasProperty("_DownTex"))
-				writer.WriteProperty<Texture>("_DownTex", instance.GetTexture("_DownTex"));
-			if(instance.HasProperty("_DownTex_TextureOffset"))
-				writer.WriteProperty("_DownTex_TextureOffset", instance.GetTextureOffset("_DownTex_TextureOffset"));
-			if(instance.HasProperty("_DownTex_TextureScale"))
-				writer.WriteProperty("_DownTex_TextureScale", instance.GetTextureScale("_DownTex_TextureScale"));
-			if(instance.HasProperty("_Metallic0"))
-				writer.WriteProperty("_Metallic0", instance.GetFloat("_Metallic0"));
-			if(instance.HasProperty("_Metallic1"))
-				writer.WriteProperty("_Metallic1", instance.GetFloat("_Metallic1"));
-			if(instance.HasProperty("_Metallic2"))
-				writer.WriteProperty("_Metallic2", instance.GetFloat("_Metallic2"));
-			if(instance.HasProperty("_Metallic3"))
-				writer.WriteProperty("_Metallic3", instance.GetFloat("_Metallic3"));
-			if(instance.HasProperty("_Smoothness0"))
-				writer.WriteProperty("_Smoothness0", instance.GetFloat("_Smoothness0"));
-			if(instance.HasProperty("_Smoothness1"))
-				writer.WriteProperty("_Smoothness1", instance.GetFloat("_Smoothness1"));
-			if(instance.HasProperty("_Smoothness2"))
-				writer.WriteProperty("_Smoothness2", instance.GetFloat("_Smoothness2"));
-			if(instance.HasProperty("_Smoothness3"))
-				writer.WriteProperty("_Smoothness3", instance.GetFloat("_Smoothness3"));
-			if(instance.HasProperty("_TexA"))
-				writer.WriteProperty<Texture>("_TexA", instance.GetTexture("_TexA"));
-			if(instance.HasProperty("_TexA_TextureOffset"))
-				writer.WriteProperty("_TexA_TextureOffset", instance.GetTextureOffset("_TexA_TextureOffset"));
-			if(instance.HasProperty("_TexA_TextureScale"))
-				writer.WriteProperty("_TexA_TextureScale", instance.GetTextureScale("_TexA_TextureScale"));
-			if(instance.HasProperty("_TexB"))
-				writer.WriteProperty<Texture>("_TexB", instance.GetTexture("_TexB"));
-			if(instance.HasProperty("_TexB_TextureOffset"))
-				writer.WriteProperty("_TexB_TextureOffset", instance.GetTextureOffset("_TexB_TextureOffset"));
-			if(instance.HasProperty("_TexB_TextureScale"))
-				writer.WriteProperty("_TexB_TextureScale", instance.GetTextureScale("_TexB_TextureScale"));
-			if(instance.HasProperty("_value"))
-				writer.WriteProperty("_value", instance.GetFloat("_value"));
-			if(instance.HasProperty("_Texel"))
-				writer.WriteProperty("_Texel", instance.GetFloat("_Texel"));
-			if(instance.HasProperty("_Detail"))
-				writer.WriteProperty<Texture>("_Detail", instance.GetTexture("_Detail"));
-			if(instance.HasProperty("_Detail_TextureOffset"))
-				writer.WriteProperty("_Detail_TextureOffset", instance.GetTextureOffset("_Detail_TextureOffset"));
-			if(instance.HasProperty("_Detail_TextureScale"))
-				writer.WriteProperty("_Detail_TextureScale", instance.GetTextureScale("_Detail_TextureScale"));
-			if(instance.HasProperty("_HalfOverCutoff"))
-				writer.WriteProperty("_HalfOverCutoff", instance.GetFloat("_HalfOverCutoff"));
 
+            var shader = instance.shader;
+
+            if (shader != null)
+            {
+#if UNITY_2019_3_OR_NEWER
+                for (int i = 0; i < shader.GetPropertyCount(); i++)
+                {
+                    var name = shader.GetPropertyName(i);
+
+                    switch (shader.GetPropertyType(i))
+                    {
+                        case UnityEngine.Rendering.ShaderPropertyType.Color:
+                            writer.WriteProperty(name, instance.GetColor(name));
+                            break;
+                        case UnityEngine.Rendering.ShaderPropertyType.Float:
+                        case UnityEngine.Rendering.ShaderPropertyType.Range:
+                            writer.WriteProperty(name, instance.GetFloat(name));
+                            break;
+                        case UnityEngine.Rendering.ShaderPropertyType.Texture:
+                            var texture = instance.GetTexture(name);
+
+                            if (texture != null && texture.GetType() != typeof(Texture2D))
+                            {
+                                ES3Internal.ES3Debug.LogWarning($"The texture '{name}' of Material '{instance.name}' will not be saved as only Textures of type Texture2D can be saved at runtime, whereas '{name}' is of type '{texture.GetType()}'.");
+                                break;
+                            }
+                            writer.WriteProperty(name, texture);
+                            writer.WriteProperty(name + "_TextureOffset", instance.GetTextureOffset(name));
+                            writer.WriteProperty(name + "_TextureScale", instance.GetTextureScale(name));
+                            break;
+                        case UnityEngine.Rendering.ShaderPropertyType.Vector:
+                            writer.WriteProperty(name, instance.GetVector(name));
+                            break;
+                    }
+                }
+
+#else
+
+                if(instance.HasProperty("_Color"))
+                    writer.WriteProperty("_Color", instance.GetColor("_Color"));
+                if(instance.HasProperty("_SpecColor"))
+                    writer.WriteProperty("_SpecColor", instance.GetColor("_SpecColor"));
+                if(instance.HasProperty("_Shininess"))
+                    writer.WriteProperty("_Shininess", instance.GetFloat("_Shininess"));
+                if(instance.HasProperty("_MainTex"))
+                {
+                    writer.WriteProperty<Texture>("_MainTex", instance.GetTexture("_MainTex"));
+                    writer.WriteProperty<Vector2>("_MainTex_Scale", instance.GetTextureScale("_MainTex"));
+                }
+                if(instance.HasProperty("_MainTex_TextureOffset"))
+                    writer.WriteProperty("_MainTex_TextureOffset", instance.GetTextureOffset("_MainTex_TextureOffset"));
+                if(instance.HasProperty("_MainTex_TextureScale"))
+                    writer.WriteProperty("_MainTex_TextureScale", instance.GetTextureScale("_MainTex_TextureScale"));
+                if(instance.HasProperty("_Illum"))
+                    writer.WriteProperty<Texture>("_Illum", instance.GetTexture("_Illum"));
+                if(instance.HasProperty("_Illum_TextureOffset"))
+                    writer.WriteProperty("_Illum_TextureOffset", instance.GetTextureOffset("_Illum_TextureOffset"));
+                if(instance.HasProperty("_Illum_TextureScale"))
+                    writer.WriteProperty("_Illum_TextureScale", instance.GetTextureScale("_Illum_TextureScale"));
+                if(instance.HasProperty("_BumpMap"))
+                    writer.WriteProperty<Texture>("_BumpMap", instance.GetTexture("_BumpMap"));
+                if(instance.HasProperty("_BumpMap_TextureOffset"))
+                    writer.WriteProperty("_BumpMap_TextureOffset", instance.GetTextureOffset("_BumpMap_TextureOffset"));
+                if(instance.HasProperty("_BumpMap_TextureScale"))
+                    writer.WriteProperty("_BumpMap_TextureScale", instance.GetTextureScale("_BumpMap_TextureScale"));
+                if(instance.HasProperty("_Emission"))
+                    writer.WriteProperty("_Emission", instance.GetFloat("_Emission"));
+                if(instance.HasProperty("_Specular"))
+                    writer.WriteProperty("_Specular", instance.GetColor("_Specular"));
+                if(instance.HasProperty("_MainBump"))
+                    writer.WriteProperty<Texture>("_MainBump", instance.GetTexture("_MainBump"));
+                if(instance.HasProperty("_MainBump_TextureOffset"))
+                    writer.WriteProperty("_MainBump_TextureOffset", instance.GetTextureOffset("_MainBump_TextureOffset"));
+                if(instance.HasProperty("_MainBump_TextureScale"))
+                    writer.WriteProperty("_MainBump_TextureScale", instance.GetTextureScale("_MainBump_TextureScale"));
+                if(instance.HasProperty("_Mask"))
+                    writer.WriteProperty<Texture>("_Mask", instance.GetTexture("_Mask"));
+                if(instance.HasProperty("_Mask_TextureOffset"))
+                    writer.WriteProperty("_Mask_TextureOffset", instance.GetTextureOffset("_Mask_TextureOffset"));
+                if(instance.HasProperty("_Mask_TextureScale"))
+                    writer.WriteProperty("_Mask_TextureScale", instance.GetTextureScale("_Mask_TextureScale"));
+                if(instance.HasProperty("_Focus"))
+                    writer.WriteProperty("_Focus", instance.GetFloat("_Focus"));
+                if(instance.HasProperty("_StencilComp"))
+                    writer.WriteProperty("_StencilComp", instance.GetFloat("_StencilComp"));
+                if(instance.HasProperty("_Stencil"))
+                    writer.WriteProperty("_Stencil", instance.GetFloat("_Stencil"));
+                if(instance.HasProperty("_StencilOp"))
+                    writer.WriteProperty("_StencilOp", instance.GetFloat("_StencilOp"));
+                if(instance.HasProperty("_StencilWriteMask"))
+                    writer.WriteProperty("_StencilWriteMask", instance.GetFloat("_StencilWriteMask"));
+                if(instance.HasProperty("_StencilReadMask"))
+                    writer.WriteProperty("_StencilReadMask", instance.GetFloat("_StencilReadMask"));
+                if(instance.HasProperty("_ColorMask"))
+                    writer.WriteProperty("_ColorMask", instance.GetFloat("_ColorMask"));
+                if(instance.HasProperty("_UseUIAlphaClip"))
+                    writer.WriteProperty("_UseUIAlphaClip", instance.GetFloat("_UseUIAlphaClip"));
+                if(instance.HasProperty("_SrcBlend"))
+                    writer.WriteProperty("_SrcBlend", instance.GetFloat("_SrcBlend"));
+                if(instance.HasProperty("_DstBlend"))
+                    writer.WriteProperty("_DstBlend", instance.GetFloat("_DstBlend"));
+                if(instance.HasProperty("_ReflectColor"))
+                    writer.WriteProperty("_ReflectColor", instance.GetColor("_ReflectColor"));
+                if(instance.HasProperty("_Cube"))
+                    writer.WriteProperty<Texture>("_Cube", instance.GetTexture("_Cube"));
+                if(instance.HasProperty("_Cube_TextureOffset"))
+                    writer.WriteProperty("_Cube_TextureOffset", instance.GetTextureOffset("_Cube_TextureOffset"));
+                if(instance.HasProperty("_Cube_TextureScale"))
+                    writer.WriteProperty("_Cube_TextureScale", instance.GetTextureScale("_Cube_TextureScale"));
+                if(instance.HasProperty("_Tint"))
+                    writer.WriteProperty("_Tint", instance.GetColor("_Tint"));
+                if(instance.HasProperty("_Exposure"))
+                    writer.WriteProperty("_Exposure", instance.GetFloat("_Exposure"));
+                if(instance.HasProperty("_Rotation"))
+                    writer.WriteProperty("_Rotation", instance.GetFloat("_Rotation"));
+                if(instance.HasProperty("_Tex"))
+                    writer.WriteProperty<Texture>("_Tex", instance.GetTexture("_Tex"));
+                if(instance.HasProperty("_Tex_TextureOffset"))
+                    writer.WriteProperty("_Tex_TextureOffset", instance.GetTextureOffset("_Tex_TextureOffset"));
+                if(instance.HasProperty("_Tex_TextureScale"))
+                    writer.WriteProperty("_Tex_TextureScale", instance.GetTextureScale("_Tex_TextureScale"));
+                if(instance.HasProperty("_Control"))
+                    writer.WriteProperty<Texture>("_Control", instance.GetTexture("_Control"));
+                if(instance.HasProperty("_Control_TextureOffset"))
+                    writer.WriteProperty("_Control_TextureOffset", instance.GetTextureOffset("_Control_TextureOffset"));
+                if(instance.HasProperty("_Control_TextureScale"))
+                    writer.WriteProperty("_Control_TextureScale", instance.GetTextureScale("_Control_TextureScale"));
+                if(instance.HasProperty("_Splat3"))
+                    writer.WriteProperty<Texture>("_Splat3", instance.GetTexture("_Splat3"));
+                if(instance.HasProperty("_Splat3_TextureOffset"))
+                    writer.WriteProperty("_Splat3_TextureOffset", instance.GetTextureOffset("_Splat3_TextureOffset"));
+                if(instance.HasProperty("_Splat3_TextureScale"))
+                    writer.WriteProperty("_Splat3_TextureScale", instance.GetTextureScale("_Splat3_TextureScale"));
+                if(instance.HasProperty("_Splat2"))
+                    writer.WriteProperty<Texture>("_Splat2", instance.GetTexture("_Splat2"));
+                if(instance.HasProperty("_Splat2_TextureOffset"))
+                    writer.WriteProperty("_Splat2_TextureOffset", instance.GetTextureOffset("_Splat2_TextureOffset"));
+                if(instance.HasProperty("_Splat2_TextureScale"))
+                    writer.WriteProperty("_Splat2_TextureScale", instance.GetTextureScale("_Splat2_TextureScale"));
+                if(instance.HasProperty("_Splat1"))
+                    writer.WriteProperty<Texture>("_Splat1", instance.GetTexture("_Splat1"));
+                if(instance.HasProperty("_Splat1_TextureOffset"))
+                    writer.WriteProperty("_Splat1_TextureOffset", instance.GetTextureOffset("_Splat1_TextureOffset"));
+                if(instance.HasProperty("_Splat1_TextureScale"))
+                    writer.WriteProperty("_Splat1_TextureScale", instance.GetTextureScale("_Splat1_TextureScale"));
+                if(instance.HasProperty("_Splat0"))
+                    writer.WriteProperty<Texture>("_Splat0", instance.GetTexture("_Splat0"));
+                if(instance.HasProperty("_Splat0_TextureOffset"))
+                    writer.WriteProperty("_Splat0_TextureOffset", instance.GetTextureOffset("_Splat0_TextureOffset"));
+                if(instance.HasProperty("_Splat0_TextureScale"))
+                    writer.WriteProperty("_Splat0_TextureScale", instance.GetTextureScale("_Splat0_TextureScale"));
+                if(instance.HasProperty("_Normal3"))
+                    writer.WriteProperty<Texture>("_Normal3", instance.GetTexture("_Normal3"));
+                if(instance.HasProperty("_Normal3_TextureOffset"))
+                    writer.WriteProperty("_Normal3_TextureOffset", instance.GetTextureOffset("_Normal3_TextureOffset"));
+                if(instance.HasProperty("_Normal3_TextureScale"))
+                    writer.WriteProperty("_Normal3_TextureScale", instance.GetTextureScale("_Normal3_TextureScale"));
+                if(instance.HasProperty("_Normal2"))
+                    writer.WriteProperty<Texture>("_Normal2", instance.GetTexture("_Normal2"));
+                if(instance.HasProperty("_Normal2_TextureOffset"))
+                    writer.WriteProperty("_Normal2_TextureOffset", instance.GetTextureOffset("_Normal2_TextureOffset"));
+                if(instance.HasProperty("_Normal2_TextureScale"))
+                    writer.WriteProperty("_Normal2_TextureScale", instance.GetTextureScale("_Normal2_TextureScale"));
+                if(instance.HasProperty("_Normal1"))
+                    writer.WriteProperty<Texture>("_Normal1", instance.GetTexture("_Normal1"));
+                if(instance.HasProperty("_Normal1_TextureOffset"))
+                    writer.WriteProperty("_Normal1_TextureOffset", instance.GetTextureOffset("_Normal1_TextureOffset"));
+                if(instance.HasProperty("_Normal1_TextureScale"))
+                    writer.WriteProperty("_Normal1_TextureScale", instance.GetTextureScale("_Normal1_TextureScale"));
+                if(instance.HasProperty("_Normal0"))
+                    writer.WriteProperty<Texture>("_Normal0", instance.GetTexture("_Normal0"));
+                if(instance.HasProperty("_Normal0_TextureOffset"))
+                    writer.WriteProperty("_Normal0_TextureOffset", instance.GetTextureOffset("_Normal0_TextureOffset"));
+                if(instance.HasProperty("_Normal0_TextureScale"))
+                    writer.WriteProperty("_Normal0_TextureScale", instance.GetTextureScale("_Normal0_TextureScale"));
+                if(instance.HasProperty("_Cutoff"))
+                    writer.WriteProperty("_Cutoff", instance.GetFloat("_Cutoff"));
+                if(instance.HasProperty("_BaseLight"))
+                    writer.WriteProperty("_BaseLight", instance.GetFloat("_BaseLight"));
+                if(instance.HasProperty("_AO"))
+                    writer.WriteProperty("_AO", instance.GetFloat("_AO"));
+                if(instance.HasProperty("_Occlusion"))
+                    writer.WriteProperty("_Occlusion", instance.GetFloat("_Occlusion"));
+                if(instance.HasProperty("_TreeInstanceColor"))
+                    writer.WriteProperty("_TreeInstanceColor", instance.GetVector("_TreeInstanceColor"));
+                if(instance.HasProperty("_TreeInstanceScale"))
+                    writer.WriteProperty("_TreeInstanceScale", instance.GetVector("_TreeInstanceScale"));
+                if(instance.HasProperty("_SquashAmount"))
+                    writer.WriteProperty("_SquashAmount", instance.GetFloat("_SquashAmount"));
+                if(instance.HasProperty("_TranslucencyColor"))
+                    writer.WriteProperty("_TranslucencyColor", instance.GetColor("_TranslucencyColor"));
+                if(instance.HasProperty("_TranslucencyViewDependency"))
+                    writer.WriteProperty("_TranslucencyViewDependency", instance.GetFloat("_TranslucencyViewDependency"));
+                if(instance.HasProperty("_ShadowStrength"))
+                    writer.WriteProperty("_ShadowStrength", instance.GetFloat("_ShadowStrength"));
+                if(instance.HasProperty("_ShadowOffsetScale"))
+                    writer.WriteProperty("_ShadowOffsetScale", instance.GetFloat("_ShadowOffsetScale"));
+                if(instance.HasProperty("_ShadowTex"))
+                    writer.WriteProperty<Texture>("_ShadowTex", instance.GetTexture("_ShadowTex"));
+                if(instance.HasProperty("_ShadowTex_TextureOffset"))
+                    writer.WriteProperty("_ShadowTex_TextureOffset", instance.GetTextureOffset("_ShadowTex_TextureOffset"));
+                if(instance.HasProperty("_ShadowTex_TextureScale"))
+                    writer.WriteProperty("_ShadowTex_TextureScale", instance.GetTextureScale("_ShadowTex_TextureScale"));
+                if(instance.HasProperty("_BumpSpecMap"))
+                    writer.WriteProperty<Texture>("_BumpSpecMap", instance.GetTexture("_BumpSpecMap"));
+                if(instance.HasProperty("_BumpSpecMap_TextureOffset"))
+                    writer.WriteProperty("_BumpSpecMap_TextureOffset", instance.GetTextureOffset("_BumpSpecMap_TextureOffset"));
+                if(instance.HasProperty("_BumpSpecMap_TextureScale"))
+                    writer.WriteProperty("_BumpSpecMap_TextureScale", instance.GetTextureScale("_BumpSpecMap_TextureScale"));
+                if(instance.HasProperty("_TranslucencyMap"))
+                    writer.WriteProperty<Texture>("_TranslucencyMap", instance.GetTexture("_TranslucencyMap"));
+                if(instance.HasProperty("_TranslucencyMap_TextureOffset"))
+                    writer.WriteProperty("_TranslucencyMap_TextureOffset", instance.GetTextureOffset("_TranslucencyMap_TextureOffset"));
+                if(instance.HasProperty("_TranslucencyMap_TextureScale"))
+                    writer.WriteProperty("_TranslucencyMap_TextureScale", instance.GetTextureScale("_TranslucencyMap_TextureScale"));
+                if(instance.HasProperty("_LightMap"))
+                    writer.WriteProperty<Texture>("_LightMap", instance.GetTexture("_LightMap"));
+                if(instance.HasProperty("_LightMap_TextureOffset"))
+                    writer.WriteProperty("_LightMap_TextureOffset", instance.GetTextureOffset("_LightMap_TextureOffset"));
+                if(instance.HasProperty("_LightMap_TextureScale"))
+                    writer.WriteProperty("_LightMap_TextureScale", instance.GetTextureScale("_LightMap_TextureScale"));
+                if(instance.HasProperty("_DetailTex"))
+                    writer.WriteProperty<Texture>("_DetailTex", instance.GetTexture("_DetailTex"));
+                if(instance.HasProperty("_DetailTex_TextureOffset"))
+                    writer.WriteProperty("_DetailTex_TextureOffset", instance.GetTextureOffset("_DetailTex_TextureOffset"));
+                if(instance.HasProperty("_DetailTex_TextureScale"))
+                    writer.WriteProperty("_DetailTex_TextureScale", instance.GetTextureScale("_DetailTex_TextureScale"));
+                if(instance.HasProperty("_DetailBump"))
+                    writer.WriteProperty<Texture>("_DetailBump", instance.GetTexture("_DetailBump"));
+                if(instance.HasProperty("_DetailBump_TextureOffset"))
+                    writer.WriteProperty("_DetailBump_TextureOffset", instance.GetTextureOffset("_DetailBump_TextureOffset"));
+                if(instance.HasProperty("_DetailBump_TextureScale"))
+                    writer.WriteProperty("_DetailBump_TextureScale", instance.GetTextureScale("_DetailBump_TextureScale"));
+                if(instance.HasProperty("_Strength"))
+                    writer.WriteProperty("_Strength", instance.GetFloat("_Strength"));
+                if(instance.HasProperty("_InvFade"))
+                    writer.WriteProperty("_InvFade", instance.GetFloat("_InvFade"));
+                if(instance.HasProperty("_EmisColor"))
+                    writer.WriteProperty("_EmisColor", instance.GetColor("_EmisColor"));
+                if(instance.HasProperty("_Parallax"))
+                    writer.WriteProperty("_Parallax", instance.GetFloat("_Parallax"));
+                if(instance.HasProperty("_ParallaxMap"))
+                    writer.WriteProperty<Texture>("_ParallaxMap", instance.GetTexture("_ParallaxMap"));
+                if(instance.HasProperty("_ParallaxMap_TextureOffset"))
+                    writer.WriteProperty("_ParallaxMap_TextureOffset", instance.GetTextureOffset("_ParallaxMap_TextureOffset"));
+                if(instance.HasProperty("_ParallaxMap_TextureScale"))
+                    writer.WriteProperty("_ParallaxMap_TextureScale", instance.GetTextureScale("_ParallaxMap_TextureScale"));
+                if(instance.HasProperty("_DecalTex"))
+                    writer.WriteProperty<Texture>("_DecalTex", instance.GetTexture("_DecalTex"));
+                if(instance.HasProperty("_DecalTex_TextureOffset"))
+                    writer.WriteProperty("_DecalTex_TextureOffset", instance.GetTextureOffset("_DecalTex_TextureOffset"));
+                if(instance.HasProperty("_DecalTex_TextureScale"))
+                    writer.WriteProperty("_DecalTex_TextureScale", instance.GetTextureScale("_DecalTex_TextureScale"));
+                if(instance.HasProperty("_GlossMap"))
+                    writer.WriteProperty<Texture>("_GlossMap", instance.GetTexture("_GlossMap"));
+                if(instance.HasProperty("_GlossMap_TextureOffset"))
+                    writer.WriteProperty("_GlossMap_TextureOffset", instance.GetTextureOffset("_GlossMap_TextureOffset"));
+                if(instance.HasProperty("_GlossMap_TextureScale"))
+                    writer.WriteProperty("_GlossMap_TextureScale", instance.GetTextureScale("_GlossMap_TextureScale"));
+                if(instance.HasProperty("_ShadowOffset"))
+                    writer.WriteProperty<Texture>("_ShadowOffset", instance.GetTexture("_ShadowOffset"));
+                if(instance.HasProperty("_ShadowOffset_TextureOffset"))
+                    writer.WriteProperty("_ShadowOffset_TextureOffset", instance.GetTextureOffset("_ShadowOffset_TextureOffset"));
+                if(instance.HasProperty("_ShadowOffset_TextureScale"))
+                    writer.WriteProperty("_ShadowOffset_TextureScale", instance.GetTextureScale("_ShadowOffset_TextureScale"));
+                if(instance.HasProperty("_SunDisk"))
+                    writer.WriteProperty("_SunDisk", instance.GetFloat("_SunDisk"));
+                if(instance.HasProperty("_SunSize"))
+                    writer.WriteProperty("_SunSize", instance.GetFloat("_SunSize"));
+                if(instance.HasProperty("_AtmosphereThickness"))
+                    writer.WriteProperty("_AtmosphereThickness", instance.GetFloat("_AtmosphereThickness"));
+                if(instance.HasProperty("_SkyTint"))
+                    writer.WriteProperty("_SkyTint", instance.GetColor("_SkyTint"));
+                if(instance.HasProperty("_GroundColor"))
+                    writer.WriteProperty("_GroundColor", instance.GetColor("_GroundColor"));
+                if(instance.HasProperty("_WireThickness"))
+                    writer.WriteProperty("_WireThickness", instance.GetFloat("_WireThickness"));
+                if(instance.HasProperty("_ZWrite"))
+                    writer.WriteProperty("_ZWrite", instance.GetFloat("_ZWrite"));
+                if(instance.HasProperty("_ZTest"))
+                    writer.WriteProperty("_ZTest", instance.GetFloat("_ZTest"));
+                if(instance.HasProperty("_Cull"))
+                    writer.WriteProperty("_Cull", instance.GetFloat("_Cull"));
+                if(instance.HasProperty("_ZBias"))
+                    writer.WriteProperty("_ZBias", instance.GetFloat("_ZBias"));
+                if(instance.HasProperty("_HueVariation"))
+                    writer.WriteProperty("_HueVariation", instance.GetColor("_HueVariation"));
+                if(instance.HasProperty("_WindQuality"))
+                    writer.WriteProperty("_WindQuality", instance.GetFloat("_WindQuality"));
+                if(instance.HasProperty("_DetailMask"))
+                    writer.WriteProperty<Texture>("_DetailMask", instance.GetTexture("_DetailMask"));
+                if(instance.HasProperty("_DetailMask_TextureOffset"))
+                    writer.WriteProperty("_DetailMask_TextureOffset", instance.GetTextureOffset("_DetailMask_TextureOffset"));
+                if(instance.HasProperty("_DetailMask_TextureScale"))
+                    writer.WriteProperty("_DetailMask_TextureScale", instance.GetTextureScale("_DetailMask_TextureScale"));
+                if(instance.HasProperty("_MetallicTex"))
+                    writer.WriteProperty<Texture>("_MetallicTex", instance.GetTexture("_MetallicTex"));
+                if(instance.HasProperty("_MetallicTex_TextureOffset"))
+                    writer.WriteProperty("_MetallicTex_TextureOffset", instance.GetTextureOffset("_MetallicTex_TextureOffset"));
+                if(instance.HasProperty("_MetallicTex_TextureScale"))
+                    writer.WriteProperty("_MetallicTex_TextureScale", instance.GetTextureScale("_MetallicTex_TextureScale"));
+                if(instance.HasProperty("_Glossiness"))
+                    writer.WriteProperty("_Glossiness", instance.GetFloat("_Glossiness"));
+                if(instance.HasProperty("_GlossMapScale"))
+                    writer.WriteProperty("_GlossMapScale", instance.GetFloat("_GlossMapScale"));
+                if(instance.HasProperty("_SmoothnessTextureChannel"))
+                    writer.WriteProperty("_SmoothnessTextureChannel", instance.GetFloat("_SmoothnessTextureChannel"));
+                if(instance.HasProperty("_Metallic"))
+                    writer.WriteProperty("_Metallic", instance.GetFloat("_Metallic"));
+                if(instance.HasProperty("_MetallicGlossMap"))
+                    writer.WriteProperty<Texture>("_MetallicGlossMap", instance.GetTexture("_MetallicGlossMap"));
+                if(instance.HasProperty("_MetallicGlossMap_TextureOffset"))
+                    writer.WriteProperty("_MetallicGlossMap_TextureOffset", instance.GetTextureOffset("_MetallicGlossMap_TextureOffset"));
+                if(instance.HasProperty("_MetallicGlossMap_TextureScale"))
+                    writer.WriteProperty("_MetallicGlossMap_TextureScale", instance.GetTextureScale("_MetallicGlossMap_TextureScale"));
+                if(instance.HasProperty("_SpecularHighlights"))
+                    writer.WriteProperty("_SpecularHighlights", instance.GetFloat("_SpecularHighlights"));
+                if(instance.HasProperty("_GlossyReflections"))
+                    writer.WriteProperty("_GlossyReflections", instance.GetFloat("_GlossyReflections"));
+                if(instance.HasProperty("_BumpScale"))
+                    writer.WriteProperty("_BumpScale", instance.GetFloat("_BumpScale"));
+                if(instance.HasProperty("_OcclusionStrength"))
+                    writer.WriteProperty("_OcclusionStrength", instance.GetFloat("_OcclusionStrength"));
+                if(instance.HasProperty("_OcclusionMap"))
+                    writer.WriteProperty<Texture>("_OcclusionMap", instance.GetTexture("_OcclusionMap"));
+                if(instance.HasProperty("_OcclusionMap_TextureOffset"))
+                    writer.WriteProperty("_OcclusionMap_TextureOffset", instance.GetTextureOffset("_OcclusionMap_TextureOffset"));
+                if(instance.HasProperty("_OcclusionMap_TextureScale"))
+                    writer.WriteProperty("_OcclusionMap_TextureScale", instance.GetTextureScale("_OcclusionMap_TextureScale"));
+                if(instance.HasProperty("_EmissionColor"))
+                    writer.WriteProperty("_EmissionColor", instance.GetColor("_EmissionColor"));
+                if(instance.HasProperty("_EmissionMap"))
+                    writer.WriteProperty<Texture>("_EmissionMap", instance.GetTexture("_EmissionMap"));
+                if(instance.HasProperty("_EmissionMap_TextureOffset"))
+                    writer.WriteProperty("_EmissionMap_TextureOffset", instance.GetTextureOffset("_EmissionMap_TextureOffset"));
+                if(instance.HasProperty("_EmissionMap_TextureScale"))
+                    writer.WriteProperty("_EmissionMap_TextureScale", instance.GetTextureScale("_EmissionMap_TextureScale"));
+                if(instance.HasProperty("_DetailAlbedoMap"))
+                    writer.WriteProperty<Texture>("_DetailAlbedoMap", instance.GetTexture("_DetailAlbedoMap"));
+                if(instance.HasProperty("_DetailAlbedoMap_TextureOffset"))
+                    writer.WriteProperty("_DetailAlbedoMap_TextureOffset", instance.GetTextureOffset("_DetailAlbedoMap_TextureOffset"));
+                if(instance.HasProperty("_DetailAlbedoMap_TextureScale"))
+                    writer.WriteProperty("_DetailAlbedoMap_TextureScale", instance.GetTextureScale("_DetailAlbedoMap_TextureScale"));
+                if(instance.HasProperty("_DetailNormalMapScale"))
+                    writer.WriteProperty("_DetailNormalMapScale", instance.GetFloat("_DetailNormalMapScale"));
+                if(instance.HasProperty("_DetailNormalMap"))
+                    writer.WriteProperty<Texture>("_DetailNormalMap", instance.GetTexture("_DetailNormalMap"));
+                if(instance.HasProperty("_DetailNormalMap_TextureOffset"))
+                    writer.WriteProperty("_DetailNormalMap_TextureOffset", instance.GetTextureOffset("_DetailNormalMap_TextureOffset"));
+                if(instance.HasProperty("_DetailNormalMap_TextureScale"))
+                    writer.WriteProperty("_DetailNormalMap_TextureScale", instance.GetTextureScale("_DetailNormalMap_TextureScale"));
+                if(instance.HasProperty("_UVSec"))
+                    writer.WriteProperty("_UVSec", instance.GetFloat("_UVSec"));
+                if(instance.HasProperty("_Mode"))
+                    writer.WriteProperty("_Mode", instance.GetFloat("_Mode"));
+                if(instance.HasProperty("_TintColor"))
+                    writer.WriteProperty("_TintColor", instance.GetColor("_TintColor"));
+                if(instance.HasProperty("_WavingTint"))
+                    writer.WriteProperty("_WavingTint", instance.GetColor("_WavingTint"));
+                if(instance.HasProperty("_WaveAndDistance"))
+                    writer.WriteProperty("_WaveAndDistance", instance.GetVector("_WaveAndDistance"));
+                if(instance.HasProperty("_LightTexture0"))
+                    writer.WriteProperty<Texture>("_LightTexture0", instance.GetTexture("_LightTexture0"));
+                if(instance.HasProperty("_LightTexture0_TextureOffset"))
+                    writer.WriteProperty("_LightTexture0_TextureOffset", instance.GetTextureOffset("_LightTexture0_TextureOffset"));
+                if(instance.HasProperty("_LightTexture0_TextureScale"))
+                    writer.WriteProperty("_LightTexture0_TextureScale", instance.GetTextureScale("_LightTexture0_TextureScale"));
+                if(instance.HasProperty("_LightTextureB0"))
+                    writer.WriteProperty<Texture>("_LightTextureB0", instance.GetTexture("_LightTextureB0"));
+                if(instance.HasProperty("_LightTextureB0_TextureOffset"))
+                    writer.WriteProperty("_LightTextureB0_TextureOffset", instance.GetTextureOffset("_LightTextureB0_TextureOffset"));
+                if(instance.HasProperty("_LightTextureB0_TextureScale"))
+                    writer.WriteProperty("_LightTextureB0_TextureScale", instance.GetTextureScale("_LightTextureB0_TextureScale"));
+                if(instance.HasProperty("_ShadowMapTexture"))
+                    writer.WriteProperty<Texture>("_ShadowMapTexture", instance.GetTexture("_ShadowMapTexture"));
+                if(instance.HasProperty("_ShadowMapTexture_TextureOffset"))
+                    writer.WriteProperty("_ShadowMapTexture_TextureOffset", instance.GetTextureOffset("_ShadowMapTexture_TextureOffset"));
+                if(instance.HasProperty("_ShadowMapTexture_TextureScale"))
+                    writer.WriteProperty("_ShadowMapTexture_TextureScale", instance.GetTextureScale("_ShadowMapTexture_TextureScale"));
+                if(instance.HasProperty("_SecondTex"))
+                    writer.WriteProperty<Texture>("_SecondTex", instance.GetTexture("_SecondTex"));
+                if(instance.HasProperty("_SecondTex_TextureOffset"))
+                    writer.WriteProperty("_SecondTex_TextureOffset", instance.GetTextureOffset("_SecondTex_TextureOffset"));
+                if(instance.HasProperty("_SecondTex_TextureScale"))
+                    writer.WriteProperty("_SecondTex_TextureScale", instance.GetTextureScale("_SecondTex_TextureScale"));
+                if(instance.HasProperty("_ThirdTex"))
+                    writer.WriteProperty<Texture>("_ThirdTex", instance.GetTexture("_ThirdTex"));
+                if(instance.HasProperty("_ThirdTex_TextureOffset"))
+                    writer.WriteProperty("_ThirdTex_TextureOffset", instance.GetTextureOffset("_ThirdTex_TextureOffset"));
+                if(instance.HasProperty("_ThirdTex_TextureScale"))
+                    writer.WriteProperty("_ThirdTex_TextureScale", instance.GetTextureScale("_ThirdTex_TextureScale"));
+                if(instance.HasProperty("PixelSnap"))
+                    writer.WriteProperty("PixelSnap", instance.GetFloat("PixelSnap"));
+                if(instance.HasProperty("_RendererColor"))
+                    writer.WriteProperty("_RendererColor", instance.GetColor("_RendererColor"));
+                if(instance.HasProperty("_Flip"))
+                    writer.WriteProperty("_Flip", instance.GetVector("_Flip"));
+                if(instance.HasProperty("_AlphaTex"))
+                    writer.WriteProperty<Texture>("_AlphaTex", instance.GetTexture("_AlphaTex"));
+                if(instance.HasProperty("_AlphaTex_TextureOffset"))
+                    writer.WriteProperty("_AlphaTex_TextureOffset", instance.GetTextureOffset("_AlphaTex_TextureOffset"));
+                if(instance.HasProperty("_AlphaTex_TextureScale"))
+                    writer.WriteProperty("_AlphaTex_TextureScale", instance.GetTextureScale("_AlphaTex_TextureScale"));
+                if(instance.HasProperty("_EnableExternalAlpha"))
+                    writer.WriteProperty("_EnableExternalAlpha", instance.GetFloat("_EnableExternalAlpha"));
+                if(instance.HasProperty("_Level"))
+                    writer.WriteProperty("_Level", instance.GetFloat("_Level"));
+                if(instance.HasProperty("_SpecGlossMap"))
+                    writer.WriteProperty<Texture>("_SpecGlossMap", instance.GetTexture("_SpecGlossMap"));
+                if(instance.HasProperty("_SpecGlossMap_TextureOffset"))
+                    writer.WriteProperty("_SpecGlossMap_TextureOffset", instance.GetTextureOffset("_SpecGlossMap_TextureOffset"));
+                if(instance.HasProperty("_SpecGlossMap_TextureScale"))
+                    writer.WriteProperty("_SpecGlossMap_TextureScale", instance.GetTextureScale("_SpecGlossMap_TextureScale"));
+                if(instance.HasProperty("_FrontTex"))
+                    writer.WriteProperty<Texture>("_FrontTex", instance.GetTexture("_FrontTex"));
+                if(instance.HasProperty("_FrontTex_TextureOffset"))
+                    writer.WriteProperty("_FrontTex_TextureOffset", instance.GetTextureOffset("_FrontTex_TextureOffset"));
+                if(instance.HasProperty("_FrontTex_TextureScale"))
+                    writer.WriteProperty("_FrontTex_TextureScale", instance.GetTextureScale("_FrontTex_TextureScale"));
+                if(instance.HasProperty("_BackTex"))
+                    writer.WriteProperty<Texture>("_BackTex", instance.GetTexture("_BackTex"));
+                if(instance.HasProperty("_BackTex_TextureOffset"))
+                    writer.WriteProperty("_BackTex_TextureOffset", instance.GetTextureOffset("_BackTex_TextureOffset"));
+                if(instance.HasProperty("_BackTex_TextureScale"))
+                    writer.WriteProperty("_BackTex_TextureScale", instance.GetTextureScale("_BackTex_TextureScale"));
+                if(instance.HasProperty("_LeftTex"))
+                    writer.WriteProperty<Texture>("_LeftTex", instance.GetTexture("_LeftTex"));
+                if(instance.HasProperty("_LeftTex_TextureOffset"))
+                    writer.WriteProperty("_LeftTex_TextureOffset", instance.GetTextureOffset("_LeftTex_TextureOffset"));
+                if(instance.HasProperty("_LeftTex_TextureScale"))
+                    writer.WriteProperty("_LeftTex_TextureScale", instance.GetTextureScale("_LeftTex_TextureScale"));
+                if(instance.HasProperty("_RightTex"))
+                    writer.WriteProperty<Texture>("_RightTex", instance.GetTexture("_RightTex"));
+                if(instance.HasProperty("_RightTex_TextureOffset"))
+                    writer.WriteProperty("_RightTex_TextureOffset", instance.GetTextureOffset("_RightTex_TextureOffset"));
+                if(instance.HasProperty("_RightTex_TextureScale"))
+                    writer.WriteProperty("_RightTex_TextureScale", instance.GetTextureScale("_RightTex_TextureScale"));
+                if(instance.HasProperty("_UpTex"))
+                    writer.WriteProperty<Texture>("_UpTex", instance.GetTexture("_UpTex"));
+                if(instance.HasProperty("_UpTex_TextureOffset"))
+                    writer.WriteProperty("_UpTex_TextureOffset", instance.GetTextureOffset("_UpTex_TextureOffset"));
+                if(instance.HasProperty("_UpTex_TextureScale"))
+                    writer.WriteProperty("_UpTex_TextureScale", instance.GetTextureScale("_UpTex_TextureScale"));
+                if(instance.HasProperty("_DownTex"))
+                    writer.WriteProperty<Texture>("_DownTex", instance.GetTexture("_DownTex"));
+                if(instance.HasProperty("_DownTex_TextureOffset"))
+                    writer.WriteProperty("_DownTex_TextureOffset", instance.GetTextureOffset("_DownTex_TextureOffset"));
+                if(instance.HasProperty("_DownTex_TextureScale"))
+                    writer.WriteProperty("_DownTex_TextureScale", instance.GetTextureScale("_DownTex_TextureScale"));
+                if(instance.HasProperty("_Metallic0"))
+                    writer.WriteProperty("_Metallic0", instance.GetFloat("_Metallic0"));
+                if(instance.HasProperty("_Metallic1"))
+                    writer.WriteProperty("_Metallic1", instance.GetFloat("_Metallic1"));
+                if(instance.HasProperty("_Metallic2"))
+                    writer.WriteProperty("_Metallic2", instance.GetFloat("_Metallic2"));
+                if(instance.HasProperty("_Metallic3"))
+                    writer.WriteProperty("_Metallic3", instance.GetFloat("_Metallic3"));
+                if(instance.HasProperty("_Smoothness0"))
+                    writer.WriteProperty("_Smoothness0", instance.GetFloat("_Smoothness0"));
+                if(instance.HasProperty("_Smoothness1"))
+                    writer.WriteProperty("_Smoothness1", instance.GetFloat("_Smoothness1"));
+                if(instance.HasProperty("_Smoothness2"))
+                    writer.WriteProperty("_Smoothness2", instance.GetFloat("_Smoothness2"));
+                if(instance.HasProperty("_Smoothness3"))
+                    writer.WriteProperty("_Smoothness3", instance.GetFloat("_Smoothness3"));
+                if(instance.HasProperty("_TexA"))
+                    writer.WriteProperty<Texture>("_TexA", instance.GetTexture("_TexA"));
+                if(instance.HasProperty("_TexA_TextureOffset"))
+                    writer.WriteProperty("_TexA_TextureOffset", instance.GetTextureOffset("_TexA_TextureOffset"));
+                if(instance.HasProperty("_TexA_TextureScale"))
+                    writer.WriteProperty("_TexA_TextureScale", instance.GetTextureScale("_TexA_TextureScale"));
+                if(instance.HasProperty("_TexB"))
+                    writer.WriteProperty<Texture>("_TexB", instance.GetTexture("_TexB"));
+                if(instance.HasProperty("_TexB_TextureOffset"))
+                    writer.WriteProperty("_TexB_TextureOffset", instance.GetTextureOffset("_TexB_TextureOffset"));
+                if(instance.HasProperty("_TexB_TextureScale"))
+                    writer.WriteProperty("_TexB_TextureScale", instance.GetTextureScale("_TexB_TextureScale"));
+                if(instance.HasProperty("_value"))
+                    writer.WriteProperty("_value", instance.GetFloat("_value"));
+                if(instance.HasProperty("_Texel"))
+                    writer.WriteProperty("_Texel", instance.GetFloat("_Texel"));
+                if(instance.HasProperty("_Detail"))
+                    writer.WriteProperty<Texture>("_Detail", instance.GetTexture("_Detail"));
+                if(instance.HasProperty("_Detail_TextureOffset"))
+                    writer.WriteProperty("_Detail_TextureOffset", instance.GetTextureOffset("_Detail_TextureOffset"));
+                if(instance.HasProperty("_Detail_TextureScale"))
+                    writer.WriteProperty("_Detail_TextureScale", instance.GetTextureScale("_Detail_TextureScale"));
+                if(instance.HasProperty("_HalfOverCutoff"))
+                    writer.WriteProperty("_HalfOverCutoff", instance.GetFloat("_HalfOverCutoff"));
+                    #endif
+            }
 		}
 
 		protected override object ReadUnityObject<T>(ES3Reader reader)
@@ -484,7 +527,68 @@ namespace ES3Types
 		protected override void ReadUnityObject<T>(ES3Reader reader, object obj)
 		{
 			var instance = (UnityEngine.Material)obj;
-			foreach(string propertyName in reader.Properties)
+
+#if UNITY_2019_3_OR_NEWER
+
+            foreach (string propertyName in reader.Properties)
+            {
+                switch (propertyName)
+                {
+                    case "name":
+                        instance.name = reader.Read<string>(ES3Type_string.Instance);
+                        break;
+                    case "shader":
+                        instance.shader = reader.Read<UnityEngine.Shader>(ES3Type_Shader.Instance);
+                        break;
+                    case "renderQueue":
+                        instance.renderQueue = reader.Read<System.Int32>(ES3Type_int.Instance);
+                        break;
+                    case "shaderKeywords":
+                        var keywords = reader.Read<System.String[]>();
+                        foreach (var keyword in keywords)
+                            instance.EnableKeyword(keyword);
+                        break;
+                    case "globalIlluminationFlags":
+                        instance.globalIlluminationFlags = reader.Read<UnityEngine.MaterialGlobalIlluminationFlags>();
+                        break;
+                    case "_MainTex_Scale":
+                        instance.SetTextureScale("_MainTex", reader.Read<Vector2>());
+                        break;
+                    default:
+                        var propertyIndex = -1;
+                        if (instance.shader != null && instance.HasProperty(propertyName) && (propertyIndex = instance.shader.FindPropertyIndex(propertyName)) != -1)
+                        {
+                            var propertyType = instance.shader.GetPropertyType(propertyIndex);
+
+                            switch (propertyType)
+                            {
+                                case UnityEngine.Rendering.ShaderPropertyType.Color:
+                                    instance.SetColor(propertyName, reader.Read<Color>());
+                                    break;
+                                case UnityEngine.Rendering.ShaderPropertyType.Float:
+                                case UnityEngine.Rendering.ShaderPropertyType.Range:
+                                    instance.SetFloat(propertyName, reader.Read<float>());
+                                    break;
+                                case UnityEngine.Rendering.ShaderPropertyType.Texture:
+                                    instance.SetTexture(propertyName, reader.Read<Texture>());
+                                    break;
+                                case UnityEngine.Rendering.ShaderPropertyType.Vector:
+                                    instance.SetColor(propertyName, reader.Read<Vector4>());
+                                    break;
+                            }
+                        }
+                        else if (propertyName.EndsWith("_TextureScale"))
+                            instance.SetTextureScale(propertyName.Split(new string[] { "_TextureScale" }, StringSplitOptions.None)[0], reader.Read<Vector2>());
+                        else if (propertyName.EndsWith("_TextureOffset"))
+                            instance.SetTextureOffset(propertyName.Split(new string[] { "_TextureOffset" }, StringSplitOptions.None)[0], reader.Read<Vector2>());
+
+                        reader.Skip();
+                        break;
+                }
+            }
+#else
+
+            foreach (string propertyName in reader.Properties)
 			{
 				switch(propertyName)
 				{
@@ -1183,9 +1287,10 @@ namespace ES3Types
 						reader.Skip();
 						break;
 				}
-			}
-		}
-	}
+            }
+#endif
+        }
+    }
 
 		public class ES3Type_MaterialArray : ES3ArrayType
 	{

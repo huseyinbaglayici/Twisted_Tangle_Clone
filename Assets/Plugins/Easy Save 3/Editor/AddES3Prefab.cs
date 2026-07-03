@@ -4,6 +4,7 @@ using UnityEngine;
 using UnityEditor;
 using ES3Internal;
 using System.Linq;
+using UnityEngine.SceneManagement;
 
 namespace ES3Editor
 {
@@ -43,19 +44,45 @@ namespace ES3Editor
                 var es3Prefab = Undo.AddComponent<ES3Prefab>(go);
                 es3Prefab.GeneratePrefabReferences();
 
-                if (ES3ReferenceMgr.Current != null)
+                var mgr = ES3ReferenceMgr.GetManagerFromScene(SceneManager.GetActiveScene());
+                if (mgr != null)
                 {
-                    ES3ReferenceMgr.Current.AddPrefab(es3Prefab);
-                    EditorUtility.SetDirty(ES3ReferenceMgr.Current);
+                    mgr.AddPrefab(es3Prefab);
+                    EditorUtility.SetDirty(mgr);
                 }
             }
 		}
 
-		[MenuItem("GameObject/Easy Save 3/Enable Easy Save for Prefab", true, 1001)]
-		[MenuItem("Assets/Easy Save 3/Enable Easy Save for Prefab", true, 1001)]
+		[MenuItem("GameObject/Easy Save 3/Enable Easy Save for Prefab(s)", true, 1001)]
+		[MenuItem("Assets/Easy Save 3/Enable Easy Save for Prefab(s)", true, 1001)]
 		public static bool Validate()
 		{
             return Selection.gameObjects != null && Selection.gameObjects.Length > 0;
 		}
 	}
+
+    public class RemoveES3Prefab : UnityEditor.Editor 
+    {
+        [MenuItem("GameObject/Easy Save 3/Disable Easy Save for Prefab(s)", false, 1001)]
+        [MenuItem("Assets/Easy Save 3/Disable Easy Save for Prefab(s)", false, 1001)]
+        public static void Enable()
+        {
+            if (Selection.gameObjects == null || Selection.gameObjects.Length == 0)
+                return;
+
+            foreach (var obj in Selection.gameObjects)
+            {
+                var es3prefab = obj.GetComponent<ES3Prefab>();
+                if (es3prefab != null)
+                    Undo.DestroyObjectImmediate(es3prefab);
+            }
+        }
+
+        [MenuItem("GameObject/Easy Save 3/Disable Easy Save for Prefab(s)", true, 1001)]
+        [MenuItem("Assets/Easy Save 3/Disable Easy Save for Prefab(s)", true, 1001)]
+        public static bool Validate()
+        {
+            return Selection.gameObjects != null && Selection.gameObjects.Length > 0;
+        }
+    }
 }

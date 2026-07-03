@@ -159,29 +159,33 @@ public abstract class ES3Reader : System.IDisposable
 		return ES3Reflection.GetType(Read<string>(ES3Type_string.Instance));
 	}
 
-	/// <summary>Sets the value of a private property on an object.</summary>
-	/// <param name="name">The name of the property we want to set.</param>
-	/// <param name="value">The value we want to set the property to.</param>
-	/// <param name="objectContainingProperty">The object containing the property we want to set.</param>
-	public void SetPrivateProperty(string name, object value, object objectContainingProperty)
-	{
-		var property = ES3Reflection.GetES3ReflectedProperty(objectContainingProperty.GetType(), name);
-		if(property.IsNull)
-			throw new MissingMemberException("A private property named "+ name + " does not exist in the type "+objectContainingProperty.GetType());
-		property.SetValue(objectContainingProperty, value);
-	}
+    /// <summary>Sets the value of a private property on an object.</summary>
+    /// <param name="name">The name of the property we want to set.</param>
+    /// <param name="value">The value we want to set the property to.</param>
+    /// <param name="objectContainingProperty">The object containing the property we want to set.</param>
+    /// <returns>The objectContainingProperty object. This is helpful if you're setting a private property on a struct or other immutable type and need to return the boxed value.</returns>
+    public object SetPrivateProperty(string name, object value, object objectContainingProperty)
+    {
+        var property = ES3Reflection.GetES3ReflectedProperty(objectContainingProperty.GetType(), name);
+        if (property.IsNull)
+            throw new MissingMemberException("A private property named " + name + " does not exist in the type " + objectContainingProperty.GetType());
+        property.SetValue(objectContainingProperty, value);
+        return objectContainingProperty;
+    }
 
-	/// <summary>Sets the value of a private field on an object.</summary>
-	/// <param name="name">The name of the field we want to set.</param>
-	/// <param name="value">The value we want to set the field to.</param>
-	/// <param name="objectContainingProperty">The object containing the field we want to set.</param>
-	public void SetPrivateField(string name, object value, object objectContainingField)
+    /// <summary>Sets the value of a private field on an object.</summary>
+    /// <param name="name">The name of the field we want to set.</param>
+    /// <param name="value">The value we want to set the field to.</param>
+    /// <param name="objectContainingField">The object containing the field we want to set.</param>
+    /// <returns>The objectContainingField object. This is helpful if you're setting a private property on a struct or other immutable type and need to return the boxed value.</returns>
+    public object SetPrivateField(string name, object value, object objectContainingField)
 	{
 		var field = ES3Reflection.GetES3ReflectedMember(objectContainingField.GetType(), name);
 		if(field.IsNull)
 			throw new MissingMemberException("A private field named "+ name + " does not exist in the type "+objectContainingField.GetType());
 		field.SetValue(objectContainingField, value);
-	}
+        return objectContainingField;
+    }
 
 	#region Read(key) & Read(key, obj) methods
 
@@ -239,7 +243,9 @@ public abstract class ES3Reader : System.IDisposable
 		type.ReadInto<T>(this, obj);
 
 		EndReadObject();
-	}
+
+        TryOnAfterDeserialize(obj);
+    }
 
 	protected virtual T ReadObject<T>(ES3Type type)
 	{
@@ -249,8 +255,17 @@ public abstract class ES3Reader : System.IDisposable
 		object obj = type.Read<T>(this);
 
 		EndReadObject();
+
+		TryOnAfterDeserialize(obj);
+
 		return (T)obj;
 	}
+
+	internal static void TryOnAfterDeserialize(object obj)
+	{
+        if (obj is ISerializationCallbackReceiver scr)
+            scr.OnAfterDeserialize();
+    }
 		
 
 	#endregion
@@ -303,8 +318,12 @@ public abstract class ES3Reader : System.IDisposable
 		else if(settings.typeChecking)
 		{
 			Type type = ReadKeyPrefix();
-			if(type != typeof(T))
-				throw new InvalidOperationException("Trying to load data of type "+typeof(T)+", but data contained in file is type of "+type+".");
+
+            if(type == null)
+                throw new TypeLoadException("Trying to load data of type " + typeof(T) + ", but the type of data contained in file no longer exists. This may be because the type has been removed from your project or renamed.");
+            else if (type != typeof(T) && !ES3Reflection.IsAssignableFrom(typeof(T), type))
+                throw new InvalidOperationException("Trying to load data of type " + typeof(T) + ", but data contained in file is type of " + type + ".");
+
 			return type;
 		}
 		else

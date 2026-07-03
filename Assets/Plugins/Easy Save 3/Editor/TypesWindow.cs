@@ -16,7 +16,7 @@ namespace ES3Editor
 	{
 		TypeListItem[] types = null;
 		const int recentTypeCount = 5;
-		List<int> recentTypes = new List<int>(recentTypeCount);
+		List<int> recentTypes = null;
 
 		Vector2 typeListScrollPos = Vector2.zero;
 		Vector2 typePaneScrollPos = Vector2.zero;
@@ -446,6 +446,8 @@ namespace ES3Editor
 
 		private void Init()
 		{
+			ES3.Init(); // Initialize ES3 as we rely on the Type list being generated to determine whether a type is explicit or not.
+
 			componentTemplateFile = "ES3ComponentTypeTemplate.txt";
 			classTemplateFile = "ES3ClassTypeTemplate.txt";
 			valueTemplateFile = "ES3ValueTypeTemplate.txt";
@@ -467,7 +469,7 @@ namespace ES3Editor
 						continue;
 
 					var typeName = type.Name;
-					if(typeName [0] == '$' || typeName [0] == '_' || typeName [0] == '<')
+					if(typeName.Length >= 3 && typeName [0] == '$' || typeName [0] == '_' || typeName [0] == '<')
 						continue;
 
 					var typeNamespace = type.Namespace;
@@ -479,18 +481,19 @@ namespace ES3Editor
 			}
 			types = tempTypes.OrderBy(type => type.name).ToArray();
 
-			// Load types and recent types.
-			if(Event.current.type == EventType.Layout)
-			{
-				recentTypes = new List<int>();
-				for(int i=0; i<recentTypeCount; i++)
-				{
-					int typeIndex = LoadTypeIndex("TypesWindowRecentType"+i);
-					if(typeIndex != -1)
-						recentTypes.Add(typeIndex);
-				}
-				SelectType(LoadTypeIndex("TypesWindowSelectedType"));
-			} 
+            // Load types and recent types.
+            if (recentTypes == null)
+            {
+                recentTypes = new List<int>();
+                for (int i = 0; i < recentTypeCount; i++)
+                {
+                    int typeIndex = LoadTypeIndex("TypesWindowRecentType" + i);
+                    if (typeIndex != -1)
+                        recentTypes.Add(typeIndex);
+                }
+                SelectType(LoadTypeIndex("TypesWindowSelectedType"));
+            }
+			
 
 			PerformSearch(searchFieldValue);
 
@@ -576,15 +579,15 @@ namespace ES3Editor
 			else
 				template = File.ReadAllText(easySaveEditorPath + classTemplateFile);
 			template = template.Replace("[es3TypeSuffix]", es3TypeSuffix);
-			template = template.Replace("[fullType]", fullType);
 			template = template.Replace("[writes]", writes);
 			template = template.Replace("[reads]", reads);
 			template = template.Replace("[propertyNames]", propertyNames);
+            template = template.Replace("[fullType]", fullType); // Do this last as we use the [fullType] tag in reads.
 
-			// Create the output file.
+            // Create the output file.
 
 
-			string outputFilePath = GetOutputPath(type);
+            string outputFilePath = GetOutputPath(type);
 			var fileInfo = new FileInfo(outputFilePath);
 			fileInfo.Directory.Create();
 			File.WriteAllText(outputFilePath, template);
@@ -607,7 +610,8 @@ namespace ES3Editor
 					continue;
 
 				string writeByRef = ES3Reflection.IsAssignableFrom(typeof(UnityEngine.Object), field.MemberType) ? "ByRef" : "";
-                string es3TypeParam = HasExplicitES3Type(es3Type) && writeByRef == "" ? ", " + es3Type.GetType().Name + ".Instance" : (writeByRef == "" ? ", ES3Internal.ES3TypeMgr.GetES3Type(typeof(" + GetFullTypeName(field.MemberType) + "))" : "");
+                string es3TypeParam = HasExplicitES3Type(es3Type) && writeByRef == "" && !field.MemberType.IsEnum ? ", " + es3Type.GetType().Name + ".Instance" : (writeByRef == "" ? ", ES3Internal.ES3TypeMgr.GetOrCreateES3Type(typeof(" + GetFullTypeName(field.MemberType) + "))" : "");
+                
                 // If this is static, access the field through the class name rather than through an instance.
                 string instance = (field.IsStatic) ? GetFullTypeName(type) : "instance";
 
@@ -645,10 +649,11 @@ namespace ES3Editor
 				if(!field.IsPublic)
 				{
 					es3TypeParam = ", " + es3TypeParam;
+
 					if(field.isProperty)
-						reads += String.Format("\r\n\t\t\t\t\tcase \"{0}\":\r\n\t\t\t\t\treader.SetPrivateProperty(\"{0}\", reader.Read<{1}>(), instance);\r\n\t\t\t\t\tbreak;", field.Name, fieldTypeName);
+						reads += String.Format("\r\n\t\t\t\t\tcase \"{0}\":\r\n\t\t\t\t\tinstance = ([fullType])reader.SetPrivateProperty(\"{0}\", reader.Read<{1}>(), instance);\r\n\t\t\t\t\tbreak;", field.Name, fieldTypeName);
 					else
-						reads += String.Format("\r\n\t\t\t\t\tcase \"{0}\":\r\n\t\t\t\t\treader.SetPrivateField(\"{0}\", reader.Read<{1}>(), instance);\r\n\t\t\t\t\tbreak;", field.Name, fieldTypeName);
+						reads += String.Format("\r\n\t\t\t\t\tcase \"{0}\":\r\n\t\t\t\t\tinstance = ([fullType])reader.SetPrivateField(\"{0}\", reader.Read<{1}>(), instance);\r\n\t\t\t\t\tbreak;", field.Name, fieldTypeName);
 				}
 				else
 					reads += String.Format("\r\n\t\t\t\t\tcase \"{0}\":\r\n\t\t\t\t\t\t{3}.{0} = reader.Read<{1}>({2});\r\n\t\t\t\t\t\tbreak;", field.Name, fieldTypeName, es3TypeParam, instance);
@@ -665,9 +670,8 @@ namespace ES3Editor
 		private static string GetFullTypeName(Type type)
 		{
 			string typeName = type.ToString();
-
-			if(type.IsNested)
-				typeName = typeName.Replace('+','.');
+            
+			typeName = typeName.Replace('+','.');
 
 			// If it's a generic type, replace syntax with angled brackets.
 			int genericArgumentCount = type.GetGenericArguments().Length;

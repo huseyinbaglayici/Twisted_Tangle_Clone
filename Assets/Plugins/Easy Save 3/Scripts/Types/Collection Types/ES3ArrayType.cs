@@ -45,52 +45,11 @@ namespace ES3Types
             }
 
             return array;
-
-            /*var instance = new List<object>();
-
-			if(reader.StartReadCollection())
-				return null;
-
-			// Iterate through each character until we reach the end of the array.
-			while(true)
-			{
-				if(!reader.StartReadCollectionItem())
-					break;
-				instance.Add(reader.Read<object>(elementType));
-
-				if(reader.EndReadCollectionItem())
-					break;
-			}
-
-			reader.EndReadCollection();
-
-			var array = ES3Reflection.ArrayCreateInstance(elementType.type, instance.Count);
-			int i = 0;
-			foreach(var item in instance)
-			{
-				array.SetValue(item, i);
-				i++;
-			}
-
-			return array;*/
         }
 
         public override object Read<T>(ES3Reader reader)
 		{
             return Read(reader);
-            /*var list = new List<object>();
-			if(!ReadICollection(reader, list, elementType))
-				return null;
-
-            var array = ES3Reflection.ArrayCreateInstance(elementType.type, list.Count);
-            int i = 0;
-            foreach (var item in list)
-            {
-                array.SetValue(item, i);
-                i++;
-            }
-
-            return array;*/
 		}
 
 		public override void ReadInto<T>(ES3Reader reader, object obj)

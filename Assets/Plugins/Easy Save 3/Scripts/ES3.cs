@@ -7,7 +7,15 @@ using ES3Internal;
 using UnityEngine.Networking;
 #endif
 
-public static class ES3
+/// <summary>
+/// The main class for Easy Save methods. All methods in this class are static.
+/// </summary> 
+#if UNITY_VISUAL_SCRIPTING
+[Unity.VisualScripting.IncludeInSettings(true)]
+#elif BOLT_VISUAL_SCRIPTING
+[Ludiq.IncludeInSettings(true)]
+#endif
+public class ES3
 {
 	public enum Location 		{ File, PlayerPrefs, InternalMS, Resources, Cache };
 	public enum Directory		{ PersistentDataPath, DataPath }
@@ -15,6 +23,7 @@ public static class ES3
     public enum CompressionType { None, Gzip};
     public enum Format 			{ JSON };
 	public enum ReferenceMode	{ ByRef, ByValue, ByRefAndValue};
+    public enum ImageType       { JPEG, PNG };
 
     #region ES3.Save
 
@@ -29,7 +38,7 @@ public static class ES3
     /// <summary>Saves the value to a file with the given key.</summary>
     /// <param name="key">The key we want to use to identify our value in the file.</param>
     /// <param name="value">The value we want to save.</param>
-    /// <param name="filepath">The relative or absolute path of the file we want to store our value to.</param>
+    /// <param name="filePath">The relative or absolute path of the file we want to store our value to.</param>
     public static void Save(string key, object value, string filePath)
     {
         Save<object>(key, value, new ES3Settings(filePath));
@@ -38,7 +47,7 @@ public static class ES3
     /// <summary>Saves the value to a file with the given key.</summary>
     /// <param name="key">The key we want to use to identify our value in the file.</param>
     /// <param name="value">The value we want to save.</param>
-    /// <param name="filepath">The relative or absolute path of the file we want to store our value to.</param>
+    /// <param name="filePath">The relative or absolute path of the file we want to store our value to.</param>
     /// <param name="settings">The settings we want to use to override the default settings.</param>
     public static void Save(string key, object value, string filePath, ES3Settings settings)
     {
@@ -67,7 +76,7 @@ public static class ES3
     /// <param name="T">The type of the data that we want to save.</param>
     /// <param name="key">The key we want to use to identify our value in the file.</param>
     /// <param name="value">The value we want to save.</param>
-    /// <param name="filepath">The relative or absolute path of the file we want to store our value to.</param>
+    /// <param name="filePath">The relative or absolute path of the file we want to store our value to.</param>
     public static void Save<T>(string key, T value, string filePath)
     {
         Save<T>(key, value, new ES3Settings(filePath));
@@ -77,7 +86,7 @@ public static class ES3
     /// <param name="T">The type of the data that we want to save.</param>
     /// <param name="key">The key we want to use to identify our value in the file.</param>
     /// <param name="value">The value we want to save.</param>
-    /// <param name="filepath">The relative or absolute path of the file we want to store our value to.</param>
+    /// <param name="filePath">The relative or absolute path of the file we want to store our value to.</param>
     /// <param name="settings">The settings we want to use to override the default settings.</param>
     public static void Save<T>(string key, T value, string filePath, ES3Settings settings)
     {
@@ -93,7 +102,7 @@ public static class ES3
     {
         if (settings.location == Location.Cache)
         {
-            ES3File.GetOrCreateCachedFile(settings).Save(key, value);
+            ES3File.GetOrCreateCachedFile(settings).Save<T>(key, value);
             return;
         }
 
@@ -113,7 +122,7 @@ public static class ES3
 
     /// <summary>Creates or overwrites a file with the specified raw bytes.</summary>
     /// <param name="bytes">The bytes we want to store.</param>
-    /// <param name="filepath">The relative or absolute path of the file we want to store our bytes to.</param>
+    /// <param name="filePath">The relative or absolute path of the file we want to store our bytes to.</param>
     public static void SaveRaw(byte[] bytes, string filePath)
     {
         SaveRaw(bytes, new ES3Settings(filePath));
@@ -121,7 +130,7 @@ public static class ES3
 
     /// <summary>Creates or overwrites a file with the specified raw bytes.</summary>
     /// <param name="bytes">The bytes we want to store.</param>
-    /// <param name="filepath">The relative or absolute path of the file we want to store our bytes to.</param>
+    /// <param name="filePath">The relative or absolute path of the file we want to store our bytes to.</param>
     /// <param name="settings">The settings we want to use to override the default settings.</param>
     public static void SaveRaw(byte[] bytes, string filePath, ES3Settings settings)
     {
@@ -155,7 +164,7 @@ public static class ES3
 
     /// <summary>Creates or overwrites the default file with the specified raw bytes.</summary>
     /// <param name="str">The string we want to store.</param>
-    /// <param name="filepath">The relative or absolute path of the file we want to store our bytes to.</param>
+    /// <param name="filePath">The relative or absolute path of the file we want to store our bytes to.</param>
     public static void SaveRaw(string str, string filePath)
     {
         SaveRaw(str, new ES3Settings(filePath));
@@ -163,7 +172,7 @@ public static class ES3
 
     /// <summary>Creates or overwrites a file with the specified raw bytes.</summary>
     /// <param name="str">The string we want to store.</param>
-    /// <param name="filepath">The relative or absolute path of the file we want to store our bytes to.</param>
+    /// <param name="filePath">The relative or absolute path of the file we want to store our bytes to.</param>
     /// <param name="settings">The settings we want to use to override the default settings.</param>
     public static void SaveRaw(string str, string filePath, ES3Settings settings)
     {
@@ -214,24 +223,32 @@ public static class ES3
             stream.Write(bytes, 0, bytes.Length);
     }
 
-    /// <summary>Creates or appends the specified bytes to the default file.</summary>
-    /// <param name="bytes">The bytes we want to append.</param>
+    /// <summary>Creates or appends the specified string to the default file.</summary>
+    /// <param name="str">The string we want to append.</param>
     public static void AppendRaw(string str)
     {
         AppendRaw(str, new ES3Settings());
     }
 
-    /// <summary>Creates or appends the specified bytes to a file.</summary>
-    /// <param name="bytes">The bytes we want to append.</param>
-    /// <param name="filepath">The relative or absolute path of the file we want to append our bytes to.</param>
+    /// <summary>Creates or appends the specified string to the default file.</summary>
+    /// <param name="str">The string we want to append.</param>
+    /// <param name="filePath">The relative or absolute path of the file we want to append our string to.</param>
+    public static void AppendRaw(string str, string filePath)
+    {
+        AppendRaw(str, new ES3Settings(filePath));
+    }
+
+    /// <summary>Creates or appends the specified string to the default file.</summary>
+    /// <param name="str">The string we want to append.</param>
+    /// <param name="filePath">The relative or absolute path of the file we want to append our string to.</param>
     /// <param name="settings">The settings we want to use to override the default settings.</param>
     public static void AppendRaw(string str, string filePath, ES3Settings settings)
     {
         AppendRaw(str, new ES3Settings(filePath, settings));
     }
 
-    /// <summary>Creates or appends the specified bytes to a file.</summary>
-    /// <param name="bytes">The bytes we want to append.</param>
+    /// <summary>Creates or appends the specified string to the default file.</summary>
+    /// <param name="str">The string we want to append.</param>
     /// <param name="settings">The settings we want to use to override the default settings.</param>
     public static void AppendRaw(string str, ES3Settings settings)
     {
@@ -252,7 +269,7 @@ public static class ES3
 
     /// <summary>Saves a Texture2D as a PNG or JPG, depending on the file extension used for the filePath.</summary>
     /// <param name="texture">The Texture2D we want to save as a JPG or PNG.</param>
-    /// <param name="filePath">The relative or absolute path of the PNG or JPG file we want to create.</param>
+    /// <param name="imagePath">The relative or absolute path of the PNG or JPG file we want to create.</param>
     public static void SaveImage(Texture2D texture, string imagePath)
     {
         SaveImage(texture, new ES3Settings(imagePath));
@@ -260,7 +277,7 @@ public static class ES3
 
     /// <summary>Saves a Texture2D as a PNG or JPG, depending on the file extension used for the filePath.</summary>
     /// <param name="texture">The Texture2D we want to save as a JPG or PNG.</param>
-    /// <param name="filePath">The relative or absolute path of the PNG or JPG file we want to create.</param>
+    /// <param name="imagePath">The relative or absolute path of the PNG or JPG file we want to create.</param>
     public static void SaveImage(Texture2D texture, string imagePath, ES3Settings settings)
     {
         SaveImage(texture, new ES3Settings(imagePath, settings));
@@ -276,15 +293,17 @@ public static class ES3
 
     /// <summary>Saves a Texture2D as a PNG or JPG, depending on the file extension used for the filePath.</summary>
     /// <param name="texture">The Texture2D we want to save as a JPG or PNG.</param>
-    /// <param name="filePath">The relative or absolute path of the PNG or JPG file we want to create.</param>
+    /// <param name="quality">Quality to encode with, where 1 is minimum and 100 is maximum. Note that this only applies to JPGs.</param>
+    /// <param name="imagePath">The relative or absolute path of the PNG or JPG file we want to create.</param>
     public static void SaveImage(Texture2D texture, int quality, string imagePath)
     {
-        SaveImage(texture, new ES3Settings(imagePath));
+        SaveImage(texture, quality, new ES3Settings(imagePath));
     }
 
     /// <summary>Saves a Texture2D as a PNG or JPG, depending on the file extension used for the filePath.</summary>
     /// <param name="texture">The Texture2D we want to save as a JPG or PNG.</param>
-    /// <param name="filePath">The relative or absolute path of the PNG or JPG file we want to create.</param>
+    /// <param name="quality">Quality to encode with, where 1 is minimum and 100 is maximum. Note that this only applies to JPGs.</param>
+    /// <param name="imagePath">The relative or absolute path of the PNG or JPG file we want to create.</param>
     public static void SaveImage(Texture2D texture, int quality, string imagePath, ES3Settings settings)
     {
         SaveImage(texture, quality, new ES3Settings(imagePath, settings));
@@ -292,6 +311,7 @@ public static class ES3
 
     /// <summary>Saves a Texture2D as a PNG or JPG, depending on the file extension used for the filePath.</summary>
     /// <param name="texture">The Texture2D we want to save as a JPG or PNG.</param>
+    /// <param name="quality">Quality to encode with, where 1 is minimum and 100 is maximum. Note that this only applies to JPGs.</param>
     /// <param name="settings">The settings we want to use to override the default settings.</param>
     public static void SaveImage(Texture2D texture, int quality, ES3Settings settings)
     {
@@ -308,6 +328,18 @@ public static class ES3
             throw new System.ArgumentException("File path must have extension of .png, .jpg or .jpeg when using ES3.SaveImage.");
 
         ES3.SaveRaw(bytes, settings);
+    }
+
+
+    /// <summary>Saves a Texture2D as a PNG or JPG, depending on the file extension used for the filePath.</summary>
+    /// <param name="texture">The Texture2D we want to save as a JPG or PNG.</param>
+    /// <param name="quality">Quality to encode with, where 1 is minimum and 100 is maximum. Note that this only applies to JPGs.</param>
+    public static byte[] SaveImageToBytes(Texture2D texture, int quality, ES3.ImageType imageType)
+    {
+        if (imageType == ImageType.JPEG)
+            return texture.EncodeToJPG(quality);
+        else
+            return texture.EncodeToPNG();
     }
 
     #endregion
@@ -349,6 +381,42 @@ public static class ES3
     }
 
     /// <summary>Loads the value from a file with the given key.</summary>
+    /// <param name="key">The key which identifies the value we want to load.</param>
+    /// <param name="defaultValue">The value we want to return if the file or key does not exist.</param>
+    public static object Load(string key, object defaultValue)
+    {
+        return Load<object>(key, defaultValue, new ES3Settings());
+    }
+
+    /// <summary>Loads the value from a file with the given key.</summary>
+    /// <param name="key">The key which identifies the value we want to load.</param>
+    /// <param name="filePath">The relative or absolute path of the file we want to load from.</param>
+    /// <param name="defaultValue">The value we want to return if the file or key does not exist.</param>
+    public static object Load(string key, string filePath, object defaultValue)
+    {
+        return Load<object>(key, defaultValue, new ES3Settings(filePath));
+    }
+
+    /// <summary>Loads the value from a file with the given key.</summary>
+    /// <param name="key">The key which identifies the value we want to load.</param>
+    /// <param name="filePath">The relative or absolute path of the file we want to load from.</param>
+    /// <param name="defaultValue">The value we want to return if the file or key does not exist.</param>
+    /// <param name="settings">The settings we want to use to override the default settings.</param>
+    public static object Load(string key, string filePath, object defaultValue, ES3Settings settings)
+    {
+        return Load<object>(key, defaultValue, new ES3Settings(filePath, settings));
+    }
+
+    /// <summary>Loads the value from a file with the given key.</summary>
+    /// <param name="key">The key which identifies the value we want to load.</param>
+    /// <param name="defaultValue">The value we want to return if the file or key does not exist.</param>
+    /// <param name="settings">The settings we want to use to override the default settings.</param>
+    public static object Load(string key, object defaultValue, ES3Settings settings)
+    {
+        return Load<object>(key, defaultValue, settings);
+    }
+
+    /// <summary>Loads the value from a file with the given key.</summary>
     /// <param name="T">The type of the data that we want to load.</param>
     /// <param name="key">The key which identifies the value we want to load.</param>
     public static T Load<T>(string key)
@@ -372,6 +440,9 @@ public static class ES3
     /// <param name="settings">The settings we want to use to override the default settings.</param>
     public static T Load<T>(string key, string filePath, ES3Settings settings)
     {
+        if (typeof(T) == typeof(string))
+            ES3Debug.LogWarning("Using ES3.Load<string>(string, string) to load a string, but the second parameter is ambiguous between defaultValue and filePath. By default C# will assume that the second parameter is the filePath. If you want the second parameter to be the defaultValue, use a named parameter. E.g. ES3.Load<string>(\"key\", defaultValue: \"myDefaultValue\")");
+
         return Load<T>(key, new ES3Settings(filePath, settings));
     }
 
@@ -382,7 +453,17 @@ public static class ES3
     public static T Load<T>(string key, ES3Settings settings)
     {
         if (settings.location == Location.Cache)
-            return ES3File.GetOrCreateCachedFile(settings).Load<T>(key);
+        {
+            var cachedFile = ES3File.GetCachedFile(settings);
+
+            if (settings.autoCacheFileOnLoad && cachedFile == null)
+                cachedFile = ES3File.CacheFile(settings);
+
+            if (cachedFile == null)
+                throw new System.IO.FileNotFoundException("File \"" + settings.FullPath + "\" could not be found.");
+
+            return cachedFile.Load<T>(key);
+        }
 
         using (var reader = ES3Reader.Create(settings))
         {
@@ -430,7 +511,17 @@ public static class ES3
     public static T Load<T>(string key, T defaultValue, ES3Settings settings)
     {
         if (settings.location == Location.Cache)
-            return ES3File.GetOrCreateCachedFile(settings).Load<T>(key, defaultValue);
+        {
+            var cachedFile = ES3File.GetCachedFile(settings);
+
+            if (settings.autoCacheFileOnLoad && cachedFile == null)
+                cachedFile = ES3File.CacheFile(settings);
+
+            if (cachedFile == null)
+                return defaultValue;
+
+            return cachedFile.Load<T>(key, defaultValue);
+        }
 
         using (var reader = ES3Reader.Create(settings))
         {
@@ -520,7 +611,15 @@ public static class ES3
 
         if (settings.location == Location.Cache)
         {
-            ES3File.GetOrCreateCachedFile(settings).LoadInto<T>(key, obj);
+            var cachedFile = ES3File.GetCachedFile(settings);
+
+            if (settings.autoCacheFileOnLoad && cachedFile == null)
+                cachedFile = ES3File.CacheFile(settings);
+
+            if (cachedFile == null)
+                throw new System.IO.FileNotFoundException("File \"" + settings.FullPath + "\" could not be found.");
+
+            cachedFile.LoadInto<T>(key, obj);
             return;
         }
 
@@ -538,10 +637,20 @@ public static class ES3
     /// <summary>Loads the value from a file with the given key.</summary>
     /// <param name="key">The key which identifies the value we want to load.</param>
     /// <param name="defaultValue">The value we want to return if the file or key does not exist.</param>
-    /// <param name="filePath">The relative or absolute path of the file we want to load from.</param>
-    public static string LoadString(string key, string defaultValue, string filePath=null)
+    /// <param name="settings">The settings we want to use to override the default settings.</param>
+    public static string LoadString(string key, string defaultValue, ES3Settings settings)
     {
-        return Load<string>(key, filePath, defaultValue, new ES3Settings(filePath));
+        return Load<string>(key, null, defaultValue, settings);
+    }
+
+    /// <summary>Loads the value from a file with the given key.</summary>
+    /// <param name="key">The key which identifies the value we want to load.</param>
+    /// <param name="defaultValue">The value we want to return if the file or key does not exist.</param>
+    /// <param name="filePath">The relative or absolute path of the file we want to load from.</param>
+    /// <param name="settings">The settings we want to use to override the default settings.</param>
+    public static string LoadString(string key, string defaultValue, string filePath = null, ES3Settings settings = null)
+    {
+        return Load<string>(key, filePath, defaultValue, settings);
     }
 
     #endregion
@@ -574,7 +683,17 @@ public static class ES3
     public static byte[] LoadRawBytes(ES3Settings settings)
     {
         if (settings.location == Location.Cache)
-            return ES3File.GetOrCreateCachedFile(settings).LoadRawBytes();
+        {
+            var cachedFile = ES3File.GetCachedFile(settings);
+
+            if (settings.autoCacheFileOnLoad && cachedFile == null)
+                cachedFile = ES3File.CacheFile(settings);
+
+            if (cachedFile == null)
+                throw new System.IO.FileNotFoundException("File \"" + settings.FullPath + "\" could not be found.");
+
+            return cachedFile.LoadRawBytes();
+        }
 
         using (var stream = ES3Stream.CreateStream(settings, ES3FileMode.Read))
         {
@@ -609,7 +728,7 @@ public static class ES3
 		}
 		return null;*/
     }
-
+    
     /// <summary>Loads the default file as a byte array.</summary>
     public static string LoadRawString()
     {
@@ -669,8 +788,43 @@ public static class ES3
     public static Texture2D LoadImage(byte[] bytes)
     {
         var texture = new Texture2D(1, 1);
-        texture.LoadImage(bytes);
+        LoadImageInto(texture, bytes);
         return texture;
+    }
+
+    /// <summary>Loads a PNG or JPG as a Texture2D.</summary>
+    /// <param name="texture">The Texture2D to load the image into.</param>
+    /// <param name="imagePath">The relative or absolute path of the PNG or JPG file we want to load as a Texture2D.</param>
+    /// <param name="settings">The settings we want to use to override the default settings.</param>
+    public static void LoadImageInto(Texture2D texture, string imagePath)
+    {
+        LoadImageInto(texture, new ES3Settings(imagePath));
+    }
+
+    /// <summary>Loads a PNG or JPG as a Texture2D.</summary>
+    /// <param name="texture">The Texture2D to load the image into.</param>
+    /// <param name="imagePath">The relative or absolute path of the PNG or JPG file we want to load as a Texture2D.</param>
+    /// <param name="settings">The settings we want to use to override the default settings.</param>
+    public static void LoadImageInto(Texture2D texture, string imagePath, ES3Settings settings)
+    {
+        LoadImageInto(texture, new ES3Settings(imagePath, settings));
+    }
+
+    /// <summary>Loads a PNG or JPG as a Texture2D.</summary>
+    /// <param name="texture">The Texture2D to load the image into.</param>
+    /// <param name="settings">The settings we want to use to override the default settings.</param>
+    public static void LoadImageInto(Texture2D texture, ES3Settings settings)
+    {
+        byte[] bytes = ES3.LoadRawBytes(settings);
+        LoadImageInto(texture, bytes);
+    }
+
+    /// <summary>Loads a PNG or JPG as a Texture2D.</summary>
+    /// <param name="texture">The Texture2D to load the image into.</param>
+    /// <param name="bytes">The raw bytes of the PNG or JPG.</param>
+    public static void LoadImageInto(Texture2D texture, byte[] bytes)
+    {
+        texture.LoadImage(bytes);
     }
 
     /// <summary>Loads an audio file as an AudioClip. Note that MP3 files are not supported on standalone platforms and Ogg Vorbis files are not supported on mobile platforms.</summary>
@@ -765,6 +919,11 @@ public static class ES3
 
     public static byte[] Serialize<T>(T value, ES3Settings settings=null)
     {
+        return Serialize(value, ES3TypeMgr.GetOrCreateES3Type(typeof(T)), settings);
+    }
+
+    internal static byte[] Serialize(object value, ES3Types.ES3Type type, ES3Settings settings = null)
+    {
         if (settings == null) settings = new ES3Settings();
 
         using (var ms = new System.IO.MemoryStream())
@@ -775,7 +934,7 @@ public static class ES3
                 {
                     // If T is object, use the value to get it's type. Otherwise, use T so that it works with inheritence.
                     //var type = typeof(T) != typeof(object) ? typeof(T) : (value == null ? typeof(T) : value.GetType());
-                    baseWriter.Write(value, ES3TypeMgr.GetOrCreateES3Type(typeof(T)), settings.referenceMode);
+                    baseWriter.Write(value, type, settings.referenceMode);
                 }
 
                 return ms.ToArray();
@@ -818,6 +977,8 @@ public static class ES3
 
     #region Other ES3 Methods
 
+#if !DISABLE_ENCRYPTION
+
     public static byte[] EncryptBytes(byte[] bytes, string password=null)
     {
         if (string.IsNullOrEmpty(password))
@@ -834,12 +995,58 @@ public static class ES3
 
     public static string EncryptString(string str, string password=null)
     {
-        return ES3Settings.defaultSettings.encoding.GetString(EncryptBytes(ES3Settings.defaultSettings.encoding.GetBytes(str), password));
+        return Convert.ToBase64String(EncryptBytes(ES3Settings.defaultSettings.encoding.GetBytes(str), password));
     }
 
     public static string DecryptString(string str, string password=null)
     {
-        return ES3Settings.defaultSettings.encoding.GetString(DecryptBytes(ES3Settings.defaultSettings.encoding.GetBytes(str), password));
+        return ES3Settings.defaultSettings.encoding.GetString(DecryptBytes(Convert.FromBase64String(str), password));
+    }
+
+#endif
+
+    public static byte[] CompressBytes(byte[] bytes)
+    {
+        using (var ms = new System.IO.MemoryStream())
+        {
+            var settings = new ES3Settings();
+            settings.location = ES3.Location.InternalMS;
+            settings.compressionType = ES3.CompressionType.Gzip;
+            settings.encryptionType = EncryptionType.None;
+
+            using (var stream = ES3Stream.CreateStream(ms, settings, ES3FileMode.Write))
+                stream.Write(bytes, 0, bytes.Length);
+
+            return ms.ToArray();
+        }
+    }
+
+    public static byte[] DecompressBytes(byte[] bytes)
+    {
+        using (var ms = new System.IO.MemoryStream(bytes))
+        {
+            var settings = new ES3Settings();
+            settings.location = ES3.Location.InternalMS;
+            settings.compressionType = ES3.CompressionType.Gzip;
+            settings.encryptionType = EncryptionType.None;
+
+            using (var output = new System.IO.MemoryStream())
+            {
+                using (var input = ES3Stream.CreateStream(ms, settings, ES3FileMode.Read))
+                    ES3Stream.CopyTo(input, output);
+                return output.ToArray();
+            }
+        }
+    }
+
+    public static string CompressString(string str)
+    {
+        return Convert.ToBase64String(CompressBytes(ES3Settings.defaultSettings.encoding.GetBytes(str)));
+    }
+
+    public static string DecompressString(string str)
+    {
+        return ES3Settings.defaultSettings.encoding.GetString(DecompressBytes(Convert.FromBase64String(str)));
     }
 
     /// <summary>Deletes the default file.</summary>
@@ -874,7 +1081,7 @@ public static class ES3
         else if (settings.location == Location.Cache)
             ES3File.RemoveCachedFile(settings);
         else if (settings.location == Location.Resources)
-            throw new System.NotSupportedException("Deleting files from Resources is not supported.");
+            throw new System.NotSupportedException("Deleting files from Resources is not possible.");
     }
 
     /// <summary>Copies a file from one path to another.</summary>
@@ -907,7 +1114,13 @@ public static class ES3
         {
             if (ES3IO.FileExists(oldSettings.FullPath))
             {
-                ES3IO.DeleteFile(newSettings.FullPath);
+                // Create the new directory if it doesn't exist.
+                string newDirectory = ES3IO.GetDirectoryPath(newSettings.FullPath);
+                if (!ES3IO.DirectoryExists(newDirectory))
+                    ES3IO.CreateDirectory(newDirectory);
+                // Otherwise delete the existing file so that we can overwrite it.
+                else
+                    ES3IO.DeleteFile(newSettings.FullPath);
                 ES3IO.CopyFile(oldSettings.FullPath, newSettings.FullPath);
             }
         }
@@ -995,7 +1208,7 @@ public static class ES3
     public static void CopyDirectory(ES3Settings oldSettings, ES3Settings newSettings)
     {
         if (oldSettings.location != Location.File)
-            throw new InvalidOperationException("ES3.CopyDirectory can only be used when the save location is 'File'");
+            throw new InvalidOperationException("ES3.CopyDirectory can only be used when the save location is 'File' or 'Cache', and can't be used with WebGL.");
 
         if (!DirectoryExists(oldSettings))
             throw new System.IO.DirectoryNotFoundException("Directory " + oldSettings.FullPath + " not found");
@@ -1005,11 +1218,11 @@ public static class ES3
 
         foreach (var fileName in ES3.GetFiles(oldSettings))
             CopyFile(ES3IO.CombinePathAndFilename(oldSettings.path, fileName),
-                        ES3IO.CombinePathAndFilename(newSettings.path, fileName));
+                        ES3IO.CombinePathAndFilename(newSettings.path, fileName), oldSettings, newSettings);
 
         foreach (var directoryName in GetDirectories(oldSettings))
             CopyDirectory(ES3IO.CombinePathAndFilename(oldSettings.path, directoryName),
-                            ES3IO.CombinePathAndFilename(newSettings.path, directoryName));
+                            ES3IO.CombinePathAndFilename(newSettings.path, directoryName), oldSettings, newSettings);
     }
 
     /// <summary>Renames a file.</summary>
@@ -1226,8 +1439,8 @@ public static class ES3
     {
         if (settings.location == Location.File)
             return ES3IO.DirectoryExists(settings.FullPath);
-        else if (settings.location == Location.PlayerPrefs || settings.location == Location.Cache)
-            throw new System.NotSupportedException("Directories are not supported for the Cache and PlayerPrefs location.");
+        else if (settings.location == Location.PlayerPrefs || Application.platform == RuntimePlatform.WebGLPlayer)
+            throw new System.NotSupportedException("Directories are not supported for PlayerPrefs or WebGL.");
         else if (settings.location == Location.Resources)
             throw new System.NotSupportedException("Checking existence of folder in Resources not supported.");
         return false;
@@ -1265,6 +1478,9 @@ public static class ES3
         var keys = new List<string>();
         using (var reader = ES3Reader.Create(settings))
         {
+            if (reader == null)
+                throw new System.IO.FileNotFoundException("Could not get keys from file "+settings.FullPath+" as file does not exist");
+
             foreach (string key in reader.Properties)
             {
                 keys.Add(key);
@@ -1281,11 +1497,11 @@ public static class ES3
         if (settings.location == ES3.Location.File)
         {
             if (settings.directory == ES3.Directory.PersistentDataPath)
-                settings.path = Application.persistentDataPath;
+                settings.path = ES3IO.persistentDataPath;
             else 
-                settings.path = Application.dataPath;
+                settings.path = ES3IO.dataPath;
         }
-        return GetFiles(settings);
+        return GetFiles(new ES3Settings());
     }
 
     /// <summary>Gets an array of all of the file names in a directory.</summary>
@@ -1474,8 +1690,6 @@ public static class ES3
     }
 
     /// <summary>Loads the default file in persistent storage into the cache.</summary>
-	/// <remarks>A backup is created by copying the file and giving it a .bak extension. 
-	/// If a backup already exists it will be overwritten, so you will need to ensure that the old backup will not be required before calling this method.</remarks>
 	public static void CacheFile()
     {
         CacheFile(new ES3Settings());
@@ -1488,16 +1702,16 @@ public static class ES3
         CacheFile(new ES3Settings(filePath));
     }
 
-    /// <summary>Creates a backup of a file.</summary>
+    /// <summary>Loads a file from persistent storage into the cache.</summary>
     /// <param name="filePath">The filename or path of the file we want to store the cached file to.</param>
-    /// <param name="settings">The settings of the file we want to store to.</param>
+    /// <param name="settings">The settings of the file we want to cache.</param>
     public static void CacheFile(string filePath, ES3Settings settings)
     {
         CacheFile(new ES3Settings(filePath, settings));
     }
 
-    /// <summary>Stores a cached file to persistent storage.</summary>
-    /// <param name="settings">The settings of the file we want to store to.</param>
+    /// <summary>Loads a file from persistent storage into the cache.</summary>
+    /// <param name="settings">The settings of the file we want to cache.</param>
     public static void CacheFile(ES3Settings settings)
     {
         ES3File.CacheFile(settings);
@@ -1507,6 +1721,7 @@ public static class ES3
     public static void Init()
     {
         var settings = ES3Settings.defaultSettings;
+        var pdp = ES3IO.persistentDataPath; // Call this to initialise ES3IO for threading purposes.
         ES3TypeMgr.Init();
     }
 

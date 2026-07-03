@@ -23,31 +23,37 @@ MonoBehaviour:
     prettyPrint: 1
     bufferSize: 2048
     saveChildren: 1
+    postprocessRawCachedData: 0
+    storeCacheAtEndOfEveryFrame: 1
+    storeCacheOnApplicationQuit: 1
+    storeCacheOnApplicationPause: 1
+    autoCacheDefaultFile: 1
+    autoCacheFileOnLoad: 1
     typeChecking: 1
     safeReflection: 1
     memberReferenceMode: 0
     referenceMode: 2
     serializationDepthLimit: 64
     assemblyNames:
+    - Assembly-CSharp
     - Assembly-CSharp-firstpass
     - Reflex
-    - UniTask
-    - Reflex.Editor
-    - Editor
-    - ToonyColorsPro.Editor
-    - PPv2URPConverters
     - ToonyColorsPro.Runtime
-    - UniTask.Linq
-    - Assembly-CSharp
-    - UniTask.TextMeshPro
+    - UniTask
     - UniTask.Addressables
-    - UniTask.Editor
     - UniTask.DOTween
-    - Sirenix.OdinInspector.Modules.UnityMathematics
+    - UniTask.Linq
+    - UniTask.TextMeshPro
     showAdvancedSettings: 0
   addMgrToSceneAutomatically: 0
   autoUpdateReferences: 1
   addAllPrefabsToManager: 1
+  collectDependenciesDepth: 4
+  collectDependenciesTimeout: 10
+  updateReferencesWhenSceneChanges: 1
+  updateReferencesWhenSceneIsSaved: 1
+  updateReferencesWhenSceneIsOpened: 1
+  referenceFolders: []
   logDebugInfo: 0
   logWarnings: 1
   logErrors: 1

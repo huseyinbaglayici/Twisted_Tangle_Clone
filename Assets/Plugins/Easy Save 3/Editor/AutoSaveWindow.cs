@@ -1,7 +1,7 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEditor;
+using UnityEngine.SceneManagement;
+using UnityEditor.SceneManagement;
 using ES3Internal;
 
 namespace ES3Editor
@@ -22,9 +22,18 @@ namespace ES3Editor
 
         private string searchTerm = "";
 
-        public AutoSaveWindow(EditorWindow window) : base("Auto Save", window){}
+        public AutoSaveWindow(EditorWindow window) : base("Auto Save", window)
+        {
+            EditorSceneManager.activeSceneChangedInEditMode += ChangedActiveScene;
+        }
 
-		public override void OnGUI()
+        private void ChangedActiveScene(Scene current, Scene next)
+        {
+            mgr = null;
+            Init();
+        }
+
+        public override void OnGUI()
 		{
 			Init();
 
@@ -52,9 +61,11 @@ namespace ES3Editor
                     showAdvancedSettings = EditorGUILayout.Foldout(showAdvancedSettings, "Show Advanced Settings");
                     if (showAdvancedSettings)
                     {
+                        EditorGUILayout.HelpBox("We recommend against changing these settings unless instructed to do so by the documentation or by support.", MessageType.Warning);
                         EditorGUI.indentLevel++;
                         mgr.key = EditorGUILayout.TextField("Key", mgr.key);
                         ES3SettingsEditor.Draw(mgr.settings);
+                        mgr.immediatelyCommitToFile = EditorGUILayout.ToggleLeft("Immediately commit cached data to file", mgr.immediatelyCommitToFile);
                         EditorGUI.indentLevel--;
                     }
                 }
@@ -88,8 +99,16 @@ namespace ES3Editor
 
                     using (new EditorGUILayout.HorizontalScope(GUILayout.Width(200)))
                     {
-                        searchTerm = GUILayout.TextField(searchTerm, GUI.skin.FindStyle("ToolbarSeachTextField"));
-                        if (GUILayout.Button("", GUI.skin.FindStyle("ToolbarSeachCancelButton")))
+                        var searchTextFieldSkin = GUI.skin.FindStyle("ToolbarSearchTextField");
+                        if (searchTextFieldSkin == null)
+                            searchTextFieldSkin = GUI.skin.FindStyle("ToolbarSeachTextField");
+
+                        var searchButtonSkin = GUI.skin.FindStyle("ToolbarSearchCancelButton");
+                        if (searchButtonSkin == null)
+                            searchButtonSkin = GUI.skin.FindStyle("ToolbarSeachCancelButton");
+
+                        searchTerm = GUILayout.TextField(searchTerm, searchTextFieldSkin);
+                        if (GUILayout.Button("", searchButtonSkin))
                         {
                             // Remove focus if cleared
                             searchTerm = "";
@@ -112,11 +131,9 @@ namespace ES3Editor
 		public void Init()
 		{
             if (mgr == null)
-            {
-                var mgrs = Resources.FindObjectsOfTypeAll<ES3AutoSaveMgr>();
-                if (mgrs.Length > 0)
-                    mgr = mgrs[0];
-            }
+                foreach (var thisMgr in Resources.FindObjectsOfTypeAll<ES3AutoSaveMgr>())
+                    if (thisMgr != null && thisMgr.gameObject.scene == SceneManager.GetActiveScene())
+                        mgr = thisMgr;
 
             if (hierarchy == null)
                 OnFocus();
@@ -124,16 +141,23 @@ namespace ES3Editor
 
         public override void OnFocus()
         {
-
             GameObject[] parentObjects;
+
+            var mgr = ES3ReferenceMgr.GetManagerFromScene(SceneManager.GetActiveScene(), false);
+
             if (sceneOpen)
+            {
                 parentObjects = UnityEngine.SceneManagement.SceneManager.GetActiveScene().GetRootGameObjects();
+
+                if (mgr != null)
+                    ArrayUtility.Remove(ref parentObjects, mgr.gameObject);
+            }
             else // Prefabs
             {
-                var prefabs = ES3ReferenceMgr.Current.prefabs;
+                var prefabs = mgr.prefabs;
                 parentObjects = new GameObject[prefabs.Count];
                 for (int i = 0; i < prefabs.Count; i++)
-                    if(prefabs[i] != null)
+                    if (prefabs[i] != null)
                         parentObjects[i] = prefabs[i].gameObject;
             }
             hierarchy = new HierarchyItem[parentObjects.Length];
@@ -184,14 +208,22 @@ namespace ES3Editor
             public void DrawHierarchy(string searchTerm)
             {
                 bool containsSearchTerm = false;
+
                 if (t != null)
                 {
-                    if (containsSearchTerm = t.name.ToLowerInvariant().Contains(searchTerm))
+                    // Filter by tag if it's prefixed by "tag:"
+                    if (searchTerm.StartsWith("tag:") && t.tag.ToLowerInvariant().Contains(searchTerm.Remove(0, 4)))
+                        containsSearchTerm = true;
+                    // Else filter by name
+                    else
+                        containsSearchTerm = t.name.ToLowerInvariant().Contains(searchTerm);
+
+                    if (containsSearchTerm)
                     {
                         GUIContent saveIcon;
                         EditorGUIUtility.SetIconSize(new Vector2(16, 16));
 
-                        if (HasSelectedComponents())
+                        if (HasSelectedComponentsOrFields())
                             saveIcon = new GUIContent(t.name, EditorStyle.Get.saveIconSelected, "There are Components on this GameObject which will be saved.");
                         else
                             saveIcon = new GUIContent(t.name, EditorStyle.Get.saveIconUnselected, "No Components on this GameObject will be saved");
@@ -218,44 +250,35 @@ namespace ES3Editor
                 }
 
                 // Draw children
-                if(children != null)
+                if (children != null)
                     foreach (var child in children)
-                        if(child != null)
+                        if (child != null)
                             child.DrawHierarchy(searchTerm);
 
-                if(containsSearchTerm)
-                    EditorGUI.indentLevel-=1;
+                if (containsSearchTerm)
+                    EditorGUI.indentLevel -= 1;
             }
 
             public void DrawComponents()
             {
-                EditorGUI.indentLevel+=3;
+                EditorGUI.indentLevel += 3;
                 using (var scope = new EditorGUILayout.VerticalScope())
                 {
-                    bool toggle;
-                    toggle = EditorGUILayout.ToggleLeft("active", autoSave != null ? autoSave.saveActive : false);
-                    if((autoSave = (toggle && autoSave == null) ? t.gameObject.AddComponent<ES3AutoSave>() : autoSave) != null)
-                        autoSave.saveActive = toggle;
+                    DisplayToggle("saveActive", "active", autoSave == null ? false : autoSave.saveActive);
 
-                    toggle = EditorGUILayout.ToggleLeft("hideFlags", autoSave != null ? autoSave.saveHideFlags : false);
-                    if ((autoSave = (toggle && autoSave == null) ? t.gameObject.AddComponent<ES3AutoSave>() : autoSave) != null)
-                        autoSave.saveHideFlags = toggle;
+                    if (!PrefabUtility.IsPartOfPrefabAsset(t))
+                        DisplayToggle("saveDestroyed", "destroyed", autoSave == null ? false : autoSave.saveDestroyed);
+                    else
+                        if (EditorGUILayout.ToggleLeft("destroyed", false))
+                        EditorUtility.DisplayDialog("Marking prefabs destroyed is not necessary", "Marking prefabs as destroyed is not necessary because their destroyed state is implied by their absense from the save data.\nFor example if you destroy a prefab instance and save, it will not be in the save data so will never be created when you load.", "Ok");
 
-                    toggle = EditorGUILayout.ToggleLeft("layer", autoSave != null ? autoSave.saveLayer : false);
-                    if ((autoSave = (toggle && autoSave == null) ? t.gameObject.AddComponent<ES3AutoSave>() : autoSave) != null)
-                        autoSave.saveLayer = toggle;
-
-                    toggle = EditorGUILayout.ToggleLeft("name", autoSave != null ? autoSave.saveName : false);
-                        if ((autoSave = (toggle && autoSave == null) ? t.gameObject.AddComponent<ES3AutoSave>() : autoSave) != null)
-                        autoSave.saveName = toggle;
-
-                    toggle = EditorGUILayout.ToggleLeft("tag", autoSave != null ? autoSave.saveTag : false);
-                    if ((autoSave = (toggle && autoSave == null) ? t.gameObject.AddComponent<ES3AutoSave>() : autoSave) != null)
-                        autoSave.saveTag = toggle;
+                    DisplayToggle("saveHideFlags", "hideFlags", autoSave == null ? false : autoSave.saveHideFlags);
+                    DisplayToggle("saveName", "name", autoSave == null ? false : autoSave.saveName);
+                    DisplayToggle("saveTag", "tag", autoSave == null ? false : autoSave.saveTag);
 
                     foreach (var component in components)
                     {
-                        if (component == null)
+                        if (component == null || component is ES3AutoSave || component is ES3Prefab)
                             continue;
 
                         using (var horizontalScope = new EditorGUILayout.HorizontalScope())
@@ -270,36 +293,80 @@ namespace ES3Editor
                             {
                                 if (autoSave == null)
                                 {
-                                    autoSave = t.gameObject.AddComponent<ES3AutoSave>();
-                                    autoSave.saveChildren = false;
+                                    autoSave = Undo.AddComponent<ES3AutoSave>(t.gameObject);
+                                    var so = new SerializedObject(autoSave);
+                                    so.FindProperty("saveChildren").boolValue = false;
+                                    so.ApplyModifiedProperties();
                                 }
                                 // If we've unchecked the box, remove the Component from the array.
                                 if (newValue == false)
-                                    autoSave.componentsToSave.Remove(component);
+                                {
+                                    var so = new SerializedObject(autoSave);
+                                    var prop = so.FindProperty("componentsToSave");
+                                    var index = autoSave.componentsToSave.IndexOf(component);
+                                    prop.DeleteArrayElementAtIndex(index);
+                                    so.ApplyModifiedProperties();
+                                }
                                 // Else, add it to the array.
                                 else
-                                    autoSave.componentsToSave.Add(component);
+                                {
+                                    var so = new SerializedObject(autoSave);
+                                    var prop = so.FindProperty("componentsToSave");
+                                    prop.arraySize++;
+                                    prop.GetArrayElementAtIndex(prop.arraySize - 1).objectReferenceValue = component;
+                                    so.ApplyModifiedProperties();
+                                }
                             }
-                            if(GUILayout.Button(EditorGUIUtility.IconContent("_Popup"), new GUIStyle("Label")))
+                            if (GUILayout.Button(EditorGUIUtility.IconContent("_Popup"), new GUIStyle("Label")))
                                 ES3Window.InitAndShowTypes(component.GetType());
                         }
                     }
                 }
 
-                if(autoSave != null && (autoSave.componentsToSave == null || autoSave.componentsToSave.Count == 0) && !autoSave.saveActive && !autoSave.saveChildren && !autoSave.saveHideFlags && !autoSave.saveLayer && !autoSave.saveName && !autoSave.saveTag)
+                /*if(autoSave != null && isDirty)
+                {
+                    EditorUtility.SetDirty(autoSave);
+                    if (PrefabUtility.IsPartOfPrefabInstance(autoSave))
+                        PrefabUtility.RecordPrefabInstancePropertyModifications(autoSave.gameObject);
+                }*/
+
+                if (autoSave != null && (autoSave.componentsToSave == null || autoSave.componentsToSave.Count == 0) && !autoSave.saveActive && !autoSave.saveChildren && !autoSave.saveHideFlags && !autoSave.saveLayer && !autoSave.saveName && !autoSave.saveTag &&!autoSave.saveDestroyed)
                 {
                     Undo.DestroyObjectImmediate(autoSave);
                     autoSave = null;
                 }
-                EditorGUI.indentLevel-=3;
+                EditorGUI.indentLevel -= 3;
             }
 
-            public bool HasSelectedComponents()
+            void DisplayToggle(string fieldName, string label, bool value)
             {
-                if (autoSave != null)
-                    foreach (var component in components)
-                        if (component != null && autoSave.componentsToSave.Contains(component))
-                            return true;
+                if (EditorGUILayout.ToggleLeft(label, value) != value)
+                    ApplyBool(fieldName, !value);
+            }
+
+            public void ApplyBool(string propertyName, bool value)
+            {
+                if (autoSave == null)
+                    autoSave = t.gameObject.AddComponent<ES3AutoSave>();
+
+                var so = new SerializedObject(autoSave);
+                so.FindProperty(propertyName).boolValue = value;
+                so.ApplyModifiedProperties();
+            }
+
+            public bool HasSelectedComponentsOrFields()
+            {
+                if (autoSave == null)
+                    return false;
+
+
+                foreach (var component in components)
+                    if (component != null && autoSave.componentsToSave.Contains(component))
+                        return true;
+
+                if (autoSave.saveActive || autoSave.saveHideFlags || autoSave.saveLayer || autoSave.saveName || autoSave.saveTag || autoSave.saveDestroyed)
+                    return true;
+
                 return false;
             }
         }

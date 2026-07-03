@@ -26,9 +26,9 @@ namespace ES3Types
                 var baseType = ES3Reflection.BaseType(obj.GetType());
                 if (baseType != typeof(object))
                 {
-                    var es3Type = ES3TypeMgr.GetOrCreateES3Type(baseType);
-                    // If it's a Dictionary, we need to write it as a field with a property name.
-                    if (es3Type.isDictionary || es3Type.isCollection)
+                    var es3Type = ES3TypeMgr.GetOrCreateES3Type(baseType, false);
+                    // If it's a Dictionary or Collection, we need to write it as a field with a property name.
+                    if (es3Type != null && (es3Type.isDictionary || es3Type.isCollection))
                         writer.WriteProperty("_Values", obj, es3Type);
                 }
 
@@ -45,8 +45,6 @@ namespace ES3Types
 
 				if(propertyName == ES3Type.typeFieldName)
 					return ES3TypeMgr.GetOrCreateES3Type(reader.ReadType()).Read<T>(reader);
-				else if(propertyName == null)
-					return null;
 				else
 				{
 					reader.overridePropertiesName = propertyName;

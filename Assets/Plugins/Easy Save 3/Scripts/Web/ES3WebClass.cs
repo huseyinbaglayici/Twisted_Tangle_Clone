@@ -118,7 +118,7 @@ namespace ES3Internal
 			else if(errorIfDataIsDownloaded && webRequest.downloadedBytes > 0)
 			{
 				errorCode = 2;
-				error = "Server error: " + webRequest.downloadHandler.text;
+				error = "Server error: '" + webRequest.downloadHandler.text + "'";
 			}
 			else
 				return false;

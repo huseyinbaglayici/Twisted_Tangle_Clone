@@ -23,7 +23,12 @@ namespace ES3Types
 			writer.WriteProperty("rateOverTimeMultiplier", instance.rateOverTimeMultiplier, ES3Type_float.Instance);
 			writer.WriteProperty("rateOverDistance", instance.rateOverDistance, ES3Type_MinMaxCurve.Instance);
 			writer.WriteProperty("rateOverDistanceMultiplier", instance.rateOverDistanceMultiplier, ES3Type_float.Instance);
-		}
+
+            var bursts = new ParticleSystem.Burst[instance.burstCount];
+            instance.GetBursts(bursts);
+            writer.WriteProperty("bursts", bursts, ES3Type_BurstArray.Instance);
+        }
+
 
 		public override object Read<T>(ES3Reader reader)
 		{
@@ -56,7 +61,10 @@ namespace ES3Types
 					case "rateOverDistanceMultiplier":
 						instance.rateOverDistanceMultiplier = reader.Read<System.Single>(ES3Type_float.Instance);
 						break;
-					default:
+                    case "bursts":
+                        instance.SetBursts(reader.Read<UnityEngine.ParticleSystem.Burst[]>(ES3Type_BurstArray.Instance));
+                        break;
+                    default:
 						reader.Skip();
 						break;
 				}

@@ -8,8 +8,10 @@ namespace ES3Internal
     {
 #if UNITY_SWITCH
         internal static readonly string persistentDataPath = "";
+        internal static readonly string dataPath = "";
 #else
         internal static readonly string persistentDataPath = Application.persistentDataPath;
+        internal static readonly string dataPath = Application.dataPath;
 #endif
 
         internal const string backupFileSuffix = ".bac";
@@ -55,6 +57,11 @@ namespace ES3Internal
             char slashChar = UsesForwardSlash(path) ? '/' : '\\';
 
             int slash = path.LastIndexOf(slashChar);
+
+            // If this path ends in a slash it is assumed to already be a path to a Directory.
+            if (slash == path.Length - 1)
+                return path;
+
             // Ignore trailing slash if necessary.
             if (slash == (path.Length - 1))
                 slash = path.Substring(0, slash).LastIndexOf(slashChar);
@@ -98,9 +105,14 @@ namespace ES3Internal
                 Directory.Delete(directoryPath, true);
         }
 
+        // Note: Paths not ending in a slash are assumed to be a path to a file. 
+        // In this case the Directory containing the file will be searched.
         public static string[] GetFiles(string path, bool getFullPaths = true)
         {
-            var paths = Directory.GetFiles(path);
+            // If this is pointing to a filename, get the path to it's directory.
+            var directoryPath = path.EndsWith("/") || path.EndsWith("\\") ? path : GetDirectoryPath(path);
+
+            var paths = Directory.GetFiles(directoryPath);
             if (!getFullPaths)
             {
                 for (int i = 0; i < paths.Length; i++)
@@ -135,10 +147,12 @@ namespace ES3Internal
                     // Delete any old backups.
                     DeleteFile(oldFileBackup);
                     // Rename the old file so we can restore it if it fails.
-                    MoveFile(settings.FullPath, oldFileBackup);
+                    CopyFile(settings.FullPath, oldFileBackup);
 
                     try
                     {
+                        // Delete the old file so that we can move it.
+                        DeleteFile(settings.FullPath);
                         // Now rename the temporary file to the name of the save file.
                         MoveFile(temporaryFilePath, settings.FullPath);
                     }

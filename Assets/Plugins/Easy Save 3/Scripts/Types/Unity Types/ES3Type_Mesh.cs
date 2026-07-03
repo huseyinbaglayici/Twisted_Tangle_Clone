@@ -24,10 +24,9 @@ namespace ES3Types
                 return;
             }
 
-			#if UNITY_2017_3
 			writer.WriteProperty("indexFormat", instance.indexFormat);
-			#endif
-			writer.WriteProperty("vertices", instance.vertices, ES3Type_Vector3Array.Instance);
+            writer.WriteProperty("name", instance.name);
+            writer.WriteProperty("vertices", instance.vertices, ES3Type_Vector3Array.Instance);
 			writer.WriteProperty("triangles", instance.triangles, ES3Type_intArray.Instance);
 			writer.WriteProperty("bounds", instance.bounds, ES3Type_Bounds.Instance);
 			writer.WriteProperty("boneWeights", instance.boneWeights, ES3Type_BoneWeightArray.Instance);
@@ -39,9 +38,32 @@ namespace ES3Types
 			writer.WriteProperty("uv3", instance.uv3, ES3Type_Vector2Array.Instance);
 			writer.WriteProperty("uv4", instance.uv4, ES3Type_Vector2Array.Instance);
 			writer.WriteProperty("colors32", instance.colors32, ES3Type_Color32Array.Instance);
-			writer.WriteProperty("subMeshCount", instance.subMeshCount, ES3Type_int.Instance);
+            writer.WriteProperty("subMeshCount", instance.subMeshCount, ES3Type_int.Instance);
 			for(int i=0; i<instance.subMeshCount; i++)
 				writer.WriteProperty("subMesh"+i, instance.GetTriangles(i), ES3Type_intArray.Instance);
+
+            // Blend shapes.
+            writer.WriteProperty("blendShapeCount", instance.blendShapeCount);
+
+            for (int blendShapeIndex=0; blendShapeIndex<instance.blendShapeCount; blendShapeIndex++)
+            {
+                writer.WriteProperty("GetBlendShapeName" + blendShapeIndex, instance.GetBlendShapeName(blendShapeIndex));
+                writer.WriteProperty("GetBlendShapeFrameCount" + blendShapeIndex, instance.GetBlendShapeFrameCount(blendShapeIndex));
+
+                for (int frameIndex = 0; frameIndex < instance.GetBlendShapeFrameCount(blendShapeIndex); frameIndex++)
+                {
+                    var deltaVertices = new Vector3[instance.vertexCount];
+                    var deltaNormals = new Vector3[instance.vertexCount];
+                    var deltaTangents = new Vector3[instance.vertexCount];
+
+                    instance.GetBlendShapeFrameVertices(blendShapeIndex, frameIndex, deltaVertices, deltaNormals, deltaTangents);
+
+                    writer.WriteProperty("blendShapeDeltaVertices" + blendShapeIndex + "_" + frameIndex, deltaVertices);
+                    writer.WriteProperty("blendShapeDeltaNormals" + blendShapeIndex + "_" + frameIndex, deltaNormals);
+                    writer.WriteProperty("blendShapeDeltaTangents" + blendShapeIndex + "_" + frameIndex, deltaTangents);
+                    writer.WriteProperty("blendShapeFrameWeight" + blendShapeIndex + "_" + frameIndex, instance.GetBlendShapeFrameWeight(blendShapeIndex, frameIndex));
+                }
+            }
 		}
 
 		protected override object ReadUnityObject<T>(ES3Reader reader)
@@ -71,12 +93,13 @@ namespace ES3Types
 
                 switch (propertyName)
 				{
-					#if UNITY_2017_3
 					case "indexFormat":
 						instance.indexFormat = reader.Read<UnityEngine.Rendering.IndexFormat>();
 						break;
-					#endif
-					case "bounds":
+                    case "name":
+                        instance.name = reader.Read<string>(ES3Type_string.Instance);
+                        break;
+                    case "bounds":
 						instance.bounds = reader.Read<UnityEngine.Bounds>(ES3Type_Bounds.Instance);
 						break;
 					case "boneWeights":
@@ -117,7 +140,26 @@ namespace ES3Types
 						for(int i=0; i<instance.subMeshCount; i++)
 							instance.SetTriangles(reader.ReadProperty<int[]>(ES3Type_intArray.Instance), i);
 						break;
-					default:
+                    case "blendShapeCount":
+                        instance.ClearBlendShapes();
+                        var blendShapeCount = reader.Read<System.Int32>(ES3Type_int.Instance);
+                        for (int blendShapeIndex = 0; blendShapeIndex < blendShapeCount; blendShapeIndex++)
+                        {
+                            var shapeName = reader.ReadProperty<string>();
+                            var frameCount = reader.ReadProperty<int>();
+                            
+                            for (int frameIndex = 0; frameIndex < frameCount; frameIndex++)
+                            {
+                                var deltaVertices = reader.ReadProperty<Vector3[]>();
+                                var deltaNormals = reader.ReadProperty<Vector3[]>();
+                                var deltaTangents = reader.ReadProperty<Vector3[]>();
+                                var frameWeight = reader.ReadProperty<float>();
+
+                                instance.AddBlendShapeFrame(shapeName, frameWeight, deltaVertices, deltaNormals, deltaTangents);
+                            }
+                        }
+                        break;
+                    default:
 						reader.Skip();
 						break;
 				}

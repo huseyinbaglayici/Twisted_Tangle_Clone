@@ -1,3 +1,5 @@
+#if ES3_UGUI
+
 using System;
 using UnityEngine;
 
@@ -9,7 +11,7 @@ namespace ES3Types
 	{
 		public static ES3Type Instance = null;
 
-		public ES3Type_Image() : base(typeof(UnityEngine.UI.Image)){ Instance = this; priority = 1;}
+		public ES3Type_Image() : base(typeof(UnityEngine.UI.Image)){ Instance = this; }
 
 
 		protected override void WriteComponent(object obj, ES3Writer writer)
@@ -17,7 +19,6 @@ namespace ES3Types
 			var instance = (UnityEngine.UI.Image)obj;
 			
 			writer.WritePropertyByRef("sprite", instance.sprite);
-			writer.WritePropertyByRef("overrideSprite", instance.overrideSprite);
 			writer.WriteProperty("type", instance.type);
 			writer.WriteProperty("preserveAspect", instance.preserveAspect, ES3Type_bool.Instance);
 			writer.WriteProperty("fillCenter", instance.fillCenter, ES3Type_bool.Instance);
@@ -25,7 +26,8 @@ namespace ES3Types
 			writer.WriteProperty("fillAmount", instance.fillAmount, ES3Type_float.Instance);
 			writer.WriteProperty("fillClockwise", instance.fillClockwise, ES3Type_bool.Instance);
 			writer.WriteProperty("fillOrigin", instance.fillOrigin, ES3Type_int.Instance);
-			writer.WriteProperty("alphaHitTestMinimumThreshold", instance.alphaHitTestMinimumThreshold, ES3Type_float.Instance);
+            //alphaHitTestMinimumThreshold is disabled as Unity provides no way to check for crunch compression which is required to set this variable.
+            //writer.WriteProperty("alphaHitTestMinimumThreshold", instance.alphaHitTestMinimumThreshold, ES3Type_float.Instance);
 #if UNITY_2019_1_OR_NEWER
             writer.WriteProperty("useSpriteMesh", instance.useSpriteMesh, ES3Type_bool.Instance);
 #endif
@@ -56,9 +58,6 @@ namespace ES3Types
 					case "sprite":
 						instance.sprite = reader.Read<UnityEngine.Sprite>(ES3Type_Sprite.Instance);
 						break;
-					case "overrideSprite":
-						instance.overrideSprite = reader.Read<UnityEngine.Sprite>(ES3Type_Sprite.Instance);
-						break;
 					case "type":
 						instance.type = reader.Read<UnityEngine.UI.Image.Type>();
 						break;
@@ -80,9 +79,9 @@ namespace ES3Types
 					case "fillOrigin":
 						instance.fillOrigin = reader.Read<System.Int32>(ES3Type_int.Instance);
 						break;
-					case "alphaHitTestMinimumThreshold":
+					/*case "alphaHitTestMinimumThreshold":
 						instance.alphaHitTestMinimumThreshold = reader.Read<System.Single>(ES3Type_float.Instance);
-						break;
+						break;*/
 #if UNITY_2019_1_OR_NEWER
                     case "useSpriteMesh":
 						instance.useSpriteMesh = reader.Read<System.Boolean>(ES3Type_bool.Instance);
@@ -134,3 +133,5 @@ namespace ES3Types
 		}
 	}
 }
+
+#endif

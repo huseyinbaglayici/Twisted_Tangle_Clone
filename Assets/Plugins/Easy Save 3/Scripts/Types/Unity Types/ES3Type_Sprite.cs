@@ -4,7 +4,7 @@ using UnityEngine;
 namespace ES3Types
 {
     [UnityEngine.Scripting.Preserve]
-    [ES3PropertiesAttribute("texture", "textureRect", "pivot", "pixelsPerUnit", "border")]
+    [ES3PropertiesAttribute("texture", "rect", "pivot", "pixelsPerUnit", "border")]
     public class ES3Type_Sprite : ES3UnityObjectType
     {
         public static ES3Type Instance = null;
@@ -16,7 +16,7 @@ namespace ES3Types
             var instance = (UnityEngine.Sprite)obj;
 
             writer.WriteProperty("texture", instance.texture, ES3Type_Texture2D.Instance);
-            writer.WriteProperty("textureRect", instance.textureRect, ES3Type_Rect.Instance);
+            writer.WriteProperty("rect", instance.rect, ES3Type_Rect.Instance);
             // Pivot value is in pixels, but we require a normalised pivot when using Sprite.Create during loading, so we normalise it here.
             writer.WriteProperty("pivot", new Vector2(instance.pivot.x / instance.texture.width, instance.pivot.y / instance.texture.height), ES3Type_Vector2.Instance);
             writer.WriteProperty("pixelsPerUnit", instance.pixelsPerUnit, ES3Type_float.Instance);
@@ -32,7 +32,7 @@ namespace ES3Types
         protected override object ReadUnityObject<T>(ES3Reader reader)
         {
             Texture2D texture = null;
-            Rect textureRect = Rect.zero;
+            Rect rect = Rect.zero;
             Vector2 pivot = Vector2.zero;
             float pixelsPerUnit = 0;
             Vector4 border = Vector4.zero;
@@ -45,7 +45,8 @@ namespace ES3Types
                         texture = reader.Read<UnityEngine.Texture2D>(ES3Type_Texture2D.Instance);
                         break;
                     case "textureRect":
-                        textureRect = reader.Read<Rect>(ES3Type_Rect.Instance);
+                    case "rect":
+                        rect = reader.Read<Rect>(ES3Type_Rect.Instance);
                         break;
                     case "pivot":
                         pivot = reader.Read<UnityEngine.Vector2>(ES3Type_Vector2.Instance);
@@ -62,7 +63,7 @@ namespace ES3Types
                 }
             }
 
-            return Sprite.Create(texture, textureRect, pivot, pixelsPerUnit, 0, SpriteMeshType.Tight, border);
+            return Sprite.Create(texture, rect, pivot, pixelsPerUnit, 0, SpriteMeshType.Tight, border);
         }
     }
 }

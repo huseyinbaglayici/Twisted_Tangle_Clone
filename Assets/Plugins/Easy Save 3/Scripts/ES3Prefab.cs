@@ -64,7 +64,7 @@ namespace ES3Internal
             foreach (var kvp in localRefs)
             {
                 long id = refMgr.Add(kvp.Key);
-                localToGlobal.Add(kvp.Value.ToString(), id.ToString());
+                localToGlobal[kvp.Value.ToString()] = id.ToString();
             }
             return localToGlobal;
         }
@@ -89,8 +89,10 @@ namespace ES3Internal
 #if UNITY_EDITOR
         public void GeneratePrefabReferences()
         {
-#if UNITY_2018_3_OR_NEWER
+#if UNITY_2021_3_OR_NEWER
             if (this.gameObject.scene.name != null || UnityEditor.SceneManagement.PrefabStageUtility.GetCurrentPrefabStage() != null)
+#elif UNITY_2018_3_OR_NEWER
+            if (this.gameObject.scene.name != null || UnityEditor.Experimental.SceneManagement.PrefabStageUtility.GetCurrentPrefabStage() != null)
 #else
             if (this.gameObject.scene.name != null)
 #endif
@@ -105,8 +107,10 @@ namespace ES3Internal
             for (int i = 0; i < transforms.Length; i++)
                 gos[i] = transforms[i].gameObject;
 
+            bool addedNewReference = false;
+
             // Add the GameObject's dependencies to the reference list.
-            foreach (var obj in ES3ReferenceMgr.CollectDependencies(gos))
+            foreach (var obj in EditorUtility.CollectDependencies(gos))
             {
                 var dependency = (UnityEngine.Object)obj;
                 if (obj == null || !ES3ReferenceMgr.CanBeSaved(dependency))
@@ -116,13 +120,15 @@ namespace ES3Internal
                 // If we're adding a new reference, do an Undo.RecordObject to ensure it persists.
                 if (id == -1)
                 {
+                    addedNewReference = true;
                     Undo.RecordObject(this, "Update Easy Save 3 Prefab");
                     EditorUtility.SetDirty(this);
                 }
                 tempLocalRefs.Add(dependency, id == -1 ? GetNewRefID() : id);
             }
 
-            localRefs = tempLocalRefs;
+            if (addedNewReference || tempLocalRefs.Count != localRefs.Count)
+                localRefs = tempLocalRefs;
         }
 #endif
     }

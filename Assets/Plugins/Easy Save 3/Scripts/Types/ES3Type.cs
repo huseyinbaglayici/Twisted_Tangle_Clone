@@ -19,6 +19,7 @@ namespace ES3Types
 		public bool isValueType = false;
 		public bool isCollection = false;
 		public bool isDictionary = false;
+        public bool isTuple = false;
         public bool isEnum = false;
 		public bool isES3TypeUnityObject = false;
 		public bool isReflectedType = false;
@@ -27,6 +28,7 @@ namespace ES3Types
 
 		protected ES3Type(Type type)
 		{
+			// It's important the type is added here, otherwise it may cause a StackOverflow if the class has a field of the same type as itself (or collection).
 			ES3TypeMgr.Add(type, this);
 			this.type = type;
 			this.isValueType = ES3Reflection.IsValueType(type);
@@ -75,6 +77,7 @@ namespace ES3Types
 		{
 			if(members == null)
 				GetMembers(writer.settings.safeReflection);
+
 			for(int i=0; i<members.Length; i++)
 			{
 				var property = members[i];
@@ -168,6 +171,7 @@ namespace ES3Types
 		protected void GetMembers(bool safe, string[] memberNames)
 		{
 			var serializedMembers = ES3Reflection.GetSerializableMembers(type, safe, memberNames);
+
 			members = new ES3Member[serializedMembers.Length];
 			for(int i=0; i<serializedMembers.Length; i++)
 				members[i] = new ES3Member(serializedMembers[i]);
