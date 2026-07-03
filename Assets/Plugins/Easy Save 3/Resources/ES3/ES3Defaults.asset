@@ -30,16 +30,15 @@ MonoBehaviour:
     serializationDepthLimit: 64
     assemblyNames:
     - Assembly-CSharp-firstpass
-    - Zenject
-    - Zenject-IntegrationTests
+    - Reflex
     - UniTask
+    - Reflex.Editor
     - Editor
     - ToonyColorsPro.Editor
     - PPv2URPConverters
     - ToonyColorsPro.Runtime
     - UniTask.Linq
     - Assembly-CSharp
-    - Zenject-TestFramework
     - UniTask.TextMeshPro
     - UniTask.Addressables
     - UniTask.Editor
