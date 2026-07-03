@@ -1,0 +1,51 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using Reflex.Attributes;
+using Reflex.Extensions;
+using Reflex.Reflectors;
+
+namespace Reflex.Caching
+{
+    internal static class TypeConstructionInfoCache
+    {
+        private static readonly Dictionary<IntPtr, TypeConstructionInfo> _dictionary = new();
+
+        internal static TypeConstructionInfo Get(Type type)
+        {
+            var key = type.TypeHandle.Value;
+            if (!_dictionary.TryGetValue(key, out var info))
+            {
+                info = Generate(type);
+                _dictionary.Add(key, info);
+            }
+        
+            return info;
+        }
+        
+        private static TypeConstructionInfo Generate(Type type)
+        {
+            if (type.TryGetConstructors(out var constructors))
+            {
+                var constructor = constructors.FirstOrDefault(c => Attribute.IsDefined(c, typeof(ReflexConstructorAttribute))); // Try to get a constructor that defines ReflexConstructor
+
+                if (constructor == null)
+                {
+                    constructor = constructors.MaxBy(ctor => ctor.GetParameters().Length); // Gets the constructor with most arguments
+                }
+                
+                var parameters = constructor.GetParameters();
+                var paramInfo = parameters.Select(p => 
+                    new MemberParamInfo(p.ParameterType, 
+                    p.HasDefaultValue, 
+                    p.DefaultValue))
+                    .ToArray();
+                    
+                return new TypeConstructionInfo(ActivatorFactoryManager.Factory.GenerateActivator(type, constructor, paramInfo), paramInfo);
+            }
+
+            // Should we add this complexity to be able to inject value types?
+            return new TypeConstructionInfo(ActivatorFactoryManager.Factory.GenerateDefaultActivator(type), Array.Empty<MemberParamInfo>());
+        }
+    }
+}
