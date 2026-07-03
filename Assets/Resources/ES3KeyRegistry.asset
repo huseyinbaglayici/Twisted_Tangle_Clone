@@ -1,0 +1,36 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4cf01f3c6b9586f4c9a23c527449af12, type: 3}
+  m_Name: ES3KeyRegistry
+  m_EditorClassIdentifier: 
+  entries:
+  - key: Currency
+    type: 0
+    intDefault: 0
+    floatDefault: 0
+    boolDefault: 0
+    stringDefault: 
+    byteDefault: 0
+  - key: Health
+    type: 4
+    intDefault: 0
+    floatDefault: 0
+    boolDefault: 0
+    stringDefault: 
+    byteDefault: 5
+  - key: Level
+    type: 0
+    intDefault: 1
+    floatDefault: 0
+    boolDefault: 0
+    stringDefault: 
+    byteDefault: 0

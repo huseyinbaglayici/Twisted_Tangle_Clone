@@ -7,6 +7,12 @@
       "dependencies": {},
       "hash": "e5acc106ee196bc5a32fb14cdf2987b0f96d11e0"
     },
+    "com.huseyinbaglayici.es3-key-manager": {
+      "version": "file:ES3-Window_Extension",
+      "depth": 0,
+      "source": "embedded",
+      "dependencies": {}
+    },
     "com.unity.2d.sprite": {
       "version": "1.0.0",
       "depth": 0,

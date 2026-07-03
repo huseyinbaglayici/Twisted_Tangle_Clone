@@ -37,6 +37,8 @@ MonoBehaviour:
     assemblyNames:
     - Assembly-CSharp
     - Assembly-CSharp-firstpass
+    - EasySave3
+    - ES3KeyManager
     - Reflex
     - ToonyColorsPro.Runtime
     - UniTask
