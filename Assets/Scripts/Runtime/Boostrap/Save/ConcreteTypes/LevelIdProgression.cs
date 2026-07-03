@@ -1,15 +1,23 @@
-﻿namespace Runtime.Boostrap.Save.ConcreteTypes
+﻿using ES3KeyManager;
+
+namespace Runtime.Boostrap.Save.ConcreteTypes
 {
     public class LevelIdProgression : ISavable<int>
     {
+        private const string LevelID = "LevelID";
+
         public int Load()
         {
-            return 1;
+            if (ES3.KeyExists(LevelID))
+                return ES3Keys.LoadInt(LevelID);
+            return 0;
         }
 
         public void Save(int value)
         {
-            throw new System.NotImplementedException();
+            if (!ES3.KeyExists(LevelID))
+                return;
+            ES3Keys.SaveInt(LevelID, value);
         }
     }
 }
