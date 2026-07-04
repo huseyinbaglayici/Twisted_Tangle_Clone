@@ -1,9 +1,6 @@
 using Reflex.Core;
-using Reflex.Enums;
 using Runtime.Boostrap;
-using Runtime.Boostrap.Pool;
 using UnityEngine;
-using Resolution = Reflex.Enums.Resolution;
 
 namespace Runtime._Installers
 {
@@ -11,7 +8,6 @@ namespace Runtime._Installers
     {
         public void InstallBindings(ContainerBuilder builder)
         {
-            builder.RegisterType(typeof(PoolRegistry), Lifetime.Singleton, Resolution.Eager);
             builder.RegisterValue(new BoostrapReadyService());
         }
     }
