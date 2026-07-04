@@ -105,7 +105,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: dc56669f23e54042a9164c0c6f9c6e05, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  pinPrefab: {fileID: -2319084285281465594, guid: fe347e991f11ebf4088a1862904a0b8f,
+  pinPrefab: {fileID: 4338241001903807374, guid: fe347e991f11ebf4088a1862904a0b8f,
     type: 3}
   ropePrefab: {fileID: 0}
   gridCellPrefab: {fileID: 0}

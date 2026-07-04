@@ -83,6 +83,11 @@ PrefabInstance:
       propertyPath: m_Name
       value: Pin
       objectReference: {fileID: 0}
+    - target: {fileID: 2108629213487684686, guid: 43931d88ee69c9046aba81f8595b99f2,
+        type: 3}
+      propertyPath: m_Name
+      value: PinVisual
+      objectReference: {fileID: 0}
     - target: {fileID: 4803813084240995372, guid: 43931d88ee69c9046aba81f8595b99f2,
         type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
@@ -116,7 +121,27 @@ PrefabInstance:
     - target: {fileID: 6326357308202581789, guid: 43931d88ee69c9046aba81f8595b99f2,
         type: 3}
       propertyPath: m_LocalPosition.z
-      value: 18.48
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6326357308202581789, guid: 43931d88ee69c9046aba81f8595b99f2,
+        type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 0.7071068
+      objectReference: {fileID: 0}
+    - target: {fileID: 6326357308202581789, guid: 43931d88ee69c9046aba81f8595b99f2,
+        type: 3}
+      propertyPath: m_LocalRotation.x
+      value: -0.7071068
+      objectReference: {fileID: 0}
+    - target: {fileID: 6326357308202581789, guid: 43931d88ee69c9046aba81f8595b99f2,
+        type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6326357308202581789, guid: 43931d88ee69c9046aba81f8595b99f2,
+        type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: -90
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects:
@@ -127,7 +152,7 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 43931d88ee69c9046aba81f8595b99f2,
         type: 3}
       insertIndex: -1
-      addedObject: {fileID: -2319084285281465594}
+      addedObject: {fileID: 4338241001903807374}
   m_SourcePrefab: {fileID: 100100000, guid: 43931d88ee69c9046aba81f8595b99f2, type: 3}
 --- !u!1 &8276867043546807023 stripped
 GameObject:
@@ -135,7 +160,7 @@ GameObject:
     type: 3}
   m_PrefabInstance: {fileID: 9087207867453507518}
   m_PrefabAsset: {fileID: 0}
---- !u!114 &-2319084285281465594
+--- !u!114 &4338241001903807374
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
