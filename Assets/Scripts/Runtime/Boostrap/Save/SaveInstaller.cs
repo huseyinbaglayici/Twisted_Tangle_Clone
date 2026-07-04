@@ -6,14 +6,6 @@ namespace Runtime.Boostrap.Save
 {
     public class SaveInstaller : MonoBehaviour, IInstaller
     {
-        #region Savable Data Types
-
-        private LevelIdProgression _levelIDValue;
-        private CurrencyStorage _currencyValue;
-        private HealthStorage _healthValue;
-
-        #endregion
-
         public void InstallBindings(ContainerBuilder builder)
         {
             var saveService = new SaveService();
