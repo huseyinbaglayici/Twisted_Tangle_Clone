@@ -1395,6 +1395,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   panelTransform: {fileID: 1116869688}
+  playButton: {fileID: 968516781}
 --- !u!1 &1034254957
 GameObject:
   m_ObjectHideFlags: 0
