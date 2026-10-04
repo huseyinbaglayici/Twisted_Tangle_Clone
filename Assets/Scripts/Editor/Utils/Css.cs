@@ -15,8 +15,6 @@ namespace TwistedTangle.Editor.Utils
         public const string Hint          = "tt-hint";
         public const string Row           = "tt-row";
         public const string RowWrap       = "tt-row--wrap";
-        public const string Subgroup      = "tt-subgroup";
-        public const string Subname       = "tt-subname";
         public const string Metric        = "tt-metric";
 
         // ── Buttons ───────────────────────────────────────────────────────────
@@ -39,10 +37,6 @@ namespace TwistedTangle.Editor.Utils
         public const string StatusDotError  = "tt-status-dot--error";
         public const string StatusDotWarn   = "tt-status-dot--warn";
 
-        // ── Difficulty badge ──────────────────────────────────────────────────
-        public const string DifficultyBadge = "tt-difficulty-badge";
-        // modifier suffix: $"{DifficultyBadge}--{difficulty}" (dynamic — no const possible)
-
         // ── Metric chips ──────────────────────────────────────────────────────
         public const string MetricChip     = "tt-metric-chip";
         public const string MetricChipWarn = "tt-metric-chip--warn";
@@ -64,13 +58,10 @@ namespace TwistedTangle.Editor.Utils
         public const string RopeRowIconBtn         = "tt-rope-row__icon-btn";
         public const string RopeRowIconBtnDanger   = "tt-rope-row__icon-btn--danger";
 
-        // ── Palette / swatches ────────────────────────────────────────────────
+        // ── Rope color swatches ────────────────────────────────────────────────
         public const string SwatchGrid              = "tt-swatch-grid";
         public const string Swatch                  = "tt-swatch";
         public const string SwatchSelected          = "tt-swatch--selected";
-        public const string SwatchFilterBtn         = "tt-swatch-filter-btn";
-        public const string PalettePickerLabel      = "tt-palette-picker__label";
-        public const string PaletteSelectorCompact  = "tt-palette-selector--compact";
 
         // ── LevelCreator layout ───────────────────────────────────────────────
         public const string AppContainer         = "tt-app-container";
@@ -80,7 +71,6 @@ namespace TwistedTangle.Editor.Utils
         public const string TopbarSep            = "tt-topbar__sep";
         public const string LevelPropsBar        = "tt-level-props-bar";
         public const string LevelPropsBarLabel   = "tt-level-props-bar__label";
-        public const string LevelPropsBarField   = "tt-level-props-bar__field";
         public const string CanvasPanel          = "tt-canvas-panel";
         public const string CanvasHost           = "tt-canvas-host";
         public const string Canvas               = "tt-canvas";
@@ -91,10 +81,5 @@ namespace TwistedTangle.Editor.Utils
         public const string RightDivider         = "tt-right-divider";
         public const string RopeBar              = "tt-rope-bar";
         public const string RopeBarScroll        = "tt-rope-bar__scroll";
-
-        // ── AI Generator window ───────────────────────────────────────────────
-        public const string AiGroupHeader    = "tt-ai-group-header";
-        public const string AiEntityRow      = "tt-ai-entity-row";
-        public const string AiEntityRequired = "tt-ai-entity-required";
     }
 }

@@ -1,26 +1,17 @@
 using System.Collections.Generic;
-using System.Linq;
-using Editor.Geometry;
-using Runtime.Data.Enums;
-using TwistedTangle.Editor.Settings;
-using TwistedTangle.Runtime.Data.Enums;
-using TwistedTangle.Runtime.Data.ScriptableObjects;
+using Runtime.Level;
 using UnityEngine;
 
 namespace TwistedTangle.Editor.Validation
 {
     public struct LevelMetrics
     {
-        public int EntityCount;
+        public int PinCount;
+        public int LockedPinCount;
         public int RopeCount;
-        public int CrossingCount;
-        public int TangleResidual;
-        public bool Separable;
-        public int ColorCount;
-        public int OverrideCount;
-        public float TotalPathLength;
-        public float DifficultyScore;
-        public LevelDifficulty Difficulty;
+        public int CrossingPairs;   // rope pairs that touch (touching ropes can't merge)
+        public int TangledRopes;    // ropes touching at least one other rope
+        public int FreeCells;
     }
 
     /// <summary>Outcome of validating a level: blocking errors, advisory warnings, and metrics.</summary>
@@ -34,148 +25,144 @@ namespace TwistedTangle.Editor.Validation
     }
 
     /// <summary>
-    /// Catches broken/incomplete levels in the editor (not in game) and reports rough difficulty so
-    /// designers can fix things themselves instead of bouncing every issue back to an engineer.
+    /// Catches broken levels in the editor using the same rules the runtime plays by (BoardModel /
+    /// RopeGeometry / RopeTensionRule), so a green level here loads and behaves the same in game.
     /// </summary>
     public static class LevelValidator
     {
-        public static ValidationReport Validate(LevelDataSO level, ICollection<string> knownEntityTypeIds,
-            DifficultySettingsSO settings = null)
+        public static ValidationReport Validate(LevelJson level)
         {
             var report = new ValidationReport();
-            if (level == null)
+            if (level == null || level.stages == null || level.stages.Count == 0)
             {
                 report.Errors.Add("No level data.");
                 return report;
             }
 
-            // --- structural errors -------------------------------------------------------------
-            if (level.LevelId < 1)
-                report.Errors.Add("Level Id must be >= 1 (0 is reserved for \"no level\").");
-            if (level.GridWidth <= 0 || level.GridHeight <= 0)
-                report.Errors.Add($"Grid size is invalid ({level.GridWidth}x{level.GridHeight}).");
-            if (level.TimeSeconds <= 0)
-                report.Errors.Add("Level time must be greater than 0 seconds.");
+            if (level.levelNumber < 1)
+                report.Errors.Add("Level number must be >= 1.");
+            if (level.moveLimit < 0 || level.timeLimitSeconds < 0)
+                report.Errors.Add("Move limit / time limit can't be negative (0 = unlimited).");
 
-            // Entity coordinate index + duplicate / unknown-type / out-of-bounds checks.
-            var entityCells = new HashSet<Vector2Int>();
-            foreach (var entity in level.GridEntities)
+            var stage = level.stages[0];
+            if (level.stages.Count > 1)
+                report.Warnings.Add($"Level has {level.stages.Count} stages; the editor shows stage 1 only.");
+
+            if (stage.gridWidth <= 0 || stage.gridHeight <= 0)
             {
-                if (!entityCells.Add(entity.Coordinates))
-                    report.Errors.Add($"Duplicate entity at {entity.Coordinates}.");
-
-                if (!InBounds(entity.Coordinates, level))
-                    report.Errors.Add($"Entity at {entity.Coordinates} is outside the grid.");
-
-                if (knownEntityTypeIds != null && !knownEntityTypeIds.Contains(entity.TypeId))
-                    report.Errors.Add($"Entity at {entity.Coordinates} has unknown type '{entity.TypeId}'.");
+                report.Errors.Add($"Grid size is invalid ({stage.gridWidth}x{stage.gridHeight}).");
+                return report;
             }
 
-            // Rope checks + which entities actually get used.
-            // NOTE: rope PegCoords are sub-grid coordinates; entity Coordinates are coarse.
-            // Use CrossingSolver.SubToPinCoord to convert endpoints for entity lookup.
-            var usedEntities = new HashSet<Vector2Int>(); // coarse coords
-            int subMax = CrossingSolver.SubDiv;
-            foreach (var rope in level.Ropes)
+            if (stage.gridWidth != StageJson.WidthForMap(stage.mapId) ||
+                stage.gridHeight != StageJson.HeightForMap(stage.mapId))
+                report.Warnings.Add($"Grid {stage.gridWidth}x{stage.gridHeight} doesn't match map {stage.mapId} " +
+                                    $"({StageJson.WidthForMap(stage.mapId)}x{StageJson.HeightForMap(stage.mapId)}).");
+
+            // --- pins ---------------------------------------------------------------------------
+            var pinsById = new Dictionary<int, PinJson>();
+            var occupied = new HashSet<Vector2Int>();
+            foreach (var pin in stage.pins)
             {
-                if (rope?.Path == null || rope.Path.Count < 2)
+                if (!pinsById.TryAdd(pin.id, pin))
+                    report.Errors.Add($"Duplicate pin id {pin.id}.");
+                if (!InBounds(pin.Cell, stage))
+                    report.Errors.Add($"Pin {pin.id} at {pin.Cell} is outside the grid.");
+                if (!occupied.Add(pin.Cell))
+                    report.Errors.Add($"Two pins share cell {pin.Cell}.");
+            }
+
+            // --- ropes --------------------------------------------------------------------------
+            var ropeIds = new HashSet<int>();
+            var usedPins = new HashSet<int>();
+            bool ropesValid = true;
+            foreach (var rope in stage.ropes)
+            {
+                if (!ropeIds.Add(rope.id))
+                    report.Errors.Add($"Duplicate rope id {rope.id}.");
+
+                bool hasA = pinsById.TryGetValue(rope.pinA, out var a);
+                bool hasB = pinsById.TryGetValue(rope.pinB, out var b);
+                if (!hasA || !hasB)
                 {
-                    report.Errors.Add($"Rope {rope?.RopeId} has fewer than 2 waypoints.");
+                    report.Errors.Add($"Rope {rope.id} references a missing pin ({rope.pinA} → {rope.pinB}).");
+                    ropesValid = false;
                     continue;
                 }
 
-                for (int i = 0; i < rope.Path.Count; i++)
+                if (rope.pinA == rope.pinB)
                 {
-                    var wp = rope.Path[i];
-                    var subCoord = wp.PegCoord;
-
-                    if (!wp.IsBendPoint)
-                    {
-                        // Pin waypoint: sub-grid → coarse for entity lookup.
-                        var coarseCoord = CrossingSolver.SubToPinCoord(subCoord);
-                        usedEntities.Add(coarseCoord);
-                        if (!entityCells.Contains(coarseCoord))
-                        {
-                            string where = i == 0 || i == rope.Path.Count - 1 ? "endpoint" : "waypoint";
-                            report.Errors.Add($"Rope {rope.RopeId} {where} at {coarseCoord} is not on an entity.");
-                        }
-                    }
-                    else
-                    {
-                        // Bend point: validate sub-grid bounds.
-                        if (subCoord.x < 0 || subCoord.y < 0 ||
-                            subCoord.x >= level.GridWidth * subMax || subCoord.y >= level.GridHeight * subMax)
-                            report.Errors.Add($"Rope {rope.RopeId} bend at sub-grid {subCoord} is outside the grid.");
-                    }
-
-                    if (i > 0 && rope.Path[i - 1].PegCoord == subCoord)
-                        report.Warnings.Add($"Rope {rope.RopeId} repeats the same position {subCoord}.");
+                    report.Errors.Add($"Rope {rope.id} starts and ends on the same pin.");
+                    ropesValid = false;
+                    continue;
                 }
+
+                usedPins.Add(rope.pinA);
+                usedPins.Add(rope.pinB);
+
+                float length = Vector2.Distance(a.Cell, b.Cell);
+                float max = RopeTensionRule.MaxLength(RopeTensionRule.RestLength);
+                float warn = RopeTensionRule.RestLength * (1f + RopeTensionRule.WarnPercentage * RopeTensionRule.MaxTension);
+                if (length > max)
+                    report.Errors.Add($"Rope {rope.id} is too long ({length:0.00} > {max:0.00}) — over max tension.");
+                else if (length > warn)
+                    report.Warnings.Add($"Rope {rope.id} starts red/tense ({length:0.00} > {warn:0.00}).");
+
+                if (rope.path != null && rope.path.Count == 1)
+                    report.Warnings.Add($"Rope {rope.id} has a 1-point path (ignored, drawn straight).");
             }
 
-            // --- warnings ----------------------------------------------------------------------
-            foreach (var entity in level.GridEntities)
-                if (entityCells.Contains(entity.Coordinates) && !usedEntities.Contains(entity.Coordinates))
-                    report.Warnings.Add($"Entity at {entity.Coordinates} is not used by any rope.");
+            foreach (var pin in stage.pins)
+                if (!usedPins.Contains(pin.id))
+                    report.Warnings.Add($"Pin {pin.id} at {pin.Cell} is not used by any rope.");
 
-            var crossings = CrossingSolver.FindCrossings(level.Ropes);
-            var ropesWithCrossing = new HashSet<int>();
-            foreach (var c in crossings)
+            // --- tutorial -----------------------------------------------------------------------
+            if (level.tutorial != null && level.tutorial.pinId >= 0)
             {
-                ropesWithCrossing.Add(c.RopeIdA);
-                ropesWithCrossing.Add(c.RopeIdB);
+                if (!pinsById.ContainsKey(level.tutorial.pinId))
+                    report.Errors.Add($"Tutorial pin {level.tutorial.pinId} doesn't exist.");
+                if (!InBounds(level.tutorial.TargetCell, stage) || occupied.Contains(level.tutorial.TargetCell))
+                    report.Errors.Add($"Tutorial target {level.tutorial.TargetCell} must be an empty cell.");
             }
 
-            foreach (var rope in level.Ropes)
-                if (rope is { Path: { Count: >= 2 } } && !ropesWithCrossing.Contains(rope.RopeId))
-                    report.Warnings.Add($"Rope {rope.RopeId} never crosses another rope (trivial).");
+            // --- metrics (runtime crossing rule) ------------------------------------------------
+            var metrics = new LevelMetrics
+            {
+                PinCount = stage.pins.Count,
+                RopeCount = stage.ropes.Count,
+                FreeCells = stage.gridWidth * stage.gridHeight - occupied.Count,
+            };
+            foreach (var pin in stage.pins) if (pin.locked) metrics.LockedPinCount++;
 
-            // Peelability: how tangled the level really is once over/under is taken into account.
-            var aOver = CrossingSolver.ResolveOverUnder(level.Ropes, crossings, level.CrossingOverrides);
-            int residual = CrossingSolver.PeelResidual(level.Ropes, crossings, aOver);
+            if (ropesValid && report.Errors.Count == 0)
+            {
+                var board = BuildBoard(level);
+                int sum = 0;
+                foreach (var r in board.Ropes)
+                {
+                    sum += r.CrossingCount;
+                    if (r.CrossingCount > 0) metrics.TangledRopes++;
+                }
+                metrics.CrossingPairs = sum / 2;
 
-            // --- metrics + difficulty ----------------------------------------------------------
-            report.Metrics = BuildMetrics(level, crossings.Count, settings);
-            report.Metrics.TangleResidual = residual;
-            report.Metrics.Separable = residual == 0;
+                if (stage.ropes.Count > 0 && metrics.TangledRopes == 0)
+                    report.Warnings.Add("No rope touches another — the level is already solved.");
+            }
+
+            report.Metrics = metrics;
             return report;
         }
 
-        private static LevelMetrics BuildMetrics(LevelDataSO level, int crossingCount, DifficultySettingsSO settings)
+        /// <summary>Loads stage 1 into the runtime BoardModel (call only on a level without errors).</summary>
+        public static BoardModel BuildBoard(LevelJson level)
         {
-            float length = 0f;
-            foreach (var rope in level.Ropes)
-            {
-                if (rope?.Path == null) continue;
-                for (int i = 1; i < rope.Path.Count; i++)
-                    length += Vector2.Distance(
-                        CrossingSolver.SubCenter(rope.Path[i - 1].PegCoord),
-                        CrossingSolver.SubCenter(rope.Path[i].PegCoord));
-            }
-
-            int colorCount = level.Ropes
-                .Where(r => r is { Path: { Count: >= 2 } })
-                .Select(r => r.Tint)
-                .Distinct()
-                .Count();
-
-            settings ??= DifficultySettingsSO.LoadOrCreate();
-            float score = settings.ComputeScore(crossingCount, level.Ropes.Count, colorCount, length, level.CrossingOverrides.Count);
-
-            return new LevelMetrics
-            {
-                EntityCount     = level.GridEntities.Count,
-                RopeCount       = level.Ropes.Count,
-                CrossingCount   = crossingCount,
-                ColorCount      = colorCount,
-                OverrideCount   = level.CrossingOverrides.Count,
-                TotalPathLength = length,
-                DifficultyScore = score,
-                Difficulty      = settings.Classify(score),
-            };
+            var stage = level.stages[0];
+            var board = new BoardModel();
+            board.Load(stage, level.moveLimit, new BoardGrid(stage.gridWidth, stage.gridHeight));
+            return board;
         }
 
-        private static bool InBounds(Vector2Int c, LevelDataSO level) =>
-            c.x >= 0 && c.y >= 0 && c.x < level.GridWidth && c.y < level.GridHeight;
+        private static bool InBounds(Vector2Int c, StageJson stage) =>
+            c.x >= 0 && c.y >= 0 && c.x < stage.gridWidth && c.y < stage.gridHeight;
     }
 }

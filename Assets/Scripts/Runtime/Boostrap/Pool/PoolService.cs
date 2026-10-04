@@ -1,14 +1,22 @@
 using System;
 using System.Collections.Generic;
+using DG.Tweening;
 using UnityEngine;
 
 namespace Runtime.Boostrap.Pool
 {
+    // Active-object tracking, DespawnAll, re-parent on despawn, transform/tween reset and a
+    // double-despawn guard.
     public class PoolService<T> where T : Component, IPoolable
     {
-        private Queue<T> _poolables = new Queue<T>();
-        private Func<T> _factory;
+        private readonly Queue<T> _inactive = new();
+        private readonly List<T> _active = new();
+        private readonly HashSet<T> _activeSet = new();
+        private readonly Func<T> _factory;
         private readonly Transform _parent;
+
+        public int ActiveCount => _active.Count;
+        public IReadOnlyList<T> Active => _active;
 
         public PoolService(Func<T> factory, Transform parent)
         {
@@ -19,38 +27,50 @@ namespace Runtime.Boostrap.Pool
         public void Prewarm(int count)
         {
             for (int i = 0; i < count; i++)
-            {
-                _poolables.Enqueue(CreateNew());
-            }
+                _inactive.Enqueue(CreateNew());
         }
 
-        public T Dequeue()
+        public T Dequeue(Transform parent = null)
         {
-            _poolables.TryDequeue(out var dequeuedObject);
-            if (EqualityComparer<T>.Default.Equals(dequeuedObject, default))
-            {
-                var obj = CreateNew();
-                obj.Spawn();
-                return obj;
-            }
+            var obj = _inactive.Count > 0 ? _inactive.Dequeue() : CreateNew();
 
-            dequeuedObject.Spawn();
-            return dequeuedObject;
-        }
+            var t = obj.transform;
+            t.SetParent(parent != null ? parent : _parent, false);
+            t.localRotation = Quaternion.identity;
+            t.localScale = Vector3.one;
 
-        private T CreateNew()
-        {
-            var obj = _factory();
-            obj.transform.SetParent(_parent);
-            obj.gameObject.SetActive(false);
+            _active.Add(obj);
+            _activeSet.Add(obj);
+            obj.gameObject.SetActive(true);
+            obj.Spawn();
             return obj;
         }
 
         public void Enqueue(T obj)
         {
+            if (obj == null || !_activeSet.Remove(obj))
+                return; // already in pool (merge + level reset can hit the same object in one frame)
+
+            _active.Remove(obj);
+            obj.transform.DOKill();
             obj.Despawn();
             obj.gameObject.SetActive(false);
-            _poolables.Enqueue(obj);
+            obj.transform.SetParent(_parent, false);
+            _inactive.Enqueue(obj);
+        }
+
+        public void DespawnAll()
+        {
+            for (int i = _active.Count - 1; i >= 0; i--)
+                Enqueue(_active[i]);
+        }
+
+        private T CreateNew()
+        {
+            var obj = _factory();
+            obj.transform.SetParent(_parent, false);
+            obj.gameObject.SetActive(false);
+            return obj;
         }
     }
 }

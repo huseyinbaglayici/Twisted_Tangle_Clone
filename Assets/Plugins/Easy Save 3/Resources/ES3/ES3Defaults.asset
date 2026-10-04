@@ -39,8 +39,10 @@ MonoBehaviour:
     - Assembly-CSharp-firstpass
     - EasySave3
     - ES3KeyManager
+    - Obi
     - Reflex
     - ToonyColorsPro.Runtime
+    - TwistedTangle.Level
     - UniTask
     - UniTask.Addressables
     - UniTask.DOTween

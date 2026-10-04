@@ -1,10 +1,8 @@
 using System.Collections.Generic;
 using System.Linq;
-using TwistedTangle.Editor.Settings;
 using TwistedTangle.Editor.Utils;
 using TwistedTangle.Editor.Validation;
 using UnityEditor;
-using UnityEditor.UIElements;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -40,27 +38,8 @@ namespace TwistedTangle.Editor
             scroll.Add(title);
 
             scroll.Add(BuildBatchCheckSection());
-            scroll.Add(BuildDifficultySettingsSection());
 
             root.Add(scroll);
-        }
-
-        private VisualElement BuildDifficultySettingsSection()
-        {
-            var section = new Foldout { text = "Difficulty Parameters", value = false };
-            section.AddToClassList(Css.Section);
-
-            var hint = new Label("Weights and thresholds used by the validator and AI generator to score level difficulty.");
-            hint.AddToClassList(Css.Hint);
-            hint.style.whiteSpace = WhiteSpace.Normal;
-            hint.style.marginBottom = 6;
-            section.Add(hint);
-
-            var settings = DifficultySettingsSO.LoadOrCreate();
-            var inspector = new InspectorElement(settings);
-            section.Add(inspector);
-
-            return section;
         }
 
         private VisualElement BuildBatchCheckSection()
@@ -116,8 +95,8 @@ namespace TwistedTangle.Editor
             }
 
             int ok = 0;
-            foreach (var r in results) if (r.ValidationErrors == 0 && r.Crossings == 0) ok++;
-            _batchSummary.text = $"{ok}/{results.Count} valid & untangled ({from}–{to})";
+            foreach (var r in results) if (r.ValidationErrors == 0 && r.Crossings > 0) ok++;
+            _batchSummary.text = $"{ok}/{results.Count} valid & tangled ({from}–{to})";
 
             _batchResultsContainer.Add(MakeTableHeader());
             foreach (var r in results)
@@ -146,12 +125,12 @@ namespace TwistedTangle.Editor
         private static VisualElement MakeTableRow(LevelCheckResult r)
         {
             string status = r.ValidationErrors > 0 ? "INVALID"
-                : r.Crossings == 0                 ? "Clean"
-                : "Has crossings";
+                : r.Crossings == 0                 ? "Already solved"
+                : "OK";
 
             string statusCls = r.ValidationErrors > 0 ? Css.ValidationError
-                : r.Crossings == 0                    ? Css.ValidationOk
-                : Css.ValidationWarn;
+                : r.Crossings == 0                    ? Css.ValidationWarn
+                : Css.ValidationOk;
 
             string errors = r.ValidationErrors > 0 ? r.ValidationErrors.ToString() : "";
 

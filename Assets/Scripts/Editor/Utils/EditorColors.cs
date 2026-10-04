@@ -21,13 +21,8 @@ namespace TwistedTangle.Editor.Utils
         public static readonly Color RopeOutlineLight = new(0.06f, 0.06f, 0.06f, 0.60f);
         public static readonly Color SelectionGlow    = new(1f,    1f,    1f,    0.40f);
 
-        // ── Canvas: peg / entity ──────────────────────────────────────────────
+        // ── Canvas: pin ──────────────────────────────────────────────
         public static readonly Color PegShadow      = new(0.06f, 0.06f, 0.06f, 0.88f);
-        public static readonly Color PegFallback    = new(0.80f, 0.80f, 0.80f);
-        public static readonly Color EntityFallback = new(0.50f, 0.50f, 0.50f);
         public static readonly Color PinDefault     = new(0.85f, 0.85f, 0.85f);
-
-        // ── Palette popup ─────────────────────────────────────────────────────
-        public static readonly Color SwatchBorder   = new(0f, 0f, 0f, 0.50f);
     }
 }

@@ -1,292 +1,173 @@
 using System;
-using System.Collections.Generic;
 using System.Text;
-using TwistedTangle.Runtime.Data.ScriptableObjects;
-using TwistedTangle.Runtime.Data.ValueObjects;
+using Runtime.Level;
 using UnityEngine;
 
 namespace TwistedTangle.Editor.Generation
 {
     public sealed class LevelGenerationRequest
     {
-        public int GridWidth = 6;
-        public int GridHeight = 6;
-        public int TimeSeconds = 45;
-        public string Difficulty = "Medium";
-        public List<string> EntityTypeIds   = new(); // movable peg types
-        public List<string> NailedTypeIds   = new(); // immovable peg types (rope endpoints, can't be dragged)
-        public List<string> ObstacleTypeIds = new(); // immovable cell blockers — no rope endpoints
-        public List<string> PaletteHex      = new();
-        public string ReferenceLevelDescription = null;
+        public int MapId = 1;
+        public int MoveLimit;
+        public string Difficulty = "Easy";
+        public int PaletteCount = 8;
+        public string ReferenceLevelDescription;
     }
 
-    // Concrete per-difficulty targets scaled to grid size.
-    // All numbers are guidelines the AI must respect; the validator will catch violations.
+    // Per-difficulty targets, following the level curve (levels 1-4: 2 ropes, 5-10: 3, 11-30: 4-5).
     internal readonly struct DifficultyProfile
     {
         public readonly int RopeMin, RopeMax;
-        public readonly int CrossingMin, CrossingMax;
-        public readonly int PegMin, PegMax;
-        public readonly int FreeCellPercent;    // minimum % of grid cells that must stay empty
-        public readonly int MaxNailedEndpoints; // nailed pins allowed across all ropes
-        public readonly int MaxSolveMoves;      // approx. upper bound on moves to untangle
-        public readonly bool AllowSharedPegs;   // a peg serving as endpoint for 2+ ropes
-        public readonly string TopologyHint;    // crossing arrangement guidance
-        public readonly string SolveHint;       // solution shape guidance
+        public readonly int MaxSolveMoves;
+        public readonly bool SharedPins;
+        public readonly string Hint;
 
-        public DifficultyProfile(
-            int ropeMin, int ropeMax,
-            int crossingMin, int crossingMax,
-            int pegMin, int pegMax,
-            int freeCellPercent,
-            int maxNailedEndpoints,
-            int maxSolveMoves,
-            bool allowSharedPegs,
-            string topologyHint,
-            string solveHint)
+        public DifficultyProfile(int ropeMin, int ropeMax, int maxSolveMoves, bool sharedPins, string hint)
         {
-            RopeMin = ropeMin; RopeMax = ropeMax;
-            CrossingMin = crossingMin; CrossingMax = crossingMax;
-            PegMin = pegMin; PegMax = pegMax;
-            FreeCellPercent = freeCellPercent;
-            MaxNailedEndpoints = maxNailedEndpoints;
+            RopeMin = ropeMin;
+            RopeMax = ropeMax;
             MaxSolveMoves = maxSolveMoves;
-            AllowSharedPegs = allowSharedPegs;
-            TopologyHint = topologyHint;
-            SolveHint = solveHint;
+            SharedPins = sharedPins;
+            Hint = hint;
         }
     }
 
+    /// <summary>
+    /// Provider-agnostic AI level generation: builds a prompt for any AI chat and parses the JSON answer
+    /// straight into the runtime level format (LevelJson), so an imported level is exactly what the game loads.
+    /// </summary>
     public static class LevelAiGenerator
     {
-        // Returns a profile appropriate for the difficulty label and grid area.
-        private static DifficultyProfile GetProfile(string difficulty, int gridCells)
+        private static DifficultyProfile GetProfile(string difficulty) => difficulty switch
         {
-            // Scale rope/peg counts slightly for larger grids so the level fills the space.
-            int bonus = gridCells >= 49 ? 1 : 0; // extra rope on 7x7+
+            "Hard" => new DifficultyProfile(5, 6, 8, true,
+                "Several ropes cross each other in a web; at least one pin holds two ropes, so the order of moves matters."),
+            "Medium" => new DifficultyProfile(4, 5, 5, false,
+                "Ropes cross in a chain: freeing one rope makes room to free the next."),
+            _ => new DifficultyProfile(2, 3, 3, false,
+                "A simple tangle: one or two well-chosen moves free the ropes."),
+        };
 
-            return difficulty switch
-            {
-                "Hard" => new DifficultyProfile(
-                    ropeMin: 4 + bonus, ropeMax: 6 + bonus,
-                    crossingMin: 5,     crossingMax: 9,
-                    pegMin: 7 + bonus,  pegMax: 11 + bonus,
-                    freeCellPercent: 25,
-                    maxNailedEndpoints: 3,
-                    maxSolveMoves: 6,
-                    allowSharedPegs: true,
-                    topologyHint: "NESTED — several ropes share pegs and cross each other in a 'star' or 'web' pattern. Moving one peg affects multiple ropes, so the order of moves matters.",
-                    solveHint: "The solution requires 4–6 ordered moves. Some moves free space for later moves. There is no shortcut — every move is necessary."
-                ),
-                "VeryHard" => new DifficultyProfile(
-                    ropeMin: 5 + bonus, ropeMax: 7 + bonus,
-                    crossingMin: 7,     crossingMax: 12,
-                    pegMin: 9 + bonus,  pegMax: 13 + bonus,
-                    freeCellPercent: 20,
-                    maxNailedEndpoints: 4,
-                    maxSolveMoves: 9,
-                    allowSharedPegs: true,
-                    topologyHint: "WEB — most pegs are shared by 2–3 ropes, forming a dense interconnected web. Every move has cascading effects on multiple ropes.",
-                    solveHint: "The solution requires 7–9 strictly ordered moves. Multiple ropes must be partially freed before others can move at all."
-                ),
-                _ => new DifficultyProfile( // Normal
-                    ropeMin: 3,         ropeMax: 4 + bonus,
-                    crossingMin: 3,     crossingMax: 6,
-                    pegMin: 5,          pegMax: 8 + bonus,
-                    freeCellPercent: 35,
-                    maxNailedEndpoints: 1,
-                    maxSolveMoves: 4,
-                    allowSharedPegs: true,
-                    topologyHint: "MIXED — one or two 'hub' pegs serve two ropes each, creating a moderate dependency. Some crossings are nested, some linear.",
-                    solveHint: "2–4 moves resolve all crossings. At least one move must be made in the right order before another becomes possible."
-                ),
-            };
-        }
-
-        public static string DescribeLevel(LevelDataSO level)
+        public static string DescribeLevel(LevelJson level)
         {
-            if (level == null) return null;
+            if (level?.stages == null || level.stages.Count == 0) return null;
+            var stage = level.stages[0];
             var sb = new StringBuilder();
-            sb.Append($"Grid {level.GridWidth}x{level.GridHeight}, time {level.TimeSeconds}s, {level.Ropes.Count} rope(s)\n");
-            foreach (var rope in level.Ropes)
-            {
-                if (rope?.Path == null || rope.Path.Count < 2) continue;
-                var start = rope.Path[0].PegCoord;
-                var end   = rope.Path[^1].PegCoord;
-                string color = "#" + ColorUtility.ToHtmlStringRGB(rope.Tint);
-                sb.Append($"  Rope {rope.RopeId} ({color}, layer {rope.Layer}): ({start.x},{start.y})");
-                for (int i = 1; i < rope.Path.Count - 1; i++)
-                    sb.Append($" → via ({rope.Path[i].PegCoord.x},{rope.Path[i].PegCoord.y})");
-                sb.Append($" → ({end.x},{end.y})\n");
-            }
+            sb.Append($"Map {stage.mapId} ({stage.gridWidth}x{stage.gridHeight}), {stage.pins.Count} pins, {stage.ropes.Count} ropes\n");
+            foreach (var pin in stage.pins)
+                sb.Append($"  Pin {pin.id}: ({pin.x},{pin.y}){(pin.locked ? " locked" : "")}\n");
+            foreach (var rope in stage.ropes)
+                sb.Append($"  Rope {rope.id}: pin {rope.pinA} → pin {rope.pinB} (color {rope.colorIndex}, layer {rope.layer})\n");
             return sb.ToString();
         }
 
         public static string BuildManualPrompt(LevelGenerationRequest r)
         {
+            int w = StageJson.WidthForMap(r.MapId), h = StageJson.HeightForMap(r.MapId);
             var sb = new StringBuilder();
-            sb.Append(Rules(r));
+            sb.Append(Rules(r, w, h));
             sb.Append("\nOutput ONLY a JSON object (no markdown code fences, no commentary) in EXACTLY this shape:\n");
             sb.Append("{\n");
-            sb.Append("  \"gridWidth\": <int>, \"gridHeight\": <int>, \"timeSeconds\": <int>,\n");
-            sb.Append("  \"gridEntities\": [ { \"x\": <int>, \"y\": <int>, \"typeId\": \"<one of the allowed ids>\" } ],\n");
-            sb.Append("  \"ropes\": [ { \"ropeId\": <int>, \"color\": \"#RRGGBB\", \"layer\": <int>, \"path\": [ { \"x\": <int>, \"y\": <int> } ] } ]\n");
+            sb.Append($"  \"difficulty\": \"{r.Difficulty}\", \"moveLimit\": {r.MoveLimit}, \"timeLimitSeconds\": 0,\n");
+            sb.Append($"  \"stages\": [ {{ \"mapId\": {r.MapId}, \"gridWidth\": {w}, \"gridHeight\": {h},\n");
+            sb.Append("    \"pins\":  [ { \"id\": <int>, \"x\": <int>, \"y\": <int>, \"locked\": <bool> } ],\n");
+            sb.Append("    \"ropes\": [ { \"id\": <int>, \"pinA\": <pin id>, \"pinB\": <pin id>, \"colorIndex\": <int>, \"layer\": <int> } ]\n");
+            sb.Append("  } ]\n");
             sb.Append("}\n");
             return sb.ToString();
         }
 
-        public static bool TryParseLevelJson(string json, out LevelDataSO level, out string error)
+        public static bool TryParseLevelJson(string json, out LevelJson level, out string error)
         {
             level = null;
             error = null;
-            if (string.IsNullOrWhiteSpace(json)) { error = "Nothing pasted."; return false; }
+            if (string.IsNullOrWhiteSpace(json))
+            {
+                error = "Nothing pasted.";
+                return false;
+            }
 
             string obj = ExtractJsonObject(json);
-            if (obj == null) { error = "Could not find a JSON object in the pasted text."; return false; }
+            if (obj == null)
+            {
+                error = "Could not find a JSON object in the pasted text.";
+                return false;
+            }
 
-            LevelDto dto;
-            try { dto = JsonUtility.FromJson<LevelDto>(obj); }
-            catch (Exception e) { error = "Invalid level JSON: " + e.Message; return false; }
+            try { level = LevelJson.FromJson(obj); }
+            catch (Exception e)
+            {
+                error = "Invalid level JSON: " + e.Message;
+                return false;
+            }
 
-            if (dto == null) { error = "Empty level JSON."; return false; }
-            level = ToLevel(dto);
+            if (level?.stages == null || level.stages.Count == 0)
+            {
+                error = "JSON has no stages.";
+                return false;
+            }
+
+            foreach (var stage in level.stages)
+            {
+                if (stage.mapId < 1) stage.mapId = 1;
+                if (stage.gridWidth <= 0) stage.gridWidth = StageJson.WidthForMap(stage.mapId);
+                if (stage.gridHeight <= 0) stage.gridHeight = StageJson.HeightForMap(stage.mapId);
+            }
+            level.tutorial ??= new TutorialJson();
+            if (string.IsNullOrEmpty(level.difficulty)) level.difficulty = "Easy";
             return true;
         }
 
         private static string ExtractJsonObject(string s)
         {
             int start = s.IndexOf('{');
-            int end   = s.LastIndexOf('}');
+            int end = s.LastIndexOf('}');
             return start >= 0 && end > start ? s.Substring(start, end - start + 1) : null;
         }
 
-        private static LevelDataSO ToLevel(LevelDto dto)
+        private static string Rules(LevelGenerationRequest r, int w, int h)
         {
-            var level = ScriptableObject.CreateInstance<LevelDataSO>();
-            level.GridWidth   = Mathf.Max(1, dto.gridWidth);
-            level.GridHeight  = Mathf.Max(1, dto.gridHeight);
-            level.TimeSeconds = Mathf.Max(1, dto.timeSeconds);
-
-            if (dto.gridEntities != null)
-                foreach (var p in dto.gridEntities)
-                    level.GridEntities.Add(new GridEntityData(new Vector2Int(p.x, p.y), p.typeId));
-
-            if (dto.ropes != null)
-                foreach (var r in dto.ropes)
-                {
-                    var rope = new RopeData(r.ropeId, ParseColor(r.color), r.layer);
-                    if (r.path != null)
-                        foreach (var pt in r.path)
-                            rope.Path.Add(new RopeWaypoint(new Vector2Int(pt.x, pt.y)));
-                    level.Ropes.Add(rope);
-                }
-
-            return level;
-        }
-
-        private static Color ParseColor(string hex) =>
-            !string.IsNullOrEmpty(hex) && ColorUtility.TryParseHtmlString(hex, out var c) ? c : Color.white;
-
-        private static string Rules(LevelGenerationRequest r)
-        {
-            int maxX = Mathf.Max(0, r.GridWidth  - 1);
-            int maxY = Mathf.Max(0, r.GridHeight - 1);
-            int cells = r.GridWidth * r.GridHeight;
-            int minFree = Mathf.CeilToInt(cells * 0.01f); // computed below from profile
-            var p = GetProfile(r.Difficulty, cells);
+            var p = GetProfile(r.Difficulty);
+            float maxLen = RopeTensionRule.MaxLength(RopeTensionRule.RestLength);
+            float warnLen = RopeTensionRule.RestLength * (1f + RopeTensionRule.WarnPercentage * RopeTensionRule.MaxTension);
 
             var sb = new StringBuilder();
-
-            // ── Game mechanics ───────────────────────────────────────────────
-            sb.AppendLine("You design levels for a physics-based rope-untangling puzzle called Twisted Tangle.");
+            sb.AppendLine("You design levels for the rope-untangling puzzle Twisted Tangle.");
             sb.AppendLine();
-            sb.AppendLine("GAME MECHANICS:");
-            sb.Append("- Grid is ").Append(r.GridWidth).Append(" wide × ").Append(r.GridHeight)
-              .Append(" tall. Coordinates: x∈[0,").Append(maxX).Append("], y∈[0,").Append(maxY).Append("].\n");
-            sb.AppendLine("- A PEG sits on a grid cell. A ROPE is a straight segment connecting exactly two peg endpoints.");
-            sb.AppendLine("- The player drags pegs to empty cells to untangle the ropes. Ropes stretch/compress but are always straight between their two endpoints.");
-            sb.AppendLine("- A move = drag one peg from its cell to a different empty cell.");
-            sb.AppendLine("- REACH LIMIT: both endpoints of every rope must always satisfy max(|dx|,|dy|) ≤ 3 (Chebyshev distance). A move that would violate this for any rope attached to the dragged peg is illegal.");
-            sb.AppendLine("- WIN CONDITION: reach a state where no two rope segments intersect.");
-            sb.AppendLine("- 'layer' controls draw order (higher = drawn on top). Crossing ropes must have distinct layers.");
-            sb.AppendLine("- Every peg that appears as a rope endpoint must also appear in gridEntities. No two pegs share a cell.");
+            sb.AppendLine("GAME RULES:");
+            sb.AppendLine($"- The board is {w} columns × {h} rows. Cells: x∈[0,{w - 1}], y∈[0,{h - 1}]. Every cell is a hole.");
+            sb.AppendLine("- A PIN sits in a hole; no two pins share a cell. 'locked' pins can never be moved.");
+            sb.AppendLine("- A ROPE connects two different pins (pinA, pinB). A pin may hold more than one rope.");
+            sb.AppendLine($"- ROPE LENGTH: the straight distance between a rope's two pins must stay ≤ {maxLen:0.00} cells " +
+                          $"(beyond {warnLen:0.00} the rope is tense). Keep initial ropes ≤ {warnLen:0.0}.");
+            sb.AppendLine("- MOVE = drag one unlocked pin to an empty hole, keeping all its ropes within the length limit.");
+            sb.AppendLine("- A rope that touches NO other rope is free and disappears, if at least one of its pins holds only that rope.");
+            sb.AppendLine("- WIN = every rope has disappeared. Treat ropes as straight segments between their pins.");
+            sb.AppendLine("- 'layer' is draw order only (higher = drawn on top); it does not change the rules.");
             sb.AppendLine();
-
-            // ── Difficulty targets ───────────────────────────────────────────
-            int freeCellMin = Mathf.CeilToInt(cells * p.FreeCellPercent / 100f);
             sb.Append("DIFFICULTY: ").AppendLine(r.Difficulty.ToUpperInvariant());
-            sb.AppendLine("You MUST hit ALL of these targets:");
-            sb.Append("  • Ropes: ").Append(p.RopeMin).Append("–").AppendLine(p.RopeMax.ToString());
-            sb.Append("  • Crossings in the INITIAL layout: ").Append(p.CrossingMin).Append("–").AppendLine(p.CrossingMax.ToString());
-            sb.Append("  • Total pegs (gridEntities): ").Append(p.PegMin).Append("–").AppendLine(p.PegMax.ToString());
-            sb.Append("  • Empty cells (grid cells with no peg): at least ").Append(freeCellMin)
-              .Append(" (≥").Append(p.FreeCellPercent).AppendLine("% of grid). Players need room to drag pegs.");
-            sb.Append("  • Max nailed-pin endpoints across all ropes: ").AppendLine(p.MaxNailedEndpoints.ToString());
-            sb.Append("  • Approximate moves to solve: ≤").AppendLine(p.MaxSolveMoves.ToString());
-            sb.Append("  • Shared pegs (one peg as endpoint for 2+ ropes): ")
-              .AppendLine(p.AllowSharedPegs ? "ALLOWED — use 1–2 hub pegs to increase interdependency." : "NOT allowed — keep ropes independent.");
-            sb.AppendLine();
-
-            // ── Topology guidance ────────────────────────────────────────────
-            sb.AppendLine("CROSSING TOPOLOGY:");
-            sb.AppendLine(p.TopologyHint);
-            sb.AppendLine();
-
-            // ── Solvability guidance ─────────────────────────────────────────
-            sb.AppendLine("SOLVABILITY:");
-            sb.AppendLine("- The initial layout must have crossings (tangled). The SOLVED layout must have zero crossings.");
-            sb.AppendLine("- Every legal move must keep all ropes within reach (max(|dx|,|dy|) ≤ 3). Plan around this constraint.");
-            sb.AppendLine("- Nailed pegs CANNOT be moved. A rope with BOTH endpoints nailed can only be cleared by moving other ropes away — do not trap such ropes in unavoidable crossings.");
-            sb.AppendLine(p.SolveHint);
-            sb.AppendLine();
-
-            // ── Fixed values ─────────────────────────────────────────────────
-            sb.Append("USE: gridWidth=").Append(r.GridWidth)
-              .Append(", gridHeight=").Append(r.GridHeight)
-              .Append(", timeSeconds=").Append(r.TimeSeconds).AppendLine(".");
-
-            if (r.EntityTypeIds is { Count: > 0 })
-                sb.Append("Allowed peg typeId values (rope endpoints, player can drag these): ").AppendLine(string.Join(", ", r.EntityTypeIds));
-
-            if (r.NailedTypeIds is { Count: > 0 })
-                sb.Append("NAILED peg types (immovable rope endpoints — player cannot drag): ").AppendLine(string.Join(", ", r.NailedTypeIds));
-
-            if (r.ObstacleTypeIds is { Count: > 0 })
-            {
-                sb.Append("OBSTACLE types: ").AppendLine(string.Join(", ", r.ObstacleTypeIds));
-                sb.AppendLine("  - Place in gridEntities like a peg. Cannot be a rope endpoint. Player cannot move them.");
-                sb.AppendLine("  - Their cells count as occupied — subtract them from the empty-cell budget.");
-                sb.AppendLine("  - Use 0–2 obstacles to restrict movement space and raise difficulty.");
-            }
-
-            if (r.PaletteHex is { Count: > 0 })
-                sb.Append("Rope colors (use distinct color per rope): ").AppendLine(string.Join(", ", r.PaletteHex));
+            sb.AppendLine($"  • Ropes: {p.RopeMin}–{p.RopeMax}; pins: 2 per rope{(p.SharedPins ? " (1–2 pins may be shared by two ropes)" : ", no shared pins")}.");
+            sb.AppendLine($"  • Initially EVERY rope must touch at least one other rope (nothing is free at the start).");
+            sb.AppendLine($"  • Solvable in ≤ {p.MaxSolveMoves} moves.");
+            sb.AppendLine($"  • {p.Hint}");
+            if (r.MoveLimit > 0) sb.AppendLine($"  • Move limit is {r.MoveLimit}: the solution must fit in it.");
+            sb.AppendLine($"  • colorIndex: 0..{Mathf.Max(0, r.PaletteCount - 1)}, a different color per rope.");
+            sb.AppendLine("  • Use 0–1 locked pins.");
 
             if (!string.IsNullOrEmpty(r.ReferenceLevelDescription))
             {
                 sb.AppendLine();
-                sb.AppendLine("REFERENCE LEVEL (use as style inspiration — do NOT copy positions exactly):");
+                sb.AppendLine("REFERENCE LEVEL (style inspiration — do NOT copy positions exactly):");
                 sb.AppendLine(r.ReferenceLevelDescription);
             }
 
-            // ── Chain-of-thought instruction ─────────────────────────────────
             sb.AppendLine();
             sb.AppendLine("THINK STEP BY STEP before producing JSON:");
-            sb.AppendLine("  Step 1 — Place pegs: Choose positions on the grid. Verify the empty-cell count.");
-            sb.AppendLine("  Step 2 — Draw ropes: Connect peg pairs. Check reach (max(|dx|,|dy|) ≤ 3) for every rope.");
-            sb.AppendLine("  Step 3 — Count crossings: Verify the crossing count is in the target range.");
-            sb.AppendLine("  Step 4 — Simulate solution: Write out the move sequence (which peg, to where) that untangles all ropes.");
-            sb.AppendLine("           Confirm every move is legal (target cell is empty, all ropes stay within reach after the move).");
-            sb.AppendLine("  Step 5 — Verify empty cells after each move: a peg vacates its old cell (becomes empty) and occupies the new cell.");
-            sb.AppendLine("  Step 6 — Only if every step checks out, emit the JSON.");
-            sb.AppendLine("If you cannot find a valid solution in Step 4, redesign the layout.");
-
+            sb.AppendLine("  1 — Place pins and connect ropes; check every rope length.");
+            sb.AppendLine("  2 — Check that every rope touches another rope at the start.");
+            sb.AppendLine("  3 — Write the solving move sequence (pin, from, to); each target hole empty, lengths legal.");
+            sb.AppendLine("  4 — Only if every step checks out, emit the JSON. Otherwise redesign.");
             return sb.ToString();
         }
-
-        [Serializable] private class LevelDto  { public int gridWidth; public int gridHeight; public int timeSeconds; public PegDto[] gridEntities; public RopeDto[] ropes; }
-        [Serializable] private class PegDto    { public int x; public int y; public string typeId; }
-        [Serializable] private class RopeDto   { public int ropeId; public string color; public int layer; public PointDto[] path; }
-        [Serializable] private class PointDto  { public int x; public int y; }
     }
 }

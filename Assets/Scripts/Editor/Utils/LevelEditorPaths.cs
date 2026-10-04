@@ -6,21 +6,18 @@ using UnityEngine;
 namespace TwistedTangle.Editor.Utils
 {
     /// <summary>
-    /// Editable, central registry of every filesystem path the Level Creator depends on — the folders
-    /// levels, entities, base types and palettes are written to, plus the editor stylesheet. Defaults
+    /// Editable, central registry of every filesystem path the Level Creator depends on — the level JSON
+    /// folder (shared with the runtime) and the editor stylesheet. Defaults
     /// reproduce the original hard-coded layout; any override is saved per-project in EditorPrefs
     /// (machine-local, like key bindings) so changing a path never dirties the asset database.
     /// <see cref="Changed"/> lets open windows react when a path is edited.
     /// </summary>
     public static class LevelEditorPaths
     {
+        // LevelFiles (not "Levels") so a stale override of the old LevelDataSO folder is ignored.
         public enum PathId
         {
-            Levels,
-            Entities,
-            EntityEditorData,
-            Bases,
-            Palettes,
+            LevelFiles,
             Uss
         }
 
@@ -36,25 +33,14 @@ namespace TwistedTangle.Editor.Utils
 
         public static readonly IReadOnlyList<PathDef> All = new[]
         {
-            new PathDef { Id = PathId.Levels, DisplayName = "Levels folder", Default = "Assets/Resources/Data/Levels", IsFolder = true },
-            new PathDef { Id = PathId.Entities, DisplayName = "Entities folder", Default = "Assets/Resources/Data/Entities", IsFolder = true },
-            new PathDef { Id = PathId.EntityEditorData, DisplayName = "Entity editor data folder", Default = "Assets/Resources/Data/EntityEditorData", IsFolder = true },
-            new PathDef { Id = PathId.Bases, DisplayName = "Entity bases folder", Default = "Assets/Resources/Data/EntityBases", IsFolder = true },
-            new PathDef { Id = PathId.Palettes, DisplayName = "Palettes folder", Default = "Assets/Resources/Data/Palettes", IsFolder = true },
+            // Must stay under Resources/Levels: the runtime LevelRepository loads from there.
+            new PathDef { Id = PathId.LevelFiles, DisplayName = "Level JSON folder", Default = "Assets/Resources/Levels", IsFolder = true },
             new PathDef { Id = PathId.Uss, DisplayName = "Editor stylesheet", Default = "Assets/Scripts/Editor/LevelCreator.uss", IsFolder = false, FileExtension = "uss" },
         };
 
         // Convenience accessors so call sites read like the old consts.
-        public static string Levels => Get(PathId.Levels);
-        public static string Entities => Get(PathId.Entities);
-        public static string EntityEditorData => Get(PathId.EntityEditorData);
-        public static string Bases => Get(PathId.Bases);
-        public static string Palettes => Get(PathId.Palettes);
+        public static string Levels => Get(PathId.LevelFiles);
         public static string Uss => Get(PathId.Uss);
-
-        // Material variants are written beside the palette they belong to — not user-configurable.
-        public static string MaterialsForPalette(string paletteName) =>
-            $"Assets/Art/Materials/Game/{paletteName}";
 
         // Scope the prefs key by project so two projects on the same machine don't share paths.
         private static readonly string PrefsKey =

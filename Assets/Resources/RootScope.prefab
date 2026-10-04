@@ -108,7 +108,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   pinPrefab: {fileID: 4338241001903807374, guid: fe347e991f11ebf4088a1862904a0b8f,
     type: 3}
-  ropePrefab: {fileID: 0}
+  ropePrefab: {fileID: 1603571905183749204, guid: f9c68e5b59834ceb910a4c3921b604f8,
+    type: 3}
   gridCellPrefab: {fileID: 5317818295690965888, guid: f5ad47ae5d7a3bf42a11800e0ed8bbb8,
     type: 3}
 --- !u!114 &-9158367810451239773

@@ -1,17 +1,11 @@
 using System.Collections.Generic;
 using System.Linq;
 using Editor.Canvas;
-using Editor.Geometry;
 using Editor.Input;
-using Editor.Materials;
-using Runtime.Data.Enums;
+using Runtime.Level;
 using TwistedTangle.Editor;
-using TwistedTangle.Editor.Settings;
 using TwistedTangle.Editor.Utils;
 using TwistedTangle.Editor.Validation;
-using TwistedTangle.Runtime.Data.Enums;
-using TwistedTangle.Runtime.Data.ScriptableObjects;
-using TwistedTangle.Runtime.Data.ValueObjects;
 using UnityEditor;
 using UnityEditor.UIElements;
 using UnityEngine;
@@ -19,44 +13,37 @@ using UnityEngine.UIElements;
 
 namespace Editor.Windows
 {
+    /// <summary>
+    /// Edits the level JSON files the runtime plays (Resources/Levels/level_NNN.json):
+    /// pins on cells (+ locked), ropes pinA → pinB with colorIndex / layer / authored path, optional tutorial.
+    /// </summary>
     public class LevelCreator : EditorWindow
     {
         private enum Tool
         {
-            Place,
+            Pin,
             Rope,
+            Lock,
             Erase,
-            Flip
+            Tutorial
         }
 
-        private const float FlipPickRadiusCells = 0.35f;
+        private static readonly List<string> DifficultyChoices = new() { "Easy", "Medium", "Hard" };
 
-        private LevelDataSO _level;
-        private int _currentLevelId = 0;
-        private bool _isEditMode;
-        private int _nextRopeId;
+        private LevelEditSession _session;
+        private int _loadedLevelNumber; // file the current level came from (0 = unsaved)
 
-        private Tool _tool = Tool.Place;
-        private bool _isPainting;
-        private EntityBaseTypeSO _selectedBaseType;
-        private EntityDefinitionSO _selectedEntity;
-        private Color _ropeColor = new(0.90f, 0.20f, 0.20f);
-        private Material _ropeMaterial;
-        private RopeData _previewRope;
+        private Tool _tool = Tool.Pin;
+        private RopePaletteSO _palette;
+        private int _colorIndex;
+        private int _pendingPinId = -1;   // rope tool: first pin / tutorial tool: chosen pin
         private int _selectedRopeId = -1;
-        private readonly Stack<List<RopeWaypoint>> _waypointHistory = new();
+        private int _draggingPinId = -1;  // pin tool: pin being dragged to another cell
+        private readonly Dictionary<int, (Vector2[] path, float length)> _dragBasePaths = new();
 
-        private readonly List<EntityBaseTypeSO> _baseTypes = new();
-        private readonly List<EntityDefinitionSO> _entityDefs = new();
-        private readonly Dictionary<string, EntityDefinitionSO> _entityLookup = new();
-        private readonly Dictionary<EntityDefinitionSO, EntityDefinitionEditorDataSO> _editorDataLookup = new();
-        private readonly List<(string name, Color color)> _swatches = new();
-        private readonly List<ColorPaletteSO> _paletteAssets = new();
-        private int _selectedPaletteIndex = 0;
-        private readonly HashSet<string> _hiddenSwatchNames = new();
-
-        private IntegerField _levelIdField, _widthField, _heightField, _timeField;
-        private EnumField _difficultyField;
+        private IntegerField _levelNumberField, _mapField, _moveLimitField, _timeLimitField;
+        private DropdownField _difficultyField;
+        private Label _gridSizeLabel, _tutorialLabel;
         private RopeCanvasElement _canvas;
         private VisualElement _canvasHost;
         private Label _zoomLabel;
@@ -67,32 +54,28 @@ namespace Editor.Windows
         private bool _isPanning;
         private Vector2 _panStart;
 
-        private const int MaxRopeReach = 3;
-
-        private VisualElement _paletteContainer,
-            _toolsContainer,
-            _editToolsContainer,
+        private VisualElement _toolsContainer,
+            _paletteContainer,
             _ropeListContainer,
             _validationContainer,
             _validationStatusDot;
 
-        private ObjectField _bgMaterialField;
-        private Slider _bgOpacitySlider;
         private ColorField _gridColorField;
-        private VisualElement _bgDimmerLayer;
+        private VisualElement _bgLayer;
 
         private readonly Dictionary<Tool, Button> _toolButtons = new();
-        private readonly List<(EntityBaseTypeSO baseType, Button btn)> _baseButtons = new();
-        private readonly List<(EntityDefinitionSO def, Button btn)> _entityButtons = new();
-
         private readonly Dictionary<string, System.Action> _commands = new();
 
         private static readonly Dictionary<Tool, string> ToolCommandIds = new()
         {
+            { Tool.Pin, LevelEditorCommands.ToolPin },
             { Tool.Rope, LevelEditorCommands.ToolRope },
+            { Tool.Lock, LevelEditorCommands.ToolLock },
             { Tool.Erase, LevelEditorCommands.ToolErase },
-            { Tool.Flip, LevelEditorCommands.ToolFlip },
         };
+
+        private LevelJson Level => _session != null ? _session.level : null;
+        private StageJson Stage => Level is { stages: { Count: > 0 } } ? Level.stages[0] : null;
 
         [MenuItem("TwistedTangle/Level Creation Tool", false, 0)]
         public static void ShowWindow()
@@ -110,18 +93,10 @@ namespace Editor.Windows
             var uss = AssetDatabase.LoadAssetAtPath<StyleSheet>(LevelEditorPaths.Uss);
             if (uss != null) root.styleSheets.Add(uss);
 
-            RefreshBaseTypes();
-            RefreshEntityDefinitions();
-            RefreshEditorData();
-            RefreshPalettes();
-
-            _selectedBaseType = _baseTypes.FirstOrDefault();
-            _selectedEntity = SubTypesOf(_selectedBaseType).FirstOrDefault();
-            _tool = (_baseTypes.Count > 0 || HasUngrouped()) ? Tool.Place : Tool.Rope;
+            _palette = FindPalette();
 
             var app = new VisualElement();
             app.AddToClassList(Css.AppContainer);
-
             app.Add(BuildEditorSetupBar());
             app.Add(BuildTopBar());
             app.Add(BuildLevelPropsBar());
@@ -133,7 +108,6 @@ namespace Editor.Windows
             body.Add(BuildRightPanelDivider(rightPanel));
             body.Add(rightPanel);
             app.Add(body);
-
             root.Add(app);
 
             BuildCommandTable();
@@ -141,347 +115,38 @@ namespace Editor.Windows
             root.RegisterCallback<KeyDownEvent>(OnShortcutKeyDown);
             KeyBindingStore.Changed -= UpdateShortcutHints;
             KeyBindingStore.Changed += UpdateShortcutHints;
-            EnvironmentSettings.Changed -= OnEnvironmentChanged;
-            EnvironmentSettings.Changed += OnEnvironmentChanged;
+            EnvironmentSettings.Changed -= ApplyBackgroundToCanvas;
+            EnvironmentSettings.Changed += ApplyBackgroundToCanvas;
             Undo.undoRedoPerformed -= OnUndoRedo;
             Undo.undoRedoPerformed += OnUndoRedo;
 
             RefreshAll();
             UpdateShortcutHints();
-            ApplyBackgroundToCanvas(_level?.BackgroundMaterial);
+            ApplyBackgroundToCanvas();
         }
 
         private void OnDisable()
         {
             KeyBindingStore.Changed -= UpdateShortcutHints;
-            EnvironmentSettings.Changed -= OnEnvironmentChanged;
+            EnvironmentSettings.Changed -= ApplyBackgroundToCanvas;
             Undo.undoRedoPerformed -= OnUndoRedo;
         }
 
-        private void OnUndoRedo() => RefreshAll();
-
-        private void OnEnvironmentChanged() => ApplyBackgroundToCanvas(_level?.BackgroundMaterial);
-
-        #region Data-driven discovery
-
-        private void RefreshBaseTypes()
+        private void OnUndoRedo()
         {
-            _baseTypes.Clear();
-            foreach (var guid in AssetDatabase.FindAssets($"t:{nameof(EntityBaseTypeSO)}"))
-            {
-                var b = AssetDatabase.LoadAssetAtPath<EntityBaseTypeSO>(AssetDatabase.GUIDToAssetPath(guid));
-                if (b != null) _baseTypes.Add(b);
-            }
-
-            _baseTypes.Sort((a, b) =>
-            {
-                int cmp = a.SortOrder.CompareTo(b.SortOrder);
-                return cmp != 0
-                    ? cmp
-                    : string.Compare(a.DisplayName, b.DisplayName, System.StringComparison.OrdinalIgnoreCase);
-            });
-
-            if (_selectedBaseType != null && !_baseTypes.Contains(_selectedBaseType))
-                _selectedBaseType = _baseTypes.FirstOrDefault();
-        }
-
-        private void RefreshEntityDefinitions()
-        {
-            _entityDefs.Clear();
-            _entityLookup.Clear();
-
-            foreach (var guid in AssetDatabase.FindAssets($"t:{nameof(EntityDefinitionSO)}"))
-            {
-                var def = AssetDatabase.LoadAssetAtPath<EntityDefinitionSO>(AssetDatabase.GUIDToAssetPath(guid));
-                if (def == null) continue;
-                _entityDefs.Add(def);
-                _entityLookup[def.TypeId] = def;
-            }
-
-            if (_selectedEntity == null || !_entityDefs.Contains(_selectedEntity))
-                _selectedEntity = SubTypesOf(_selectedBaseType).FirstOrDefault();
-        }
-
-        private void RefreshEditorData()
-        {
-            _editorDataLookup.Clear();
-            foreach (var guid in AssetDatabase.FindAssets($"t:{nameof(EntityDefinitionEditorDataSO)}"))
-            {
-                var data = AssetDatabase.LoadAssetAtPath<EntityDefinitionEditorDataSO>(
-                    AssetDatabase.GUIDToAssetPath(guid));
-                if (data?.Definition != null) _editorDataLookup[data.Definition] = data;
-            }
-        }
-
-        private EntityDefinitionEditorDataSO EditorDataFor(EntityDefinitionSO def) =>
-            def != null && _editorDataLookup.TryGetValue(def, out var data) ? data : null;
-
-        private IEnumerable<EntityDefinitionSO> SubTypesOf(EntityBaseTypeSO baseType) =>
-            _entityDefs.Where(d => EditorDataFor(d)?.BaseType == baseType)
-                .OrderBy(d => d,
-                    Comparer<EntityDefinitionSO>.Create((a, b) =>
-                        LevelEditorCommands.CompareSubTypes(a, b, _editorDataLookup)));
-
-        private bool HasUngrouped() => _entityDefs.Any(d => EditorDataFor(d)?.BaseType == null);
-
-        private void RefreshPalettes()
-        {
-            _swatches.Clear();
-            _paletteAssets.Clear();
-            foreach (var guid in AssetDatabase.FindAssets($"t:{nameof(ColorPaletteSO)}"))
-            {
-                var pal = AssetDatabase.LoadAssetAtPath<ColorPaletteSO>(AssetDatabase.GUIDToAssetPath(guid));
-                if (pal == null) continue;
-                _paletteAssets.Add(pal);
-                foreach (var e in pal.Entries) _swatches.Add((e.Name, e.Color));
-            }
-        }
-
-        private Color ResolveEntityColor(string typeId)
-        {
-            _entityLookup.TryGetValue(typeId, out var def);
-            return EditorDataFor(def)?.EditorColor ?? EditorColors.EntityFallback;
-        }
-
-        private void CreateDefaultEntityTypes()
-        {
-            EnsureFolder(LevelEditorPaths.Bases);
-            EnsureFolder(LevelEditorPaths.Entities);
-            EnsureFolder(LevelEditorPaths.EntityEditorData);
-            var pin = CreateBaseAsset("pin", "Pin", EditorColors.PinDefault, LevelEditorPaths.Bases);
-            var standard = CreateEntityAsset("pin.standard", "Standard", null, null, LevelEditorPaths.Entities);
-            CreateEntityEditorDataAsset(standard, pin, EditorColors.PinDefault, CanvasMarker.None,
-                LevelEditorPaths.EntityEditorData);
-            var nailed = CreateEntityAsset("pin.nailed", "Nailed", null, new[] { "nailed" }, LevelEditorPaths.Entities);
-            CreateEntityEditorDataAsset(nailed, pin, new Color(1f, 0.6f, 0.1f), CanvasMarker.None,
-                LevelEditorPaths.EntityEditorData);
-            AssetDatabase.SaveAssets();
-            AssetDatabase.Refresh();
-
-            RefreshBaseTypes();
-            RefreshEntityDefinitions();
-            RefreshEditorData();
-            RebuildToolbar();
-            _selectedBaseType = pin;
-            _selectedEntity = SubTypesOf(pin).FirstOrDefault();
-            _tool = Tool.Place;
+            SyncFieldsFromLevel();
             RefreshAll();
         }
 
-        private static EntityBaseTypeSO CreateBaseAsset(string baseId, string displayName, Color color, string folder)
+        private static RopePaletteSO FindPalette()
         {
-            string path = $"{folder}/EntityBase_{Slugify(displayName)}.asset";
-            var existing = AssetDatabase.LoadAssetAtPath<EntityBaseTypeSO>(path);
-            if (existing != null) return existing;
-
-            var so = CreateInstance<EntityBaseTypeSO>();
-            var sObj = new SerializedObject(so);
-            sObj.FindProperty("baseId").stringValue = baseId;
-            sObj.FindProperty("displayName").stringValue = displayName;
-            sObj.FindProperty("editorColor").colorValue = color;
-            sObj.ApplyModifiedPropertiesWithoutUndo();
-            AssetDatabase.CreateAsset(so, path);
-            return so;
-        }
-
-        private static EntityDefinitionSO CreateEntityAsset(string typeId, string displayName,
-            GameObject prefab, string[] tags, string folder)
-        {
-            string path = $"{folder}/Entity_{typeId.Replace('.', '_')}.asset";
-            if (AssetDatabase.LoadAssetAtPath<EntityDefinitionSO>(path) != null) return null;
-
-            var so = CreateInstance<EntityDefinitionSO>();
-            var sObj = new SerializedObject(so);
-            sObj.FindProperty("typeId").stringValue = typeId;
-            sObj.FindProperty("displayName").stringValue = displayName;
-            if (prefab != null) sObj.FindProperty("prefab").objectReferenceValue = prefab;
-            if (tags is { Length: > 0 })
+            foreach (var guid in AssetDatabase.FindAssets($"t:{nameof(RopePaletteSO)}"))
             {
-                var tagsProp = sObj.FindProperty("tags");
-                tagsProp.arraySize = tags.Length;
-                for (int i = 0; i < tags.Length; i++)
-                    tagsProp.GetArrayElementAtIndex(i).stringValue = tags[i];
+                var palette = AssetDatabase.LoadAssetAtPath<RopePaletteSO>(AssetDatabase.GUIDToAssetPath(guid));
+                if (palette != null) return palette;
             }
-
-            sObj.ApplyModifiedPropertiesWithoutUndo();
-            AssetDatabase.CreateAsset(so, path);
-            return so;
+            return null;
         }
-
-        private static void CreateEntityEditorDataAsset(EntityDefinitionSO definition,
-            EntityBaseTypeSO baseType, Color color, CanvasMarker marker, string folder)
-        {
-            if (definition == null) return;
-            string path = $"{folder}/EntityEditorData_{definition.TypeId.Replace('.', '_')}.asset";
-            if (AssetDatabase.LoadAssetAtPath<EntityDefinitionEditorDataSO>(path) != null) return;
-
-            var so = CreateInstance<EntityDefinitionEditorDataSO>();
-            var sObj = new SerializedObject(so);
-            sObj.FindProperty("definition").objectReferenceValue = definition;
-            if (baseType != null) sObj.FindProperty("baseType").objectReferenceValue = baseType;
-            sObj.FindProperty("editorColor").colorValue = color;
-            sObj.FindProperty("canvasMarker").intValue = (int)marker;
-            sObj.ApplyModifiedPropertiesWithoutUndo();
-            AssetDatabase.CreateAsset(so, path);
-        }
-
-        private static string Slugify(string s)
-        {
-            if (string.IsNullOrEmpty(s)) return string.Empty;
-            var chars = s.Trim().ToLowerInvariant()
-                .Select(c => char.IsWhiteSpace(c) ? '_' : c)
-                .Where(c => char.IsLetterOrDigit(c) || c == '_');
-            return new string(chars.ToArray());
-        }
-
-        private (bool ok, string error) TryCreateEntityType(EntityBaseTypeSO existingBase, string newBaseName,
-            string subName, Color color, GameObject prefab)
-        {
-            RefreshBaseTypes();
-            RefreshEntityDefinitions();
-
-            var baseType = existingBase;
-            if (baseType == null)
-            {
-                newBaseName = newBaseName?.Trim();
-                if (string.IsNullOrEmpty(newBaseName))
-                    return (false, "New base type name is required.");
-                string baseId = Slugify(newBaseName);
-                if (string.IsNullOrEmpty(baseId))
-                    return (false, "Base type name must contain letters or digits.");
-                if (_baseTypes.Any(b => string.Equals(b.BaseId, baseId, System.StringComparison.OrdinalIgnoreCase)))
-                    return (false, $"A base type '{newBaseName}' already exists — pick it from the dropdown.");
-                EnsureFolder(LevelEditorPaths.Bases);
-                baseType = CreateBaseAsset(baseId, newBaseName, color, LevelEditorPaths.Bases);
-            }
-
-            subName = subName?.Trim();
-            if (string.IsNullOrEmpty(subName))
-                return (false, "Sub-type name is required.");
-            string subSlug = Slugify(subName);
-            if (string.IsNullOrEmpty(subSlug))
-                return (false, "Sub-type name must contain letters or digits.");
-            string typeId = $"{baseType.BaseId}.{subSlug}";
-            if (_entityLookup.ContainsKey(typeId))
-                return (false, $"“{baseType.DisplayName}” already has a sub-type '{subName}'.");
-
-            EnsureFolder(LevelEditorPaths.Entities);
-            EnsureFolder(LevelEditorPaths.EntityEditorData);
-            var so = CreateEntityAsset(typeId, subName, prefab, null, LevelEditorPaths.Entities);
-            if (so == null)
-                return (false, $"An asset already exists for '{subName}' under '{baseType.DisplayName}'.");
-
-            CreateEntityEditorDataAsset(so, baseType, color, CanvasMarker.None, LevelEditorPaths.EntityEditorData);
-
-            AssetDatabase.SaveAssets();
-            AssetDatabase.Refresh();
-            RefreshBaseTypes();
-            RefreshEntityDefinitions();
-            RefreshEditorData();
-            RebuildToolbar();
-
-            _selectedBaseType = baseType;
-            _selectedEntity = so;
-            _tool = Tool.Place;
-            RefreshAll();
-            return (true, null);
-        }
-
-        private void CreateDefaultPalette()
-        {
-            EnsureFolder(LevelEditorPaths.Palettes);
-            string path = $"{LevelEditorPaths.Palettes}/BaseGameColorPalette.asset";
-            if (AssetDatabase.LoadAssetAtPath<ColorPaletteSO>(path) == null)
-            {
-                (string name, Color color)[] colors =
-                {
-                    ("Red", new Color(0.90f, 0.20f, 0.20f)),
-                    ("Orange", new Color(1f, 0.55f, 0f)),
-                    ("Yellow", new Color(0.95f, 0.85f, 0.10f)),
-                    ("Green", new Color(0.30f, 0.75f, 0.35f)),
-                    ("Blue", new Color(0.20f, 0.55f, 0.95f)),
-                    ("Purple", new Color(0.55f, 0.25f, 0.80f)),
-                    ("Pink", new Color(0.95f, 0.40f, 0.70f)),
-                    ("White", Color.white)
-                };
-
-                var pal = CreateInstance<ColorPaletteSO>();
-                var so = new SerializedObject(pal);
-                var arr = so.FindProperty("entries");
-                arr.arraySize = colors.Length;
-                for (int i = 0; i < colors.Length; i++)
-                {
-                    var el = arr.GetArrayElementAtIndex(i);
-                    el.FindPropertyRelative("Name").stringValue = colors[i].name;
-                    el.FindPropertyRelative("Color").colorValue = colors[i].color;
-                }
-
-                so.ApplyModifiedPropertiesWithoutUndo();
-                AssetDatabase.CreateAsset(pal, path);
-                AssetDatabase.SaveAssets();
-                AssetDatabase.Refresh();
-            }
-
-            RefreshPalettes();
-            RebuildPalette();
-        }
-
-        private (bool ok, string error) TryAddPaletteColor(ColorPaletteSO existingPalette,
-            string newPaletteName, string colorName, Color color, bool autoGenerate)
-        {
-            colorName = colorName?.Trim();
-            if (string.IsNullOrEmpty(colorName)) return (false, "Color name is required.");
-
-            var palette = existingPalette;
-            if (palette == null)
-            {
-                newPaletteName = newPaletteName?.Trim();
-                if (string.IsNullOrEmpty(newPaletteName)) return (false, "New palette name is required.");
-                EnsureFolder(LevelEditorPaths.Palettes);
-                string path = $"{LevelEditorPaths.Palettes}/{newPaletteName.Replace(' ', '_')}.asset";
-                palette = AssetDatabase.LoadAssetAtPath<ColorPaletteSO>(path);
-                if (palette == null)
-                {
-                    palette = CreateInstance<ColorPaletteSO>();
-                    AssetDatabase.CreateAsset(palette, path);
-                }
-            }
-
-            foreach (var e in palette.Entries)
-                if (string.Equals(e.Name, colorName, System.StringComparison.OrdinalIgnoreCase))
-                    return (false, $"'{palette.name}' already has a color named '{colorName}'.");
-
-            var so = new SerializedObject(palette);
-            var entries = so.FindProperty("entries");
-            entries.arraySize++;
-            var el = entries.GetArrayElementAtIndex(entries.arraySize - 1);
-            el.FindPropertyRelative("Name").stringValue = colorName;
-            el.FindPropertyRelative("Color").colorValue = color;
-
-            Material variant = null;
-            if (autoGenerate && palette.VariantTemplate != null)
-            {
-                var repo = new MaterialVariantRepository(
-                    LevelEditorPaths.MaterialsForPalette(palette.name),
-                    new MaterialVariantFactory());
-                variant = repo.GetOrCreate(palette.VariantTemplate, colorName, color);
-                el.FindPropertyRelative("Variant").objectReferenceValue = variant;
-            }
-
-            so.ApplyModifiedProperties();
-            EditorUtility.SetDirty(palette);
-            AssetDatabase.SaveAssets();
-
-            RefreshPalettes();
-            int idx = _paletteAssets.IndexOf(palette);
-            if (idx >= 0) _selectedPaletteIndex = idx;
-            _ropeColor = color; // auto-select the newly added color
-            _ropeMaterial = variant;
-            RebuildPalette();
-            return (true, null);
-        }
-
-        #endregion
 
         #region UI: static sections
 
@@ -490,20 +155,19 @@ namespace Editor.Windows
             var foldout = new Foldout { text = "ⓘ  How to use — click to expand", value = false };
             foldout.AddToClassList(Css.Section);
             foldout.Add(new HelpBox(
-                "QUICK START\n" +
-                "1. Set Width / Height / Time, then click 'Generate Grid'.\n" +
-                "2. First time only: if there are no entity types or palette yet, use 'Create Default Entity Types' and 'Create Default Palette'.\n\n" +
-                "AUTHOR A LEVEL BY HAND\n" +
-                "3. Pick a base tool (e.g. Pin) and click grid cells to place pins.\n" +
-                "4. Pick the 'Rope' tool, choose a color, click pins in order, then 'Finish Rope'. Make a few ropes that cross.\n" +
-                "5. Use 'Flip Crossing' to set which rope is on top at a crossing.\n\n" +
-                "GENERATE WITH AI (paste into any AI chat)\n" +
-                "6. Set Difficulty, click '1 · Copy prompt'.\n" +
-                "7. Paste it into an AI chat (Claude, Gemini, ChatGPT…), send, then copy the JSON answer.\n" +
-                "8. Paste that JSON into the box and click '2 · Import JSON'.\n\n" +
-                "CHECK & SAVE (always)\n" +
-                "9. 'Validate' must be green — fix issues if not.\n" +
-                "10. Set Level Id and click 'Save'.",
+                "Levels are the JSON files the game loads (Resources/Levels/level_NNN.json).\n\n" +
+                "EDIT AN EXISTING LEVEL\n" +
+                "1. Enter the level number, click 'Load'.\n\n" +
+                "NEW LEVEL\n" +
+                "2. Set Level # and Map (map N = (3+N)×(5+N) grid), click 'New Level'.\n" +
+                "3. Pin tool: click a cell to add a pin, drag a pin to move it, right-click to remove.\n" +
+                "4. Rope tool: pick a color, click two pins. Rope reach is limited by max tension.\n" +
+                "5. Lock tool: click a pin to lock/unlock it.\n" +
+                "6. Tutorial (optional): 'Pick' → click the pin, then the target cell.\n\n" +
+                "AI (any chat): AI Generate ↗ → copy prompt → paste the JSON answer → Import.\n\n" +
+                "CHECK & SAVE\n" +
+                "7. 'Validate' must be green (same rules as runtime).\n" +
+                "8. Click 'Save' — writes level_NNN.json.",
                 HelpBoxMessageType.Info));
             return foldout;
         }
@@ -525,23 +189,25 @@ namespace Editor.Windows
             var bar = new VisualElement();
             bar.AddToClassList(Css.Topbar);
 
-            _levelIdField = CompactIntField("Level ID", 1);
-            bar.Add(_levelIdField);
-            bar.Add(MakeButton("Load", () => LoadLevel(_levelIdField.value), Css.BtnPrimary));
+            _levelNumberField = CompactIntField("Level #", 1);
+            bar.Add(_levelNumberField);
+            bar.Add(MakeButton("Load", () => LoadLevel(_levelNumberField.value), Css.BtnPrimary));
             bar.Add(MakeButton("Save", SaveCurrentLevel, Css.BtnSave));
-            bar.Add(MakeButton("Delete", () => DeleteLevel(_levelIdField.value), Css.BtnDanger));
+            bar.Add(MakeButton("Delete", () => DeleteLevel(_levelNumberField.value), Css.BtnDanger));
 
             var sep = new VisualElement();
             sep.AddToClassList(Css.TopbarSep);
             bar.Add(sep);
 
-            _widthField = CompactIntField("Width", 6);
-            _heightField = CompactIntField("Height", 6);
-            _timeField = CompactIntField("Time(s)", 45);
-            bar.Add(_widthField);
-            bar.Add(_heightField);
-            bar.Add(_timeField);
-            bar.Add(MakeButton("Generate Grid", GenerateGrid, Css.BtnPrimary));
+            _mapField = CompactIntField("Map", 1);
+            _mapField.tooltip = "Map id: grid = (3+N) columns × (5+N) rows.";
+            _mapField.RegisterValueChangedCallback(e => OnMapChanged(e.newValue));
+            bar.Add(_mapField);
+            _gridSizeLabel = new Label();
+            _gridSizeLabel.AddToClassList(Css.LevelPropsBarLabel);
+            bar.Add(_gridSizeLabel);
+            bar.Add(MakeButton("New Level", NewLevel, Css.BtnPrimary));
+            UpdateGridSizeLabel();
 
             return bar;
         }
@@ -554,64 +220,48 @@ namespace Editor.Windows
             var diffLbl = new Label("Difficulty");
             diffLbl.AddToClassList(Css.LevelPropsBarLabel);
             bar.Add(diffLbl);
-
-            _difficultyField = new EnumField(LevelDifficulty.Normal);
+            _difficultyField = new DropdownField(new List<string>(DifficultyChoices), 0);
             _difficultyField.style.minWidth = 80;
             _difficultyField.style.marginRight = 12;
-            _difficultyField.tooltip = "Auto-computed on Validate. Override manually before saving.";
-            _difficultyField.RegisterValueChangedCallback(evt =>
+            _difficultyField.RegisterValueChangedCallback(e =>
             {
-                if (_level != null) _level.Difficulty = (LevelDifficulty)evt.newValue;
+                if (Level == null || Level.difficulty == e.newValue) return;
+                Undo.RecordObject(_session, "Difficulty");
+                Level.difficulty = e.newValue;
             });
             bar.Add(_difficultyField);
 
-            var lbl = new Label("Background");
-            lbl.AddToClassList(Css.LevelPropsBarLabel);
-            bar.Add(lbl);
-
-            _bgMaterialField = new ObjectField { objectType = typeof(Material) };
-            _bgMaterialField.AddToClassList(Css.LevelPropsBarField);
-            _bgMaterialField.RegisterValueChangedCallback(evt =>
+            _moveLimitField = CompactIntField("Moves", 0);
+            _moveLimitField.tooltip = "Move limit (0 = unlimited).";
+            _moveLimitField.RegisterValueChangedCallback(e =>
             {
-                var mat = evt.newValue as Material;
-                if (_level != null) _level.BackgroundMaterial = mat;
-                ApplyBackgroundToCanvas(mat);
+                if (Level == null || Level.moveLimit == e.newValue) return;
+                Undo.RecordObject(_session, "Move Limit");
+                Level.moveLimit = Mathf.Max(0, e.newValue);
             });
-            bar.Add(_bgMaterialField);
+            bar.Add(_moveLimitField);
 
-            var opacityLbl = new Label("Opacity");
-            opacityLbl.AddToClassList(Css.LevelPropsBarLabel);
-            opacityLbl.style.marginLeft = 12;
-            bar.Add(opacityLbl);
-
-            _bgOpacitySlider = new Slider(0f, 1f) { value = 1f };
-            _bgOpacitySlider.style.width = 100;
-            _bgOpacitySlider.style.marginLeft = 4;
-            _bgOpacitySlider.RegisterValueChangedCallback(evt =>
+            _timeLimitField = CompactIntField("Time(s)", 0);
+            _timeLimitField.tooltip = "Time limit in seconds (0 = unlimited).";
+            _timeLimitField.RegisterValueChangedCallback(e =>
             {
-                if (_bgDimmerLayer != null)
-                    _bgDimmerLayer.style.opacity = evt.newValue;
+                if (Level == null || Level.timeLimitSeconds == e.newValue) return;
+                Undo.RecordObject(_session, "Time Limit");
+                Level.timeLimitSeconds = Mathf.Max(0, e.newValue);
             });
-            bar.Add(_bgOpacitySlider);
-
-            var divider = new VisualElement();
-            divider.style.width = 1;
-            divider.style.alignSelf = Align.Stretch;
-            divider.style.backgroundColor = EditorColors.Separator;
-            divider.style.marginLeft = 12;
-            divider.style.marginRight = 8;
-            bar.Add(divider);
+            bar.Add(_timeLimitField);
 
             var gridLbl = new Label("Grid");
             gridLbl.AddToClassList(Css.LevelPropsBarLabel);
+            gridLbl.style.marginLeft = 12;
             bar.Add(gridLbl);
-
             _gridColorField = new ColorField { showAlpha = true, value = EditorColors.GridDefault };
             _gridColorField.style.width = 80;
             _gridColorField.RegisterValueChangedCallback(evt =>
             {
-                if (_canvas != null) _canvas.GridStrokeColor = evt.newValue;
-                _canvas?.MarkDirtyRepaint();
+                if (_canvas == null) return;
+                _canvas.GridStrokeColor = evt.newValue;
+                _canvas.MarkDirtyRepaint();
             });
             bar.Add(_gridColorField);
 
@@ -631,26 +281,19 @@ namespace Editor.Windows
             _canvasHost = new VisualElement();
             _canvasHost.AddToClassList(Css.CanvasHost);
 
-            _bgDimmerLayer = new VisualElement { pickingMode = PickingMode.Ignore };
-            _bgDimmerLayer.style.position = Position.Absolute;
-            _bgDimmerLayer.style.top = 0;
-            _bgDimmerLayer.style.left = 0;
-            _bgDimmerLayer.style.width = Length.Percent(100);
-            _bgDimmerLayer.style.height = Length.Percent(100);
-            _bgDimmerLayer.style.backgroundColor = Color.clear;
-            _canvasHost.Add(_bgDimmerLayer);
+            _bgLayer = new VisualElement { pickingMode = PickingMode.Ignore };
+            _bgLayer.style.position = Position.Absolute;
+            _bgLayer.style.top = 0;
+            _bgLayer.style.left = 0;
+            _bgLayer.style.width = Length.Percent(100);
+            _bgLayer.style.height = Length.Percent(100);
+            _canvasHost.Add(_bgLayer);
 
-            _canvas = new RopeCanvasElement
-            {
-                PegColorResolver = ResolveEntityColor,
-                MarkerResolver = typeId => _entityLookup.TryGetValue(typeId, out var def)
-                    ? EditorDataFor(def)?.CanvasMarker ?? CanvasMarker.None
-                    : CanvasMarker.None,
-            };
+            _canvas = new RopeCanvasElement();
             _canvas.AddToClassList(Css.Canvas);
             _canvas.CellClicked = OnCanvasCellClicked;
             _canvas.CellDragged = OnCanvasCellDragged;
-            _canvas.Released = () => RefreshPanels();
+            _canvas.Released = OnCanvasReleased;
 
             _canvasHost.Add(_canvas);
             scroll.Add(_canvasHost);
@@ -795,85 +438,44 @@ namespace Editor.Windows
         {
             var panel = new VisualElement();
             panel.AddToClassList(Css.RightPanel);
-            panel.style.width = 340f; // default — enough to show all content without clipping
+            panel.style.width = 320f;
 
             var scroll = new ScrollView(ScrollViewMode.Vertical);
             scroll.AddToClassList(Css.RightScroll);
 
-            scroll.Add(BuildEditToolsSection());
-            scroll.Add(BuildEntityPlacementSection());
-            scroll.Add(BuildPaletteSection());
-            scroll.Add(BuildEntityCreatorSection());
+            var tools = MakeSection("Tools");
+            _toolsContainer = MakeRow();
+            _toolsContainer.AddToClassList(Css.RowWrap);
+            AddToolButton(Tool.Pin, "Pin");
+            AddToolButton(Tool.Rope, "Rope");
+            AddToolButton(Tool.Lock, "Lock");
+            AddToolButton(Tool.Erase, "Erase");
+            tools.Add(_toolsContainer);
+            scroll.Add(tools);
+
+            var brush = MakeSection("Brush");
+            _paletteContainer = new VisualElement();
+            brush.Add(_paletteContainer);
+            scroll.Add(brush);
+
+            scroll.Add(BuildTutorialSection());
             scroll.Add(BuildHelpSection());
 
             panel.Add(scroll);
             return panel;
         }
 
-        private VisualElement BuildEditToolsSection()
+        private VisualElement BuildTutorialSection()
         {
-            var s = MakeSection("Tools");
-            _editToolsContainer = MakeRow();
-            _editToolsContainer.AddToClassList(Css.RowWrap);
-            s.Add(_editToolsContainer);
+            var s = MakeSection("Tutorial", expanded: false);
+            _tutorialLabel = new Label();
+            _tutorialLabel.AddToClassList(Css.Hint);
+            s.Add(_tutorialLabel);
+            var row = MakeRow();
+            row.Add(MakeButton("Pick", () => SetTool(Tool.Tutorial), Css.BtnPrimary));
+            row.Add(MakeButton("Clear", ClearTutorial, Css.BtnDanger));
+            s.Add(row);
             return s;
-        }
-
-        private VisualElement BuildEntityPlacementSection()
-        {
-            var s = MakeSection("Entity Placement");
-            _toolsContainer = MakeRow();
-            _toolsContainer.AddToClassList(Css.RowWrap);
-            RebuildToolbar();
-            s.Add(_toolsContainer);
-
-            var paintToggle = new Toggle("Paint on drag") { value = _isPainting };
-            paintToggle.RegisterValueChangedCallback(e => _isPainting = e.newValue);
-            s.Add(paintToggle);
-
-            return s;
-        }
-
-        private void RebuildToolbar()
-        {
-            if (_toolsContainer == null) return;
-            _toolsContainer.Clear();
-            _toolButtons.Clear();
-            _baseButtons.Clear();
-
-            // Rope sits at sort order 50. Base types with SortOrder < 50 appear before it,
-            // SortOrder >= 50 appear after. Ungrouped always last.
-            const int RopeSortOrder = 50;
-            var items = new List<(int order, string name, System.Action add)>();
-            items.Add((RopeSortOrder, "Rope", () => AddToolButton(Tool.Rope, "Rope")));
-            foreach (var b in _baseTypes)
-            {
-                var captured = b;
-                items.Add((b.SortOrder, b.DisplayName,
-                    () => AddBaseButton(captured, captured.DisplayName, captured.EditorColor)));
-            }
-
-            items.Sort((a, b) =>
-            {
-                int cmp = a.order.CompareTo(b.order);
-                return cmp != 0 ? cmp : string.Compare(a.name, b.name, System.StringComparison.OrdinalIgnoreCase);
-            });
-            foreach (var item in items) item.add();
-            if (HasUngrouped())
-                AddBaseButton(null, "Ungrouped", EditorColors.EntityFallback);
-
-            if (_editToolsContainer != null)
-            {
-                _editToolsContainer.Clear();
-                AddEditToolButton(Tool.Erase, "Erase");
-                AddEditToolButton(Tool.Flip, "Flip Crossing");
-            }
-
-            UpdateToolActiveStates();
-            UpdateShortcutHints();
-
-            LevelEditorCommands.Refresh();
-            BuildCommandTable();
         }
 
         private void AddToolButton(Tool tool, string label)
@@ -884,148 +486,51 @@ namespace Editor.Windows
             _toolsContainer.Add(btn);
         }
 
-        private void AddEditToolButton(Tool tool, string label)
+        private void ApplyBackgroundToCanvas()
         {
-            var btn = new Button(() => SetTool(tool)) { text = label };
-            btn.AddToClassList(Css.Tool);
-            _toolButtons[tool] = btn;
-            _editToolsContainer.Add(btn);
-        }
+            if (_canvasHost == null || _bgLayer == null) return;
 
-        private void AddBaseButton(EntityBaseTypeSO baseType, string label, Color accent)
-        {
-            var btn = new Button(() =>
+            var mat = EnvironmentSettings.DefaultBackgroundMaterial;
+            if (mat == null)
             {
-                if (baseType != null && _tool == Tool.Place && _selectedBaseType == baseType)
-                    EditorGUIUtility.PingObject(baseType);
-                else
-                    SelectBase(baseType);
-            }) { text = label };
-            btn.AddToClassList(Css.Tool);
-            btn.style.borderLeftWidth = 6;
-            btn.style.borderLeftColor = accent;
-            if (baseType != null)
-            {
-                string baseShortcut = ShortcutTooltip(LevelEditorCommands.BaseCommandId(baseType.BaseId));
-                btn.tooltip = string.IsNullOrEmpty(baseShortcut)
-                    ? "Click again → locate in Project"
-                    : $"{baseShortcut}\nClick again → locate in Project";
-                btn.RegisterCallback<PointerEnterEvent>(_ => btn.style.opacity = 0.6f);
-                btn.RegisterCallback<PointerLeaveEvent>(_ => btn.style.opacity = 1f);
-            }
-
-            _baseButtons.Add((baseType, btn));
-            _toolsContainer.Add(btn);
-        }
-
-        private void SelectBase(EntityBaseTypeSO baseType)
-        {
-            _tool = Tool.Place;
-            _selectedBaseType = baseType;
-            _selectedEntity = SubTypesOf(baseType).FirstOrDefault();
-            RebuildPalette();
-            UpdateToolActiveStates();
-            RefreshCanvas();
-        }
-
-        private void SelectEntity(EntityDefinitionSO def)
-        {
-            if (def == null) return;
-            _tool = Tool.Place;
-            _selectedBaseType = EditorDataFor(def)?.BaseType;
-            _selectedEntity = def;
-            RebuildPalette();
-            UpdateToolActiveStates();
-            RefreshCanvas();
-        }
-
-        private VisualElement BuildPaletteSection()
-        {
-            var s = MakeSection("Brush");
-            _paletteContainer = new VisualElement();
-            s.Add(_paletteContainer);
-            return s;
-        }
-
-        private VisualElement BuildEntityCreatorSection()
-        {
-            var s = MakeSection("New entity type", expanded: false);
-
-            var btn = new Button { text = "+ New Entity Type" };
-            btn.AddToClassList(Css.Btn);
-            btn.AddToClassList(Css.BtnPrimary);
-            btn.clicked += () => UnityEditor.PopupWindow.Show(
-                btn.worldBound, new EntityTypePopup(new List<EntityBaseTypeSO>(_baseTypes), TryCreateEntityType));
-            s.Add(btn);
-            return s;
-        }
-
-        private void ApplyBackgroundToCanvas(Material mat)
-        {
-            if (_canvasHost == null || _bgDimmerLayer == null) return;
-
-            var effective = mat ?? EnvironmentSettings.DefaultBackgroundMaterial;
-
-            if (effective == null)
-            {
-                _bgDimmerLayer.style.backgroundImage = StyleKeyword.None;
-                _bgDimmerLayer.style.backgroundColor = Color.clear;
+                _bgLayer.style.backgroundImage = StyleKeyword.None;
+                _bgLayer.style.backgroundColor = Color.clear;
                 _canvasHost.style.backgroundColor = EditorColors.CanvasBg;
-                if (_canvas != null)
-                {
-                    _canvas.GridStrokeColor = EditorColors.GridDefault;
-                    _canvas.RopeOutlineColor = EditorColors.RopeOutlineDark;
-                }
-
-                _gridColorField?.SetValueWithoutNotify(EditorColors.GridDefault);
+                if (_canvas != null) _canvas.RopeOutlineColor = EditorColors.RopeOutlineDark;
                 return;
             }
 
-            var tex = ExtractTexture(effective);
+            var tex = ExtractTexture(mat);
+            Color bgColor = mat.HasProperty("_BaseColor") ? mat.GetColor("_BaseColor")
+                : mat.HasProperty("_Color") ? mat.GetColor("_Color")
+                : Color.gray;
             if (tex != null)
             {
-                _bgDimmerLayer.style.backgroundImage = new StyleBackground(tex);
-                _bgDimmerLayer.style.backgroundColor = Color.clear;
-                _bgDimmerLayer.style.backgroundSize = new BackgroundSize(BackgroundSizeType.Cover);
+                _bgLayer.style.backgroundImage = new StyleBackground(tex);
+                _bgLayer.style.backgroundColor = Color.clear;
+                _bgLayer.style.backgroundSize = new BackgroundSize(BackgroundSizeType.Cover);
             }
             else
             {
-                Color bgColor = effective.HasProperty("_BaseColor") ? effective.GetColor("_BaseColor")
-                    : effective.HasProperty("_Color") ? effective.GetColor("_Color")
-                    : Color.gray;
-                _bgDimmerLayer.style.backgroundImage = StyleKeyword.None;
-                _bgDimmerLayer.style.backgroundColor = bgColor;
+                _bgLayer.style.backgroundImage = StyleKeyword.None;
+                _bgLayer.style.backgroundColor = bgColor;
             }
 
             _canvasHost.style.backgroundColor = Color.clear;
-            if (_canvas != null)
-            {
-                var derived = DeriveGridColor(effective);
-                _canvas.GridStrokeColor = derived;
-                _canvas.RopeOutlineColor = EditorColors.RopeOutlineLight;
-                _gridColorField?.SetValueWithoutNotify(derived);
-            }
-        }
-
-        private static Color DeriveGridColor(Material m)
-        {
-            Color bg = m.HasProperty("_BaseColor") ? m.GetColor("_BaseColor")
-                : m.HasProperty("_Color") ? m.GetColor("_Color")
-                : Color.gray;
-            float lum = bg.r * 0.2126f + bg.g * 0.7152f + bg.b * 0.0722f;
-            return lum > 0.4f
-                ? new Color(0f, 0f, 0f, 0.22f) // light background → dark grid lines
-                : new Color(1f, 1f, 1f, 0.22f); // dark background  → light grid lines
+            if (_canvas == null) return;
+            float lum = bgColor.r * 0.2126f + bgColor.g * 0.7152f + bgColor.b * 0.0722f;
+            var grid = lum > 0.4f ? new Color(0f, 0f, 0f, 0.22f) : new Color(1f, 1f, 1f, 0.22f);
+            _canvas.GridStrokeColor = grid;
+            _canvas.RopeOutlineColor = EditorColors.RopeOutlineLight;
+            _gridColorField?.SetValueWithoutNotify(grid);
+            _canvas.MarkDirtyRepaint();
         }
 
         private static Texture2D ExtractTexture(Material m)
         {
-            if (m == null) return null;
             foreach (var name in m.GetTexturePropertyNames())
-            {
-                if (m.GetTexture(name) is Texture2D tex) return tex;
-            }
-
+                if (m.GetTexture(name) is Texture2D tex)
+                    return tex;
             return null;
         }
 
@@ -1078,202 +583,66 @@ namespace Editor.Windows
             return panel;
         }
 
-        public void LoadGeneratedLevel(LevelDataSO level)
-        {
-            level.LevelId = _levelIdField.value;
-            _level = level;
-            _isEditMode = false;
-            _currentLevelId = 0;
-            _previewRope = null;
-            _selectedRopeId = -1;
-            _nextRopeId = _level.Ropes.Count == 0 ? 0 : _level.Ropes.Max(r => r.RopeId) + 1;
-            _widthField.value = _level.GridWidth;
-            _heightField.value = _level.GridHeight;
-            _timeField.value = _level.TimeSeconds;
-            RefreshAll();
-            _bgMaterialField.SetValueWithoutNotify(_level.BackgroundMaterial);
-            ApplyBackgroundToCanvas(_level.BackgroundMaterial);
-        }
-
-        public static bool IsNailed(EntityDefinitionSO def)
-        {
-            foreach (var tag in def.Tags)
-                if (string.Equals(tag, "nailed", System.StringComparison.OrdinalIgnoreCase) ||
-                    string.Equals(tag, "locked", System.StringComparison.OrdinalIgnoreCase))
-                    return true;
-            return false;
-        }
-
         #endregion
 
         #region UI: dynamic panels
 
         private void RebuildPalette()
         {
+            if (_paletteContainer == null) return;
             _paletteContainer.Clear();
-            _entityButtons.Clear();
             switch (_tool)
             {
-                case Tool.Place: BuildPlacePalette(); break;
-                case Tool.Rope: BuildRopePalette(); break;
+                case Tool.Pin:
+                    _paletteContainer.Add(new Label("Pin: click a cell to add, drag a pin to move it, right-click to remove."));
+                    break;
+                case Tool.Rope:
+                    BuildRopePalette();
+                    break;
+                case Tool.Lock:
+                    _paletteContainer.Add(new Label("Lock: click a pin to lock / unlock it (locked pins can't be moved)."));
+                    break;
                 case Tool.Erase:
-                    _paletteContainer.Add(new Label("Erase: left-click a node to remove its entity."));
+                    _paletteContainer.Add(new Label("Erase: click a pin to remove it together with its ropes."));
                     break;
-                case Tool.Flip:
-                    _paletteContainer.Add(new Label("Flip: click near a crossing to swap which rope is on top."));
+                case Tool.Tutorial:
+                    _paletteContainer.Add(new Label(_pendingPinId < 0
+                        ? "Tutorial: click the pin the hand should drag."
+                        : $"Tutorial: click the empty target cell for pin {_pendingPinId}."));
                     break;
             }
-        }
-
-        private void BuildPlacePalette()
-        {
-            if (_entityDefs.Count == 0)
-            {
-                _paletteContainer.Add(new HelpBox(
-                    "No entity types yet. Use “+ New Entity Type” below (pick or create a base type), " +
-                    "or click to create a starter Pin set.",
-                    HelpBoxMessageType.Info));
-                _paletteContainer.Add(MakeButton("Create Default Entity Types", CreateDefaultEntityTypes,
-                    Css.BtnPrimary));
-                return;
-            }
-
-            var subTypes = SubTypesOf(_selectedBaseType).ToList();
-            string baseName = _selectedBaseType != null ? _selectedBaseType.DisplayName : "Ungrouped";
-
-            if (subTypes.Count == 0)
-            {
-                _paletteContainer.Add(new HelpBox(
-                    $"“{baseName}” has no sub-types yet. Add one with “+ New Entity Type” below.",
-                    HelpBoxMessageType.Info));
-                return;
-            }
-
-            var header = new Label(_selectedBaseType != null ? $"{baseName} types  ⤢" : $"{baseName} types");
-            header.AddToClassList(Css.SectionHeader);
-            if (_selectedBaseType != null)
-            {
-                header.tooltip = $"Click to locate {baseName} base asset in Project";
-                header.RegisterCallback<PointerEnterEvent>(_ => header.style.opacity = 0.6f);
-                header.RegisterCallback<PointerLeaveEvent>(_ => header.style.opacity = 1f);
-                header.RegisterCallback<ClickEvent>(_ => EditorGUIUtility.PingObject(_selectedBaseType));
-            }
-
-            _paletteContainer.Add(header);
-
-            var row = MakeRow();
-            row.AddToClassList(Css.RowWrap);
-            foreach (var def in subTypes)
-            {
-                var captured = def;
-                var btn = new Button(() =>
-                {
-                    if (_selectedEntity == captured)
-                        EditorGUIUtility.PingObject(captured);
-                    else
-                    {
-                        _selectedEntity = captured;
-                        RebuildPalette();
-                        RefreshCanvas();
-                    }
-                })
-                {
-                    text = def.DisplayName
-                };
-                btn.AddToClassList(Css.Tool);
-                if (def == _selectedEntity) btn.AddToClassList(Css.ToolActive);
-                btn.style.borderLeftWidth = 6;
-                btn.style.borderLeftColor = EditorDataFor(def)?.EditorColor ?? EditorColors.EntityFallback;
-                string shortcut = ShortcutTooltip(LevelEditorCommands.EntityCommandId(def.TypeId));
-                btn.tooltip = string.IsNullOrEmpty(shortcut)
-                    ? "Click again → locate in Project"
-                    : $"{shortcut}\nClick again → locate in Project";
-                _entityButtons.Add((captured, btn));
-                row.Add(btn);
-            }
-
-            _paletteContainer.Add(row);
         }
 
         private void BuildRopePalette()
         {
-            if (_paletteAssets.Count == 0)
+            if (_palette == null)
             {
-                _paletteContainer.Add(MakeButton("Create Default Palette", CreateDefaultPalette, Css.BtnPrimary));
+                _paletteContainer.Add(new HelpBox(
+                    "No RopePaletteSO found. Create one: Assets ▸ Create ▸ TwistedTangle ▸ Rope Palette.",
+                    HelpBoxMessageType.Warning));
+                return;
             }
-            else
+
+            _paletteContainer.Add(new Label("Click two pins to connect them. Color:"));
+            var swRow = new VisualElement();
+            swRow.AddToClassList(Css.SwatchGrid);
+            for (int i = 0; i < _palette.Count; i++)
             {
-                _selectedPaletteIndex = Mathf.Clamp(_selectedPaletteIndex, 0, _paletteAssets.Count - 1);
-                var paletteNames = _paletteAssets.Select(p => p.DisplayName).ToList();
-
-                var headerRow = MakeRow();
-                headerRow.style.marginBottom = 2;
-                var presetsLabel = new Label("Presets");
-                presetsLabel.AddToClassList(Css.PalettePickerLabel);
-                headerRow.Add(presetsLabel);
-
-                var selector = new DropdownField(paletteNames, _selectedPaletteIndex);
-                selector.AddToClassList(Css.PaletteSelectorCompact);
-                selector.RegisterValueChangedCallback(e =>
+                int index = i;
+                var b = new Button(() =>
                 {
-                    _selectedPaletteIndex = paletteNames.IndexOf(e.newValue);
-                    _hiddenSwatchNames.Clear();
+                    _colorIndex = index;
                     RebuildPalette();
-                });
-                headerRow.Add(selector);
-
-                var palette = _paletteAssets[_selectedPaletteIndex];
-                var filterBtn = new Button();
-                filterBtn.text = "⚙";
-                filterBtn.AddToClassList(Css.SwatchFilterBtn);
-                filterBtn.tooltip = "Show / hide palette colors";
-                filterBtn.clicked += () => UnityEditor.PopupWindow.Show(
-                    filterBtn.worldBound,
-                    new SwatchFilterPopup(palette, _hiddenSwatchNames, RebuildPalette));
-                headerRow.Add(filterBtn);
-                _paletteContainer.Add(headerRow);
-
-                var swRow = new VisualElement();
-                swRow.AddToClassList(Css.SwatchGrid);
-                swRow.name = "swatchRow";
-                foreach (var entry in palette.Entries)
-                {
-                    if (_hiddenSwatchNames.Contains(entry.Name)) continue;
-                    var color = entry.Color;
-                    var variant = entry.Variant;
-                    var b = new Button(() =>
-                    {
-                        _ropeColor = color;
-                        _ropeMaterial = variant;
-                        if (_previewRope != null)
-                        {
-                            _previewRope.Tint = color;
-                            _previewRope.Material = variant;
-                        }
-
-                        UpdateSwatchSelection();
-                        RefreshCanvas();
-                    }) { tooltip = entry.Name };
-                    b.AddToClassList(Css.Swatch);
-                    b.style.backgroundColor = color;
-                    if (ColorApproxEqual(color, _ropeColor)) b.AddToClassList(Css.SwatchSelected);
-                    swRow.Add(b);
-                }
-
-                _paletteContainer.Add(swRow);
+                }) { tooltip = $"colorIndex {index}" };
+                b.AddToClassList(Css.Swatch);
+                b.style.backgroundColor = _palette.Get(index);
+                if (index == _colorIndex) b.AddToClassList(Css.SwatchSelected);
+                swRow.Add(b);
             }
-
-            var addBtn = new Button { text = "+ Add to Palette" };
-            addBtn.AddToClassList(Css.Btn);
-            addBtn.style.marginTop = 4;
-            addBtn.clicked += () => UnityEditor.PopupWindow.Show(
-                addBtn.worldBound,
-                new PaletteColorPopup(new List<ColorPaletteSO>(_paletteAssets), _ropeColor, TryAddPaletteColor));
-            _paletteContainer.Add(addBtn);
+            _paletteContainer.Add(swRow);
 
             var actionRow = MakeRow();
             actionRow.style.marginTop = 6;
-            actionRow.Add(MakeButton("Finish Rope", FinishRope, Css.BtnSave));
             actionRow.Add(MakeButton("Cancel Rope", CancelRope, Css.BtnDanger));
             _paletteContainer.Add(actionRow);
         }
@@ -1281,25 +650,25 @@ namespace Editor.Windows
         private void RebuildRopeList()
         {
             _ropeListContainer.Clear();
-            if (_level == null || _level.Ropes.Count == 0)
+            if (Stage == null || Stage.ropes.Count == 0)
             {
-                _ropeListContainer.Add(new Label("No ropes yet. Pick the Rope tool and click entities in order."));
+                _ropeListContainer.Add(new Label("No ropes yet. Pick the Rope tool and click two pins."));
                 return;
             }
 
-            foreach (var rope in _level.Ropes.OrderByDescending(r => r.Layer))
+            foreach (var rope in Stage.ropes.OrderByDescending(r => r.layer))
             {
                 var captured = rope;
 
                 var row = new VisualElement();
                 row.AddToClassList(Css.RopeRow);
-                if (rope.RopeId == _selectedRopeId) row.AddToClassList(Css.RopeRowSelected);
+                if (rope.id == _selectedRopeId) row.AddToClassList(Css.RopeRowSelected);
 
                 var left = new VisualElement();
                 left.AddToClassList(Css.RopeRowLeft);
                 left.RegisterCallback<ClickEvent>(_ =>
                 {
-                    _selectedRopeId = captured.RopeId;
+                    _selectedRopeId = captured.id;
                     RefreshAll();
                 });
 
@@ -1309,31 +678,31 @@ namespace Editor.Windows
 
                 var swatch = new VisualElement();
                 swatch.AddToClassList(Css.RopeRowSwatch);
-                swatch.style.backgroundColor = rope.Tint;
+                swatch.style.backgroundColor = _palette != null ? _palette.Get(rope.colorIndex) : Color.white;
                 if (_tool == Tool.Rope) swatch.AddToClassList(Css.RopeRowSwatchPaintable);
-                swatch.tooltip = _tool == Tool.Rope ? "Click to apply active palette color" : string.Empty;
+                swatch.tooltip = _tool == Tool.Rope ? "Click to apply the selected color" : string.Empty;
                 swatch.RegisterCallback<ClickEvent>(e =>
                 {
                     if (_tool != Tool.Rope) return;
                     e.StopPropagation(); // don't also trigger the row selection click
-                    Undo.RecordObject(_level, "Recolor Rope");
-                    captured.Tint = _ropeColor;
-                    captured.Material = _ropeMaterial;
+                    Undo.RecordObject(_session, "Recolor Rope");
+                    captured.colorIndex = _colorIndex;
                     RefreshAll();
                 });
                 left.Add(swatch);
 
                 var info = new VisualElement();
                 info.AddToClassList(Css.RopeRowInfo);
-                var nameLabel = new Label($"Rope {rope.RopeId + 1}");
+                var nameLabel = new Label($"Rope {rope.id}");
                 nameLabel.AddToClassList(Css.RopeRowName);
-                var metaLabel = new Label($"{rope.Path.Count} pts");
+                string shape = rope.path is { Count: >= 2 } ? $"path {rope.path.Count} pts" : "straight";
+                var metaLabel = new Label($"pin {rope.pinA} → {rope.pinB} · {shape}");
                 metaLabel.AddToClassList(Css.RopeRowMeta);
                 info.Add(nameLabel);
                 info.Add(metaLabel);
                 left.Add(info);
 
-                var badge = new Label($"L{rope.Layer}");
+                var badge = new Label($"L{rope.layer}");
                 badge.AddToClassList(Css.RopeRowBadge);
                 left.Add(badge);
 
@@ -1341,29 +710,9 @@ namespace Editor.Windows
 
                 var actions = new VisualElement();
                 actions.AddToClassList(Css.RopeRowActions);
-
-                var frontBtn = new Button(() =>
-                {
-                    BringToFront(captured);
-                    RefreshAll();
-                }) { text = "↑", tooltip = "Bring to front" };
-                frontBtn.AddToClassList(Css.RopeRowIconBtn);
-                actions.Add(frontBtn);
-
-                var backBtn = new Button(() =>
-                {
-                    SendToBack(captured);
-                    RefreshAll();
-                }) { text = "↓", tooltip = "Send to back" };
-                backBtn.AddToClassList(Css.RopeRowIconBtn);
-                actions.Add(backBtn);
-
-                var deleteBtn = new Button(() =>
-                {
-                    DeleteRope(captured);
-                    RefreshAll();
-                }) { text = "✕", tooltip = "Delete rope" };
-                deleteBtn.AddToClassList(Css.RopeRowIconBtn);
+                actions.Add(RopeIconButton("↑", "Bring to front", () => BringToFront(captured)));
+                actions.Add(RopeIconButton("↓", "Send to back", () => SendToBack(captured)));
+                var deleteBtn = RopeIconButton("✕", "Delete rope", () => DeleteRope(captured));
                 deleteBtn.AddToClassList(Css.RopeRowIconBtnDanger);
                 actions.Add(deleteBtn);
 
@@ -1372,16 +721,28 @@ namespace Editor.Windows
             }
         }
 
-        private void RebuildValidation()
+        private Button RopeIconButton(string text, string tooltip, System.Action action)
+        {
+            var b = new Button(() =>
+            {
+                action();
+                RefreshAll();
+            }) { text = text, tooltip = tooltip };
+            b.AddToClassList(Css.RopeRowIconBtn);
+            return b;
+        }
+
+        private ValidationReport RebuildValidationInternal()
         {
             _validationContainer.Clear();
-            if (_level == null)
+            if (Level == null)
             {
-                _validationContainer.Add(new Label("Generate or load a level first."));
-                return;
+                _validationContainer.Add(new Label("Load a level or create a new one."));
+                SetStatusDot(null);
+                return null;
             }
 
-            var report = LevelValidator.Validate(_level, _entityLookup.Keys);
+            var report = LevelValidator.Validate(Level);
 
             var status = new Label(report.IsValid ? "✓ Level is valid" : $"✗ {report.Errors.Count} error(s)");
             status.AddToClassList(report.IsValid ? Css.ValidationOk : Css.ValidationError);
@@ -1404,36 +765,28 @@ namespace Editor.Windows
             var m = report.Metrics;
             var metricsRow = MakeRow();
             metricsRow.AddToClassList(Css.RowWrap);
-            AddMetricChip(metricsRow, m.EntityCount.ToString(), "entities");
+            AddMetricChip(metricsRow, m.PinCount.ToString(), "pins");
+            AddMetricChip(metricsRow, m.LockedPinCount.ToString(), "locked");
             AddMetricChip(metricsRow, m.RopeCount.ToString(), "ropes");
-            AddMetricChip(metricsRow, m.CrossingCount.ToString(), "crossings", m.CrossingCount > 0);
-            AddMetricChip(metricsRow, m.TangleResidual.ToString(), "tangle", m.TangleResidual > 0);
-            AddMetricChip(metricsRow, m.ColorCount.ToString(), "colors");
-            AddMetricChip(metricsRow, m.OverrideCount.ToString(), "overrides");
-            AddMetricChip(metricsRow, $"{m.TotalPathLength:0.0}", "length");
-            AddMetricChip(metricsRow, $"{_level.TimeSeconds}s", "time");
+            AddMetricChip(metricsRow, m.CrossingPairs.ToString(), "crossings", m.CrossingPairs == 0);
+            AddMetricChip(metricsRow, m.TangledRopes.ToString(), "tangled");
+            AddMetricChip(metricsRow, m.FreeCells.ToString(), "free cells");
+            AddMetricChip(metricsRow, Level.moveLimit > 0 ? Level.moveLimit.ToString() : "∞", "moves");
+            AddMetricChip(metricsRow, Level.timeLimitSeconds > 0 ? $"{Level.timeLimitSeconds}s" : "∞", "time");
             _validationContainer.Add(metricsRow);
 
-            var diffRow = MakeRow();
-            diffRow.style.marginTop = 4;
-            var diffBadge = new Label($"{m.Difficulty}  ·  {m.DifficultyScore:0.0}");
-            diffBadge.AddToClassList(Css.DifficultyBadge);
-            diffBadge.AddToClassList($"{Css.DifficultyBadge}--{m.Difficulty}");
-            diffRow.Add(diffBadge);
-            _validationContainer.Add(diffRow);
+            SetStatusDot(report.IsValid);
+            return report;
+        }
 
-            if (_difficultyField != null && _level != null)
-            {
-                _level.Difficulty = m.Difficulty;
-                _difficultyField.SetValueWithoutNotify(m.Difficulty);
-            }
+        private void RebuildValidation() => RebuildValidationInternal();
 
-            if (_validationStatusDot != null)
-            {
-                _validationStatusDot.EnableInClassList(Css.StatusDotOk, report.IsValid);
-                _validationStatusDot.EnableInClassList(Css.StatusDotError, !report.IsValid);
-                _validationStatusDot.EnableInClassList(Css.StatusDotWarn, false);
-            }
+        private void SetStatusDot(bool? ok)
+        {
+            if (_validationStatusDot == null) return;
+            _validationStatusDot.EnableInClassList(Css.StatusDotOk, ok == true);
+            _validationStatusDot.EnableInClassList(Css.StatusDotError, ok == false);
+            _validationStatusDot.EnableInClassList(Css.StatusDotWarn, false);
         }
 
         private static void AddMetricChip(VisualElement row, string value, string label, bool warn = false)
@@ -1452,361 +805,368 @@ namespace Editor.Windows
             row.Add(chip);
         }
 
+        private void UpdateTutorialLabel()
+        {
+            if (_tutorialLabel == null) return;
+            var t = Level?.tutorial;
+            _tutorialLabel.text = t != null && t.pinId >= 0
+                ? $"Hand drags pin {t.pinId} → cell ({t.toX},{t.toY}); other pins locked: {t.lockOtherPins}"
+                : "No tutorial on this level.";
+        }
+
         #endregion
 
         #region Canvas interaction
 
-        private void OnCanvasCellClicked(int x, int y, Vector2 local, int button)
+        private PinJson PinAt(Vector2Int cell) => Stage?.pins.FirstOrDefault(p => p.Cell == cell);
+        private PinJson PinById(int id) => Stage?.pins.FirstOrDefault(p => p.id == id);
+
+        private void OnCanvasCellClicked(int x, int y, int button)
         {
-            if (_level == null) return;
-            var subCoord = new Vector2Int(x, y);
-            var coarseCoord = new Vector2Int(x / CrossingSolver.SubDiv, y / CrossingSolver.SubDiv);
-            var coord = coarseCoord;
+            if (Stage == null) return;
+            var cell = new Vector2Int(x, y);
+            var pin = PinAt(cell);
 
             switch (_tool)
             {
-                case Tool.Place:
-                    if (button == 1) RemoveEntity(coord);
-                    else PlaceEntity(coord);
-                    break;
-                case Tool.Erase:
-                    RemoveEntity(coord);
+                case Tool.Pin:
+                    if (button == 1)
+                    {
+                        if (pin != null) RemovePin(pin);
+                    }
+                    else if (pin != null) BeginPinDrag(pin);
+                    else AddPin(cell);
                     break;
                 case Tool.Rope:
-                    if (button == 1) FinishRope();
-                    else AddRopeWaypoint(subCoord);
+                    if (button == 1) CancelRope();
+                    else OnRopeClick(pin);
                     break;
-                case Tool.Flip:
-                    FlipNearestCrossing(local);
+                case Tool.Lock:
+                    if (pin != null) ToggleLock(pin);
+                    break;
+                case Tool.Erase:
+                    if (pin != null) RemovePin(pin);
+                    break;
+                case Tool.Tutorial:
+                    OnTutorialClick(cell, pin);
                     break;
             }
 
-            RefreshCanvas();
-            if (_tool != Tool.Place && _tool != Tool.Erase) RefreshPanels();
+            RefreshAll();
         }
 
         private void OnCanvasCellDragged(int x, int y)
         {
-            if (_level == null) return;
-            var subCoord = new Vector2Int(x, y);
-            var coarseCoord = new Vector2Int(x / CrossingSolver.SubDiv, y / CrossingSolver.SubDiv);
-            var coord = coarseCoord;
-
-            if (_tool == Tool.Rope && _previewRope != null)
-            {
-                AddRopeWaypoint(subCoord);
-                RefreshCanvas();
-                return;
-            }
-
-            if (!_isPainting) return;
-            if (_tool == Tool.Place) PlaceEntity(coord);
-            else if (_tool == Tool.Erase) RemoveEntity(coord);
-            else return;
+            if (_draggingPinId < 0 || Stage == null) return;
+            var cell = new Vector2Int(x, y);
+            var pin = PinById(_draggingPinId);
+            if (pin == null || PinAt(cell) != null) return;
+            MovePin(pin, cell);
             RefreshCanvas();
+        }
+
+        private void OnCanvasReleased()
+        {
+            if (_draggingPinId < 0) return;
+            _draggingPinId = -1;
+            _dragBasePaths.Clear();
+            RefreshAll();
         }
 
         #endregion
 
         #region Model mutations
 
-        private void GenerateGrid()
+        private void NewLevel()
         {
-            int w = Mathf.Max(1, _widthField.value);
-            int h = Mathf.Max(1, _heightField.value);
+            int map = Mathf.Max(1, _mapField.value);
+            var level = new LevelJson
+            {
+                levelNumber = Mathf.Max(1, _levelNumberField.value),
+                difficulty = _difficultyField.value,
+                moveLimit = Mathf.Max(0, _moveLimitField.value),
+                timeLimitSeconds = Mathf.Max(0, _timeLimitField.value),
+                tutorial = new TutorialJson(),
+            };
+            level.stages.Add(new StageJson
+            {
+                mapId = map,
+                gridWidth = StageJson.WidthForMap(map),
+                gridHeight = StageJson.HeightForMap(map),
+            });
+            SetLevel(level, 0);
+        }
 
-            _level = CreateInstance<LevelDataSO>();
-            _level.LevelId = _levelIdField.value;
-            _level.GridWidth = w;
-            _level.GridHeight = h;
-            _level.TimeSeconds = _timeField.value;
-
-            var defaultMat = EnvironmentSettings.DefaultBackgroundMaterial;
-            _level.BackgroundMaterial = defaultMat;
-
-            _isEditMode = false;
-            _currentLevelId = 0;
-            _nextRopeId = 0;
-            _selectedRopeId = -1;
-            _previewRope = null;
-
+        private void OnMapChanged(int map)
+        {
+            UpdateGridSizeLabel();
+            if (Stage == null || map < 1 || Stage.mapId == map) return;
+            Undo.RecordObject(_session, "Change Map");
+            Stage.mapId = map;
+            Stage.gridWidth = StageJson.WidthForMap(map);
+            Stage.gridHeight = StageJson.HeightForMap(map);
             RefreshAll();
-            _bgMaterialField.SetValueWithoutNotify(defaultMat);
         }
 
-        private void PlaceEntity(Vector2Int coord)
+        private void UpdateGridSizeLabel()
         {
-            if (_selectedEntity == null) return;
-            if (_level.GridEntities.Any(p => p.Coordinates == coord)) return;
-            Undo.RecordObject(_level, "Place Entity");
-            _level.GridEntities.Add(new GridEntityData(coord, _selectedEntity.TypeId));
+            if (_gridSizeLabel == null || _mapField == null) return;
+            int map = Mathf.Max(1, _mapField.value);
+            _gridSizeLabel.text = $"{StageJson.WidthForMap(map)}×{StageJson.HeightForMap(map)}";
         }
 
-        private void RemoveEntity(Vector2Int coord)
+        private void AddPin(Vector2Int cell)
         {
-            if (_level == null) return;
-            Undo.RecordObject(_level, "Remove Entity");
-            _level.GridEntities.RemoveAll(p => p.Coordinates == coord);
-            foreach (var rope in _level.Ropes)
+            Undo.RecordObject(_session, "Add Pin");
+            int id = Stage.pins.Count == 0 ? 0 : Stage.pins.Max(p => p.id) + 1;
+            Stage.pins.Add(new PinJson { id = id, x = cell.x, y = cell.y });
+        }
+
+        private void RemovePin(PinJson pin)
+        {
+            Undo.RecordObject(_session, "Remove Pin");
+            Stage.pins.Remove(pin);
+            Stage.ropes.RemoveAll(r => r.pinA == pin.id || r.pinB == pin.id);
+            if (Level.tutorial != null && Level.tutorial.pinId == pin.id) Level.tutorial.pinId = -1;
+            if (_pendingPinId == pin.id) _pendingPinId = -1;
+        }
+
+        private void ToggleLock(PinJson pin)
+        {
+            Undo.RecordObject(_session, "Toggle Pin Lock");
+            pin.locked = !pin.locked;
+        }
+
+        private void BeginPinDrag(PinJson pin)
+        {
+            Undo.RecordObject(_session, "Move Pin");
+            _draggingPinId = pin.id;
+            _dragBasePaths.Clear();
+            foreach (var rope in Stage.ropes)
             {
-                if (rope?.Path == null) continue;
-                for (int i = 1; i < rope.Path.Count - 1; i++)
-                {
-                    var wp = rope.Path[i];
-                    if (wp.PegCoord != coord || wp.IsBendPoint) continue;
-                    rope.Path[i] = new RopeWaypoint(wp.PegCoord, wp.Side, true);
-                }
+                if ((rope.pinA != pin.id && rope.pinB != pin.id) || rope.path == null || rope.path.Count < 2) continue;
+                var pts = rope.path.Select(p => new Vector2(p.x, p.y)).ToArray();
+                _dragBasePaths[rope.id] = (pts, RopeGeometry.PathLength(pts));
             }
         }
 
-        private void AddRopeWaypoint(Vector2Int subCoord)
+        // Moves a pin; attached authored paths are re-fitted with the runtime's RopeShape remap.
+        private void MovePin(PinJson pin, Vector2Int cell)
         {
-            bool isFirstPoint = _previewRope == null;
-            var coarseCoord = new Vector2Int(subCoord.x / CrossingSolver.SubDiv, subCoord.y / CrossingSolver.SubDiv);
-            bool hasPeg = _level.GridEntities.FindIndex(e => e.Coordinates == coarseCoord) >= 0;
-
-            bool connectingToPin = hasPeg &&
-                                   (isFirstPoint || subCoord == CrossingSolver.PinToSub(coarseCoord));
-            if (connectingToPin) subCoord = CrossingSolver.PinToSub(coarseCoord);
-
-            if (isFirstPoint && !hasPeg) return;
-
-            if (isFirstPoint)
+            pin.x = cell.x;
+            pin.y = cell.y;
+            foreach (var rope in Stage.ropes)
             {
-                int layer = _level.Ropes.Count == 0 ? 0 : _level.Ropes.Max(r => r.Layer) + 1;
-                _previewRope = new RopeData(_nextRopeId, _ropeColor, layer) { Material = _ropeMaterial };
+                if (!_dragBasePaths.TryGetValue(rope.id, out var basePath)) continue;
+                var a = PinById(rope.pinA);
+                var b = PinById(rope.pinB);
+                if (a == null || b == null) continue;
+                var result = new Vector2[basePath.path.Length];
+                RopeShape.Remap(basePath.path, basePath.length, a.Cell, b.Cell, result);
+                for (int i = 0; i < result.Length; i++)
+                    rope.path[i] = new PathPointJson { x = result[i].x, y = result[i].y, h = rope.path[i].h };
             }
+        }
 
-            if (_previewRope.Path.Count > 0 && _previewRope.Path[^1].PegCoord == subCoord) return;
-
-            if (_previewRope.Path.Count >= 5)
+        private void OnRopeClick(PinJson pin)
+        {
+            if (pin == null || pin.id == _pendingPinId)
             {
-                ShowNotification(new GUIContent("Max 3 bend points reached."));
+                _pendingPinId = -1;
                 return;
             }
 
-            if (_previewRope.Path.Count > 0)
+            if (_pendingPinId < 0)
             {
-                Vector2Int last = _previewRope.Path[^1].PegCoord;
-                int maxSubReach = MaxRopeReach * CrossingSolver.SubDiv;
-                if (Mathf.Max(Mathf.Abs(subCoord.x - last.x), Mathf.Abs(subCoord.y - last.y)) > maxSubReach)
-                {
-                    ShowNotification(new GUIContent($"Too far — max reach is {MaxRopeReach} cells."));
-                    return;
-                }
-            }
-
-            _waypointHistory.Push(new List<RopeWaypoint>(_previewRope.Path));
-            _previewRope.Path.Add(new RopeWaypoint(subCoord, WindSide.None, !connectingToPin));
-        }
-
-        private void UndoLastWaypoint()
-        {
-            if (_previewRope == null) return;
-            if (_waypointHistory.Count == 0)
-            {
-                // İlk waypoint bile eklenmemişse rope'u iptal et.
-                CancelRope();
+                _pendingPinId = pin.id;
                 return;
             }
 
-            _previewRope.Path = _waypointHistory.Pop();
-            if (_previewRope.Path.Count == 0)
+            var first = PinById(_pendingPinId);
+            if (first == null)
             {
-                _previewRope = null;
-                _waypointHistory.Clear();
-            }
-
-            RefreshCanvas();
-        }
-
-        private void FinishRope()
-        {
-            if (_previewRope == null) return;
-
-            if (_previewRope.Path.Count < 2)
-            {
-                ShowNotification(new GUIContent("Connect to at least two pins before finishing."));
+                _pendingPinId = pin.id;
                 return;
             }
 
-            if (_previewRope.Path[^1].IsBendPoint)
+            if (Stage.ropes.Any(r => (r.pinA == first.id && r.pinB == pin.id) || (r.pinA == pin.id && r.pinB == first.id)))
             {
-                ShowNotification(new GUIContent("End the rope on a pin."));
+                ShowNotification(new GUIContent("These pins are already connected."));
                 return;
             }
 
-            Undo.RecordObject(_level, "Add Rope");
-            _level.Ropes.Add(_previewRope);
-            _selectedRopeId = _previewRope.RopeId;
-            _nextRopeId++;
+            float max = RopeTensionRule.MaxLength(RopeTensionRule.RestLength);
+            if (Vector2.Distance(first.Cell, pin.Cell) > max)
+            {
+                ShowNotification(new GUIContent($"Too far — max rope length is {max:0.00} cells."));
+                return;
+            }
 
-            _previewRope = null;
-            _waypointHistory.Clear();
-            RefreshAll();
+            Undo.RecordObject(_session, "Add Rope");
+            var rope = new RopeJson
+            {
+                id = Stage.ropes.Count == 0 ? 0 : Stage.ropes.Max(r => r.id) + 1,
+                pinA = first.id,
+                pinB = pin.id,
+                colorIndex = _colorIndex,
+                layer = Stage.ropes.Count == 0 ? 0 : Stage.ropes.Max(r => r.layer) + 1,
+            };
+            Stage.ropes.Add(rope);
+            _selectedRopeId = rope.id;
+            _pendingPinId = -1;
         }
 
         private void CancelRope()
         {
-            _previewRope = null;
-            _waypointHistory.Clear();
+            _pendingPinId = -1;
             RefreshAll();
         }
 
-        private void DeleteRope(RopeData rope)
+        private void DeleteRope(RopeJson rope)
         {
-            Undo.RecordObject(_level, "Delete Rope");
-            _level.Ropes.Remove(rope);
-            _level.CrossingOverrides.RemoveAll(o => o.RopeIdA == rope.RopeId || o.RopeIdB == rope.RopeId);
-            if (_selectedRopeId == rope.RopeId) _selectedRopeId = -1;
+            Undo.RecordObject(_session, "Delete Rope");
+            Stage.ropes.Remove(rope);
+            if (_selectedRopeId == rope.id) _selectedRopeId = -1;
         }
 
-        private void BringToFront(RopeData rope)
+        private void BringToFront(RopeJson rope)
         {
-            if (_level.Ropes.Count <= 1) return;
-            Undo.RecordObject(_level, "Rope To Front");
-            rope.Layer = _level.Ropes.Max(r => r.Layer) + 1;
+            if (Stage.ropes.Count <= 1) return;
+            Undo.RecordObject(_session, "Rope To Front");
+            rope.layer = Stage.ropes.Max(r => r.layer) + 1;
         }
 
-        private void SendToBack(RopeData rope)
+        private void SendToBack(RopeJson rope)
         {
-            if (_level.Ropes.Count <= 1) return;
-            Undo.RecordObject(_level, "Rope To Back");
-            rope.Layer = _level.Ropes.Min(r => r.Layer) - 1;
+            if (Stage.ropes.Count <= 1) return;
+            Undo.RecordObject(_session, "Rope To Back");
+            rope.layer = Stage.ropes.Min(r => r.layer) - 1;
         }
 
-        private void FlipNearestCrossing(Vector2 local)
+        private void OnTutorialClick(Vector2Int cell, PinJson pin)
         {
-            var crossings = CrossingSolver.FindCrossings(_level.Ropes);
-            if (crossings.Count == 0) return;
-
-            float cell = _canvas.CellSize;
-            var clickCs = new Vector2(local.x / cell, _level.GridHeight - local.y / cell);
-
-            float best = FlipPickRadiusCells;
-            bool found = false;
-            RopeCrossing nearest = default;
-            foreach (var c in crossings)
+            if (_pendingPinId < 0)
             {
-                float d = Vector2.Distance(c.Point, clickCs);
-                if (d <= best)
-                {
-                    best = d;
-                    nearest = c;
-                    found = true;
-                }
+                if (pin != null) _pendingPinId = pin.id;
+                return;
             }
 
-            if (!found) return;
+            if (pin != null)
+            {
+                _pendingPinId = pin.id;
+                return;
+            }
 
-            Undo.RecordObject(_level, "Flip Crossing");
-            var key = CrossingOverride.Create(nearest.RopeIdA, nearest.SegA, nearest.RopeIdB, nearest.SegB);
-            if (!_level.CrossingOverrides.Remove(key)) _level.CrossingOverrides.Add(key);
+            Undo.RecordObject(_session, "Set Tutorial");
+            Level.tutorial ??= new TutorialJson();
+            Level.tutorial.pinId = _pendingPinId;
+            Level.tutorial.toX = cell.x;
+            Level.tutorial.toY = cell.y;
+            Level.tutorial.lockOtherPins = true;
+            _pendingPinId = -1;
+            _tool = Tool.Pin;
+        }
+
+        private void ClearTutorial()
+        {
+            if (Level?.tutorial == null) return;
+            Undo.RecordObject(_session, "Clear Tutorial");
+            Level.tutorial.pinId = -1;
+            RefreshAll();
         }
 
         #endregion
 
         #region Save / load / delete
 
+        private void SetLevel(LevelJson level, int loadedFrom)
+        {
+            _session = LevelEditSession.Create(level);
+            _loadedLevelNumber = loadedFrom;
+            _pendingPinId = -1;
+            _selectedRopeId = -1;
+            _draggingPinId = -1;
+            SyncFieldsFromLevel();
+            RefreshAll();
+        }
+
+        private void SyncFieldsFromLevel()
+        {
+            if (Level == null) return;
+            _levelNumberField.SetValueWithoutNotify(Level.levelNumber);
+            if (Stage != null) _mapField.SetValueWithoutNotify(Stage.mapId);
+            UpdateGridSizeLabel();
+            if (!_difficultyField.choices.Contains(Level.difficulty))
+                _difficultyField.choices.Add(Level.difficulty);
+            _difficultyField.SetValueWithoutNotify(Level.difficulty);
+            _moveLimitField.SetValueWithoutNotify(Level.moveLimit);
+            _timeLimitField.SetValueWithoutNotify(Level.timeLimitSeconds);
+        }
+
+        public void LoadGeneratedLevel(LevelJson level)
+        {
+            level.levelNumber = Mathf.Max(1, _levelNumberField.value);
+            SetLevel(level, 0);
+        }
+
         private void SaveCurrentLevel()
         {
-            if (_level == null)
+            if (Level == null)
             {
-                EditorUtility.DisplayDialog("Save", "Generate or load a level first.", "OK");
+                EditorUtility.DisplayDialog("Save", "Load a level or create a new one first.", "OK");
                 return;
             }
 
-            _level.LevelId = _levelIdField.value;
-            _level.TimeSeconds = _timeField.value;
-            if (_difficultyField != null) _level.Difficulty = (LevelDifficulty)_difficultyField.value;
-            var report = LevelValidator.Validate(_level, _entityLookup.Keys);
-            RebuildValidation();
-
-            if (!report.IsValid)
+            Level.levelNumber = _levelNumberField.value;
+            var report = RebuildValidationInternal();
+            if (report is { IsValid: false })
             {
                 EditorUtility.DisplayDialog("Cannot save — level has errors",
                     string.Join("\n", report.Errors.Take(10)), "OK");
                 return;
             }
 
-            var saved = LevelSaveUtility.SaveLevel(_level, LevelEditorPaths.Levels);
-            if (saved != null)
+            int n = Level.levelNumber;
+            if (n != _loadedLevelNumber && LevelFileUtility.Exists(n) &&
+                !EditorUtility.DisplayDialog("Overwrite", $"level_{n:000}.json already exists. Overwrite it?",
+                    "Overwrite", "Cancel"))
+                return;
+
+            if (LevelFileUtility.Save(Level))
             {
-                _isEditMode = true;
-                _currentLevelId = _level.LevelId;
-                EditorUtility.DisplayDialog("Saved", $"Level {_level.LevelId} saved.", "OK");
+                _loadedLevelNumber = n;
+                ShowNotification(new GUIContent($"Saved {LevelFileUtility.PathFor(n)}"));
             }
         }
 
-        private void LoadLevel(int id)
+        private void LoadLevel(int levelNumber)
         {
-            var asset = LevelSaveUtility.GetSelectedLevel(id, LevelEditorPaths.Levels);
-            if (asset == null)
+            var level = LevelFileUtility.Load(levelNumber);
+            if (level == null || level.stages == null || level.stages.Count == 0)
             {
-                EditorUtility.DisplayDialog("Load", $"No level with id {id}.", "OK");
+                EditorUtility.DisplayDialog("Load", $"No level file {LevelFileUtility.PathFor(levelNumber)}.", "OK");
                 return;
             }
 
-            _level = CreateInstance<LevelDataSO>();
-            LevelSaveUtility.CopyInto(asset, _level);
-
-            _levelIdField.value = _level.LevelId;
-            _widthField.value = _level.GridWidth;
-            _heightField.value = _level.GridHeight;
-            _timeField.value = _level.TimeSeconds;
-            _isEditMode = true;
-            _currentLevelId = _level.LevelId;
-            _previewRope = null;
-            _selectedRopeId = -1;
-            _nextRopeId = _level.Ropes.Count == 0 ? 0 : _level.Ropes.Max(r => r.RopeId) + 1;
-
-            MigrateLevelToSubGrid();
-            RefreshAll();
-            _bgMaterialField.SetValueWithoutNotify(_level.BackgroundMaterial);
-            _difficultyField?.SetValueWithoutNotify(_level.Difficulty);
-            ApplyBackgroundToCanvas(_level.BackgroundMaterial);
+            SetLevel(level, levelNumber);
         }
 
-        private void MigrateLevelToSubGrid()
+        private void DeleteLevel(int levelNumber)
         {
-            if (_level == null) return;
-            // Check new-format first: a coarse coord can equal a sub-grid pin coord by coincidence,
-            // causing a false positive that would scale coords again by SubDiv and corrupt the level.
-            bool alreadyMigrated = _level.Ropes.Any(r =>
-                r.Path.Count > 0 &&
-                _level.GridEntities.Any(e => CrossingSolver.PinToSub(e.Coordinates) == r.Path[0].PegCoord));
-            if (alreadyMigrated) return;
-
-            bool isOldFormat = _level.Ropes.Any(r =>
-                r.Path.Count > 0 &&
-                _level.GridEntities.Any(e => e.Coordinates == r.Path[0].PegCoord));
-            if (!isOldFormat) return;
-
-            foreach (var rope in _level.Ropes)
-                for (int i = 0; i < rope.Path.Count; i++)
-                {
-                    var wp = rope.Path[i];
-                    rope.Path[i] = new RopeWaypoint(CrossingSolver.PinToSub(wp.PegCoord), wp.Side, wp.IsBendPoint);
-                }
-
-            EditorUtility.SetDirty(_level);
-            Debug.Log("[LevelCreator] Migrated level to sub-grid coordinate system.");
-        }
-
-        private void DeleteLevel(int id)
-        {
-            if (!EditorUtility.DisplayDialog("Delete", $"Delete level {id}?", "Delete", "Cancel")) return;
-            if (!LevelSaveUtility.DeleteSelectedLevel(id, LevelEditorPaths.Levels))
+            if (!LevelFileUtility.Exists(levelNumber))
             {
-                EditorUtility.DisplayDialog("Delete", $"No level with id {id}.", "OK");
+                EditorUtility.DisplayDialog("Delete", $"No level file {LevelFileUtility.PathFor(levelNumber)}.", "OK");
                 return;
             }
 
-            if (_isEditMode && _currentLevelId == id)
+            if (!EditorUtility.DisplayDialog("Delete", $"Delete level_{levelNumber:000}.json?", "Delete", "Cancel"))
+                return;
+
+            LevelFileUtility.Delete(levelNumber);
+            if (_loadedLevelNumber == levelNumber)
             {
-                _level = null;
-                _isEditMode = false;
-                _currentLevelId = 0;
+                _session = null;
+                _loadedLevelNumber = 0;
                 RefreshAll();
             }
         }
@@ -1818,31 +1178,25 @@ namespace Editor.Windows
         private void SetTool(Tool tool)
         {
             _tool = tool;
-            RebuildPalette();
-            UpdateToolActiveStates();
-            RefreshCanvas();
+            _pendingPinId = -1;
+            RefreshAll();
         }
 
         private void RefreshAll()
         {
-            RefreshCanvas();
-            RebuildPalette();
-            RefreshPanels();
+            if (_canvas == null) return;
             UpdateToolActiveStates();
+            RebuildPalette();
+            RebuildRopeList();
+            UpdateTutorialLabel();
+            var report = RebuildValidationInternal();
+            RefreshCanvas(report);
         }
 
         private void UpdateToolActiveStates()
         {
             foreach (var kv in _toolButtons)
                 kv.Value.EnableInClassList(Css.ToolActive, _tool == kv.Key);
-            foreach (var (baseType, btn) in _baseButtons)
-                btn.EnableInClassList(Css.ToolActive, _tool == Tool.Place && _selectedBaseType == baseType);
-        }
-
-        private void RefreshPanels()
-        {
-            RebuildRopeList();
-            RebuildValidation();
         }
 
         private void ResetZoom()
@@ -1860,18 +1214,25 @@ namespace Editor.Windows
                 _zoomLabel.text = $"{Mathf.RoundToInt(_zoom * 100f)}%";
         }
 
-        private void RefreshCanvas()
+        private void RefreshCanvas(ValidationReport report = null)
         {
             if (_canvas == null) return;
-            _canvas.Level = _level;
-            _canvas.GridWidth = _level?.GridWidth ?? 0;
-            _canvas.GridHeight = _level?.GridHeight ?? 0;
-            _canvas.PreviewRope = _previewRope;
+            _canvas.Stage = Stage;
+            _canvas.Tutorial = Level?.tutorial;
+            _canvas.Palette = _palette;
+            _canvas.PendingPinId = _pendingPinId;
             _canvas.SelectedRopeId = _selectedRopeId;
-            _canvas.ShowCrossings = _tool == Tool.Flip;
-            _canvas.ShowSubGrid = _tool == Tool.Rope;
+            if (report != null) _canvas.TangledRopeIds = report.IsValid ? TangledRopes() : null;
             _canvas.Redraw();
-            ApplyBackgroundToCanvas(_level?.BackgroundMaterial);
+        }
+
+        private HashSet<int> TangledRopes()
+        {
+            var set = new HashSet<int>();
+            foreach (var r in LevelValidator.BuildBoard(Level).Ropes)
+                if (r.CrossingCount > 0)
+                    set.Add(r.Id);
+            return set;
         }
 
         #endregion
@@ -1881,51 +1242,29 @@ namespace Editor.Windows
         private void BuildCommandTable()
         {
             _commands.Clear();
-
+            _commands[LevelEditorCommands.ToolPin] = () => SetTool(Tool.Pin);
             _commands[LevelEditorCommands.ToolRope] = () => SetTool(Tool.Rope);
+            _commands[LevelEditorCommands.ToolLock] = () => SetTool(Tool.Lock);
             _commands[LevelEditorCommands.ToolErase] = () => SetTool(Tool.Erase);
-            _commands[LevelEditorCommands.ToolFlip] = () => SetTool(Tool.Flip);
 
             _commands[LevelEditorCommands.Save] = SaveCurrentLevel;
-            _commands[LevelEditorCommands.Load] = () => LoadLevel(_levelIdField.value);
-            _commands[LevelEditorCommands.Delete] = () => DeleteLevel(_levelIdField.value);
-            _commands[LevelEditorCommands.GenerateGrid] = GenerateGrid;
+            _commands[LevelEditorCommands.Load] = () => LoadLevel(_levelNumberField.value);
+            _commands[LevelEditorCommands.Delete] = () => DeleteLevel(_levelNumberField.value);
+            _commands[LevelEditorCommands.NewLevel] = NewLevel;
 
-            _commands[LevelEditorCommands.FinishRope] = FinishRope;
             _commands[LevelEditorCommands.CancelRope] = CancelRope;
-            _commands[LevelEditorCommands.RopeToFront] = BringSelectedRopeToFront;
-            _commands[LevelEditorCommands.RopeToBack] = SendSelectedRopeToBack;
-            _commands[LevelEditorCommands.RopeDelete] = DeleteSelectedRope;
+            _commands[LevelEditorCommands.RopeToFront] = () => WithSelectedRope(BringToFront);
+            _commands[LevelEditorCommands.RopeToBack] = () => WithSelectedRope(SendToBack);
+            _commands[LevelEditorCommands.RopeDelete] = () => WithSelectedRope(DeleteRope);
 
             _commands[LevelEditorCommands.Validate] = RebuildValidation;
-
-            foreach (var b in _baseTypes)
-            {
-                var captured = b;
-                _commands[LevelEditorCommands.BaseCommandId(b.BaseId)] = () => SelectBase(captured);
-            }
-
-            foreach (var def in _entityDefs)
-            {
-                var captured = def;
-                _commands[LevelEditorCommands.EntityCommandId(def.TypeId)] = () => SelectEntity(captured);
-            }
         }
 
         private void OnShortcutKeyDown(KeyDownEvent e)
         {
             var combo = KeyCombo.FromEvent(e);
             if (combo.IsEmpty) return;
-
             if (!combo.Ctrl && !combo.Alt && IsEditingText()) return;
-
-            // Rope çizimi aktifken Ctrl+Z son waypoint'i geri alır (Unity undo'suna düşmez).
-            if (_previewRope != null && combo.Ctrl && e.keyCode == KeyCode.Z)
-            {
-                UndoLastWaypoint();
-                e.StopPropagation();
-                return;
-            }
 
             var id = KeyBindingStore.FindCommandFor(combo);
             if (id == null || !_commands.TryGetValue(id, out var action)) return;
@@ -1943,57 +1282,19 @@ namespace Editor.Windows
             return false;
         }
 
-        private RopeData SelectedRope() =>
-            _level?.Ropes.FirstOrDefault(r => r.RopeId == _selectedRopeId);
-
-        private void BringSelectedRopeToFront()
+        private void WithSelectedRope(System.Action<RopeJson> action)
         {
-            var rope = SelectedRope();
+            var rope = Stage?.ropes.FirstOrDefault(r => r.id == _selectedRopeId);
             if (rope == null) return;
-            BringToFront(rope);
-            RefreshAll();
-        }
-
-        private void SendSelectedRopeToBack()
-        {
-            var rope = SelectedRope();
-            if (rope == null) return;
-            SendToBack(rope);
-            RefreshAll();
-        }
-
-        private void DeleteSelectedRope()
-        {
-            var rope = SelectedRope();
-            if (rope == null) return;
-            DeleteRope(rope);
+            action(rope);
             RefreshAll();
         }
 
         private void UpdateShortcutHints()
         {
             foreach (var kv in _toolButtons)
-            {
-                if (!ToolCommandIds.TryGetValue(kv.Key, out var id)) continue;
-                kv.Value.tooltip = ShortcutTooltip(id);
-            }
-
-            foreach (var (def, btn) in _entityButtons)
-                btn.tooltip = ShortcutTooltip(LevelEditorCommands.EntityCommandId(def.TypeId));
-
-            foreach (var (baseType, btn) in _baseButtons)
-            {
-                if (baseType == null)
-                {
-                    btn.tooltip = string.Empty;
-                    continue;
-                }
-
-                string sc = ShortcutTooltip(LevelEditorCommands.BaseCommandId(baseType.BaseId));
-                btn.tooltip = string.IsNullOrEmpty(sc)
-                    ? "Click again → locate in Project"
-                    : $"{sc}\nClick again → locate in Project";
-            }
+                if (ToolCommandIds.TryGetValue(kv.Key, out var id))
+                    kv.Value.tooltip = ShortcutTooltip(id);
         }
 
         private static string ShortcutTooltip(string commandId)
@@ -2035,135 +1336,7 @@ namespace Editor.Windows
             return f;
         }
 
-        private void UpdateSwatchSelection()
-        {
-            var swRow = _paletteContainer.Q<VisualElement>("swatchRow");
-            if (swRow == null) return;
-            foreach (var child in swRow.Children())
-            {
-                var c = child.resolvedStyle.backgroundColor;
-                bool sel = ColorApproxEqual(new Color(c.r, c.g, c.b, c.a), _ropeColor);
-                child.EnableInClassList(Css.SwatchSelected, sel);
-            }
-        }
-
-        private static bool ColorApproxEqual(Color a, Color b, float eps = 0.01f) =>
-            Mathf.Abs(a.r - b.r) < eps && Mathf.Abs(a.g - b.g) < eps &&
-            Mathf.Abs(a.b - b.b) < eps && Mathf.Abs(a.a - b.a) < eps;
-
-        private static void EnsureFolder(string folder)
-        {
-            if (AssetDatabase.IsValidFolder(folder)) return;
-            string[] parts = folder.Split('/');
-            string current = parts[0];
-            for (int i = 1; i < parts.Length; i++)
-            {
-                string next = $"{current}/{parts[i]}";
-                if (!AssetDatabase.IsValidFolder(next)) AssetDatabase.CreateFolder(current, parts[i]);
-                current = next;
-            }
-        }
-
         #endregion
-    }
-
-    sealed class SwatchFilterPopup : UnityEditor.PopupWindowContent
-    {
-        private readonly ColorPaletteSO _palette;
-        private readonly HashSet<string> _hidden;
-        private readonly System.Action _onChanged;
-
-        public SwatchFilterPopup(ColorPaletteSO palette, HashSet<string> hidden, System.Action onChanged)
-        {
-            _palette = palette;
-            _hidden = hidden;
-            _onChanged = onChanged;
-        }
-
-        private const float PopupWidth = 230f;
-        private const float PopupMaxH = 260f;
-        private const float ItemHeight = 28f;
-        private const float HeaderHeight = 30f;
-
-        public override Vector2 GetWindowSize()
-        {
-            float contentH = HeaderHeight + _palette.Entries.Count * ItemHeight + 8f;
-            return new Vector2(PopupWidth, Mathf.Min(contentH, PopupMaxH));
-        }
-
-        public override void OnGUI(Rect rect)
-        {
-        }
-
-        public override void OnOpen()
-        {
-            var root = editorWindow.rootVisualElement;
-            root.style.paddingTop = 6;
-            root.style.paddingLeft = 8;
-            root.style.paddingRight = 4;
-            root.style.paddingBottom = 6;
-            root.style.backgroundColor = new Color(0.15f, 0.15f, 0.15f);
-            root.style.flexDirection = FlexDirection.Column;
-
-            var title = new Label("Visible colors");
-            title.style.color = new Color(0.8f, 0.8f, 0.8f);
-            title.style.unityFontStyleAndWeight = UnityEngine.FontStyle.Bold;
-            title.style.fontSize = 11;
-            title.style.marginBottom = 4;
-            title.style.flexShrink = 0;
-            root.Add(title);
-
-            var scroll = new ScrollView(ScrollViewMode.Vertical);
-            scroll.style.flexGrow = 1;
-            scroll.style.minHeight = 0;
-
-            foreach (var entry in _palette.Entries)
-            {
-                var name = entry.Name;
-                var color = entry.Color;
-                bool visible = !_hidden.Contains(name);
-
-                var item = new VisualElement();
-                item.style.flexDirection = FlexDirection.Row;
-                item.style.alignItems = Align.Center;
-                item.style.height = ItemHeight;
-                item.style.paddingRight = 4;
-
-                var swatch = new VisualElement();
-                swatch.style.width = 16;
-                swatch.style.height = 16;
-                swatch.style.borderTopLeftRadius = 8;
-                swatch.style.borderTopRightRadius = 8;
-                swatch.style.borderBottomLeftRadius = 8;
-                swatch.style.borderBottomRightRadius = 8;
-                swatch.style.backgroundColor = color;
-                swatch.style.borderTopWidth = 1;
-                swatch.style.borderBottomWidth = 1;
-                swatch.style.borderLeftWidth = 1;
-                swatch.style.borderRightWidth = 1;
-                swatch.style.borderTopColor = EditorColors.SwatchBorder;
-                swatch.style.borderBottomColor = EditorColors.SwatchBorder;
-                swatch.style.borderLeftColor = EditorColors.SwatchBorder;
-                swatch.style.borderRightColor = EditorColors.SwatchBorder;
-                swatch.style.marginRight = 6;
-                swatch.style.flexShrink = 0;
-                item.Add(swatch);
-
-                var toggle = new Toggle { value = visible, text = name };
-                toggle.style.flexGrow = 1;
-                toggle.style.fontSize = 11;
-                toggle.RegisterValueChangedCallback(e =>
-                {
-                    if (e.newValue) _hidden.Remove(name);
-                    else _hidden.Add(name);
-                    _onChanged?.Invoke();
-                });
-                item.Add(toggle);
-                scroll.Add(item);
-            }
-
-            root.Add(scroll);
-        }
     }
 
     [InitializeOnLoad]

@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using Editor.Input;
 using TwistedTangle.Editor.Utils;
 using UnityEditor;
@@ -16,7 +15,6 @@ namespace TwistedTangle.Editor
     {
         private string _listeningId; // command currently capturing a key press, or null
         private VisualElement _rowsHost;
-        private readonly HashSet<string> _expanded = new(); // base-type dropdowns the user has opened
 
         [MenuItem("TwistedTangle/Level Editor Key Bindings")]
         public static void ShowWindow()
@@ -75,53 +73,16 @@ namespace TwistedTangle.Editor
             root.RegisterCallback<KeyDownEvent>(OnKeyDown, TrickleDown.TrickleDown);
             root.focusable = true;
 
-            // Pick up entity types created in the Level Creator, live, while this window stays open.
-            LevelEditorCommands.Refresh();
-            LevelEditorCommands.Changed -= OnCommandsChanged;
-            LevelEditorCommands.Changed += OnCommandsChanged;
-
             Rebuild();
-        }
-
-        private void OnDisable() => LevelEditorCommands.Changed -= OnCommandsChanged;
-
-        // Re-scan when the window regains focus, in case entity assets changed while it was in the back.
-        private void OnFocus() => LevelEditorCommands.Refresh();
-
-        private void OnCommandsChanged()
-        {
-            if (_rowsHost != null) Rebuild();
         }
 
         private void Rebuild()
         {
             _rowsHost.Clear();
 
-            // Base Types: the Rope tool plus every entity base type. Each base type carries a collapsible
-            // dropdown of its sub-types so their shortcuts are set right under their parent (not in a flat list).
-            AddHeader("Base Types");
-            AddRowFor(LevelEditorCommands.ToolRope);
-            foreach (var group in LevelEditorCommands.BaseGroups)
-            {
-                _rowsHost.Add(BuildRow(group.Base));
-                if (group.SubTypes.Count > 0)
-                    _rowsHost.Add(BuildSubFoldout(group.Base.Id, "Sub-types", group.SubTypes));
-            }
-            var ungrouped = LevelEditorCommands.UngroupedSubTypes;
-            if (ungrouped.Count > 0)
-                _rowsHost.Add(BuildSubFoldout("ungrouped", "Ungrouped sub-types", ungrouped));
-
-            // Tools: the remaining built-in editing tools.
-            AddHeader("Tools");
-            AddRowFor(LevelEditorCommands.ToolErase);
-            AddRowFor(LevelEditorCommands.ToolFlip);
-
-            // The rest of the built-ins (Level, Rope authoring, Validation), grouped by category as before.
-            // The whole "Tools" category is handled above (Rope under Base Types; Erase/Flip under Tools).
             string lastCategory = null;
-            foreach (var cmd in LevelEditorCommands.Builtin)
+            foreach (var cmd in LevelEditorCommands.All)
             {
-                if (cmd.Category == "Tools") continue;
                 if (cmd.Category != lastCategory)
                 {
                     lastCategory = cmd.Category;
@@ -139,33 +100,7 @@ namespace TwistedTangle.Editor
             _rowsHost.Add(header);
         }
 
-        private void AddRowFor(string commandId)
-        {
-            var cmd = LevelEditorCommands.Find(commandId);
-            if (cmd != null) _rowsHost.Add(BuildRow(cmd));
-        }
-
-        /// <summary>
-        /// A dropdown holding the binding rows for a base type's sub-types. <paramref name="key"/> tracks its
-        /// expanded state so it survives the full rebuild that follows each binding edit.
-        /// </summary>
-        private VisualElement BuildSubFoldout(string key, string title, IReadOnlyList<EditorCommand> subs)
-        {
-            var foldout = new Foldout { text = title, value = _expanded.Contains(key) };
-            foldout.AddToClassList(Css.Subgroup); // indent + accent so it reads as nested under its base
-            // The rows hold only buttons/labels (no bool fields), so every ChangeEvent<bool> here is the
-            // foldout's own expand/collapse — safe to track directly.
-            foldout.RegisterValueChangedCallback(e =>
-            {
-                if (e.newValue) _expanded.Add(key);
-                else _expanded.Remove(key);
-            });
-            foreach (var cmd in subs)
-                foldout.Add(BuildRow(cmd, sub: true));
-            return foldout;
-        }
-
-        private VisualElement BuildRow(EditorCommand cmd, bool sub = false)
+        private VisualElement BuildRow(EditorCommand cmd)
         {
             var row = MakeRow();
             bool listening = _listeningId == cmd.Id;
@@ -174,7 +109,6 @@ namespace TwistedTangle.Editor
             // The name flexes (and ellipsises long text) so the fixed-width buttons always stay on one
             // line — otherwise "Default" wraps below on narrow windows / long command names.
             var name = new Label(cmd.DisplayName) { tooltip = cmd.DisplayName };
-            if (sub) name.AddToClassList(Css.Subname); // smaller + dimmer for nested sub-types
             name.style.flexGrow = 1;
             name.style.flexShrink = 1;
             name.style.minWidth = 60;
