@@ -1,0 +1,70 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &8926218933141937528
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 6082218132787698066}
+  - component: {fileID: 5386127020697827471}
+  m_Layer: 0
+  m_Name: FxPlayer
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &6082218132787698066
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8926218933141937528}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &5386127020697827471
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8926218933141937528}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5aa937ed28787c24488fd25614449a5b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  effects:
+  - type: 0
+    prefab: {fileID: 5315978485926710499, guid: 85fcca4196caec54d89634a21490ee52,
+      type: 3}
+    prewarm: 4
+  - type: 1
+    prefab: {fileID: 1611943578048211443, guid: 09892e76425d8604ab7af0f2a7423505,
+      type: 3}
+    prewarm: 2
+  - type: 2
+    prefab: {fileID: 5618719462037087035, guid: 6235bce158eff1d47a991979413f4607,
+      type: 3}
+    prewarm: 3
+  - type: 3
+    prefab: {fileID: 5460501880435974934, guid: b339d49110c4a1548af8f47597c455a5,
+      type: 3}
+    prewarm: 2
+  - type: 4
+    prefab: {fileID: 7631466793319015842, guid: e325e0ca348310a48aef0d819023c474,
+      type: 3}
+    prewarm: 1
+  - type: 5
+    prefab: {fileID: 275238190996080521, guid: fe70f898be8dff944a951c5f14989783, type: 3}
+    prewarm: 3
