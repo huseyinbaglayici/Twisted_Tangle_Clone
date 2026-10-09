@@ -40,6 +40,7 @@ namespace Runtime.Entities
 
         public BoardModel.Rope Model { get; private set; }
         public ObiRope Obi => rope;
+        public Color Color => _color;
         public bool IsReady => rope.isLoaded && _pendingPositions.Count == 0;
 
         // tension = current length / rest length - 1 (0 = slack, 1 = twice as long)

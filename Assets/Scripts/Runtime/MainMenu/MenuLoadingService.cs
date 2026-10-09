@@ -17,7 +17,8 @@ namespace Runtime.MainMenu
             playButton.onClick.AddListener(() => LoadGameplay().Forget());
 
             ShowLoadingScreen();
-            await UniTask.Delay(1500);
+            // Play can unload this scene before the delay ends; the panel is gone by then.
+            if (await UniTask.Delay(1500, cancellationToken: destroyCancellationToken).SuppressCancellationThrow()) return;
             HideLoadingScreen();
         }
 

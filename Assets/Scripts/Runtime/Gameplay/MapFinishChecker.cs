@@ -21,7 +21,6 @@ namespace Runtime.Gameplay
         [SerializeField] private bool mergeOnAir = true;
         [SerializeField] private float ropesIntersectRadius = 0.15f;
         [SerializeField] private float minYDiffToCheckIntersection = 0.1f;
-        [SerializeField] private float outOfMovesDelay = 0.2f;
         [SerializeField] private bool debugLog;
 
         private class RopeData
@@ -33,11 +32,10 @@ namespace Runtime.Gameplay
         private readonly Dictionary<BoardModel.Rope, RopeData> _data = new();
         private readonly List<Vector3> _pointsA = new(), _pointsB = new();
         private readonly List<BoardModel.Rope> _group = new();
-        private float _successTimer, _outOfMovesTimer;
+        private float _successTimer;
         private bool _running;
 
         public event Action Won;
-        public event Action OutOfMoves;
 
         public bool Succeeded { get; private set; }
 
@@ -48,7 +46,6 @@ namespace Runtime.Gameplay
             _data.Clear();
             collisions.Clear();
             _successTimer = 0f;
-            _outOfMovesTimer = 0f;
             Succeeded = false;
             _running = true;
         }
@@ -95,8 +92,6 @@ namespace Runtime.Gameplay
                 else anyFreeWaiting = true;
             }
 
-            CheckOutOfMoves(dt, anyMerging, anyFreeWaiting);
-
             if (anyColliding || anyFreeWaiting)
             {
                 _successTimer = 0f;
@@ -109,22 +104,6 @@ namespace Runtime.Gameplay
                 Succeeded = true;
                 _running = false;
                 Won?.Invoke();
-            }
-        }
-
-        private void CheckOutOfMoves(float dt, bool anyMerging, bool anyFreeWaiting)
-        {
-            if (Board.MoveLimit <= 0 || Board.MovesUsed < Board.MoveLimit || anyMerging || anyFreeWaiting)
-            {
-                _outOfMovesTimer = 0f;
-                return;
-            }
-
-            _outOfMovesTimer += dt;
-            if (_outOfMovesTimer >= outOfMovesDelay)
-            {
-                _running = false;
-                OutOfMoves?.Invoke();
             }
         }
 

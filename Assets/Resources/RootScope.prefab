@@ -93,6 +93,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: bc264ec6935dd494dbec39a90fa16bfe, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  fxPlayerPrefab: {fileID: 5386127020697827471, guid: c5a8e93a9aa54d243b06bbdd078df185,
+    type: 3}
+  audioPlayerPrefab: {fileID: 7978443334026740436, guid: e5c6a23498062374c998a9c5863e165b,
+    type: 3}
 --- !u!114 &4904139551816778875
 MonoBehaviour:
   m_ObjectHideFlags: 0

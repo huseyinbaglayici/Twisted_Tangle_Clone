@@ -35,7 +35,7 @@ namespace Runtime.Gameplay
             Clear();
             var stage = level.stages[stageIndex];
             Grid = new BoardGrid(stage.gridWidth, stage.gridHeight, 1f, Origin);
-            Board.Load(stage, level.moveLimit, Grid);
+            Board.Load(stage, Grid);
 
             // Pooled objects stay out of this scene (pool holders / solver live in Boostrap): parenting them here
             // would destroy them with the scene instead of returning them to the pool.

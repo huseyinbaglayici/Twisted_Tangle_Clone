@@ -1,6 +1,6 @@
 {
  "moveLimit": 0,
- "timeLimitSeconds": 0,
+ "timeLimitSeconds": 60,
  "difficulty": "Easy",
  "stages": [
   {

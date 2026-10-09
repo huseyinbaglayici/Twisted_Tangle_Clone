@@ -4,7 +4,7 @@ using UnityEngine;
 namespace Runtime.Level
 {
     // Logical board state (no MonoBehaviour): which pin sits where, which pins each rope connects,
-    // move count and merge state. Physics (rope shapes, contacts) lives in the views and Obi.
+    // and merge state. Physics (rope shapes, contacts) lives in the views and Obi.
     public class BoardModel
     {
         // A dragged pin is clamped this far from every pin it is roped to.
@@ -47,16 +47,12 @@ namespace Runtime.Level
         public readonly List<Rope> Ropes = new();
         private readonly List<Pin> _groupPins = new();
         public BoardGrid Grid { get; private set; }
-        public int MoveLimit { get; private set; }
-        public int MovesUsed { get; private set; }
 
-        public void Load(StageJson stage, int moveLimit, BoardGrid grid)
+        public void Load(StageJson stage, BoardGrid grid)
         {
             Pins.Clear();
             Ropes.Clear();
             Grid = grid;
-            MoveLimit = moveLimit;
-            MovesUsed = 0;
 
             foreach (var p in stage.pins)
                 Pins[p.id] = new Pin { Id = p.id, Cell = p.Cell, Locked = p.locked };
@@ -110,11 +106,7 @@ namespace Runtime.Level
             return false;
         }
 
-        public void CommitMove(Pin pin, Vector2Int to, bool countMove = true)
-        {
-            pin.Cell = to;
-            if (countMove) MovesUsed++;
-        }
+        public void CommitMove(Pin pin, Vector2Int to) => pin.Cell = to;
 
         // At least one end pin must belong only to this rope.
         public static bool HasPinWithSingleRope(Rope r) => r.A.ActiveRopeCount == 1 || r.B.ActiveRopeCount == 1;

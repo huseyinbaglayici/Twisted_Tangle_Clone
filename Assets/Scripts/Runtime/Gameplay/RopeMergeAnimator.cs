@@ -23,6 +23,8 @@ namespace Runtime.Gameplay
 
         // World position where the pins meet (the target pin).
         public event Action<Vector3> MergeStarted;
+        // The rope vanishes: where the pins landed and the rope's colour.
+        public event Action<Vector3, Color> MergePopped;
         public event Action<Vector3> MergeCompleted;
 
         public void Play(BoardModel.Rope rope)
@@ -50,7 +52,13 @@ namespace Runtime.Gameplay
             seq.Join(DOTween.To(() => length, v => { ropeView.ChangeLength(v - length); length = v; }, 0f, jumpDuration));
             seq.Append(source.DOPunchScale(punchScale, punchDuration, 1, 1f));
             if (targetGoes) seq.Join(target.DOPunchScale(punchScale, punchDuration, 1, 1f));
-            seq.AppendCallback(() => ropeView.gameObject.SetActive(false));
+            var pop = meet + Vector3.up * jumpTargetOffset;
+            var color = ropeView.Color;
+            seq.AppendCallback(() =>
+            {
+                ropeView.gameObject.SetActive(false);
+                MergePopped?.Invoke(pop, color);
+            });
             seq.Append(source.DOScale(0f, destroyScaleDuration));
             if (targetGoes) seq.Join(target.DOScale(0f, destroyScaleDuration));
             seq.OnComplete(() =>

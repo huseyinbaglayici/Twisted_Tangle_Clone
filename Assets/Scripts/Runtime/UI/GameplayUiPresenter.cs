@@ -7,17 +7,16 @@ using UnityEngine;
 
 namespace Runtime.UI
 {
-    // Connects the gameplay UI views to the level flow: shows level / moves left, routes button clicks,
+    // Connects the gameplay UI views to the level flow: shows level / time left, routes button clicks,
     // opens the complete / fail panels and stores the settings switches.
     public class GameplayUiPresenter : MonoBehaviour
     {
         [Inject] private SaveService _save;
+        [Inject] private AudioPlayer _audio;
 
-        [Header("Gameplay (looked up in the scene when left empty)")]
+        [Header("Gameplay")]
         [SerializeField] private LevelFlowController flow;
-        [SerializeField] private MapFinishChecker finishChecker;
-        [SerializeField] private LevelBuilder levelBuilder;
-        [SerializeField] private AudioPlayer audioPlayer;
+        [SerializeField] private LevelTimer timer;
 
         [Header("Views")]
         [SerializeField] private GameplayHud hud;
@@ -25,25 +24,19 @@ namespace Runtime.UI
         [SerializeField] private LevelFailPanel failPanel;
         [SerializeField] private SettingsPopup settings;
 
-        [Header("Timing")]
-        [SerializeField] private float completePanelDelay = 0.3f;
-        [SerializeField] private float failPanelDelay = 0.1f;
+        [Tooltip("Win event -> complete panel. Lets the last merge pop and the confetti play first.")]
+        [SerializeField] private float completePanelDelay = 0.7f;
 
-        private int _shownLevel = -1;
-        private int _shownMovesLeft = -1;
-        private int _resultLevel = -1;
         private Tween _pendingPanel;
 
+        // Awake, not Start: the flow already starts the first level in its own Start.
         private void Awake()
         {
-            if (flow == null) flow = FindFirstObjectByType<LevelFlowController>();
-            if (finishChecker == null) finishChecker = FindFirstObjectByType<MapFinishChecker>();
-            if (levelBuilder == null) levelBuilder = FindFirstObjectByType<LevelBuilder>();
-            if (audioPlayer == null) audioPlayer = FindFirstObjectByType<AudioPlayer>();
-        }
+            flow.LevelStarted += OnLevelStarted;
+            flow.LevelWon += OnLevelWon;
+            flow.LevelFailed += OnLevelFailed;
+            timer.SecondsChanged += hud.SetTime;
 
-        private void Start()
-        {
             hud.RetryClicked += OnRetryClicked;
             hud.UndoClicked += OnUndoClicked;
             hud.SettingsClicked += OnSettingsClicked;
@@ -53,92 +46,56 @@ namespace Runtime.UI
             settings.HomeClicked += OnHomeClicked;
             settings.SoundChanged += OnSoundChanged;
             settings.HapticsChanged += OnHapticsChanged;
-            settings.Closed += PlayClick;
+            settings.Closed += OnSettingsClosed;
+        }
 
-            if (finishChecker != null)
-            {
-                finishChecker.Won += OnWon;
-                finishChecker.OutOfMoves += OnOutOfMoves;
-            }
-
+        private void Start()
+        {
             completePanel.Hide(true);
             failPanel.Hide(true);
             settings.Hide(true);
             hud.Show();
-            Refresh();
         }
 
         private void OnDestroy()
         {
             _pendingPanel?.Kill();
-            if (finishChecker == null) return;
-            finishChecker.Won -= OnWon;
-            finishChecker.OutOfMoves -= OnOutOfMoves;
+            flow.LevelStarted -= OnLevelStarted;
+            flow.LevelWon -= OnLevelWon;
+            flow.LevelFailed -= OnLevelFailed;
+            timer.SecondsChanged -= hud.SetTime;
         }
 
-        private void Update() => Refresh();
-
-        // Polls the flow: a new level number, or moves left going back up (restart), means a level (re)started.
-        private void Refresh()
-        {
-            if (flow == null || levelBuilder == null) return;
-
-            int level = flow.CurrentLevel;
-            var board = levelBuilder.Board;
-            int movesLeft = board.MoveLimit > 0 ? Mathf.Max(0, board.MoveLimit - board.MovesUsed) : -1;
-
-            if (level != _shownLevel || movesLeft > _shownMovesLeft) OnLevelStarted(level);
-            _shownLevel = level;
-            _shownMovesLeft = movesLeft;
-            hud.SetMoves(movesLeft);
-        }
-
+        // ---------- level flow ----------
         private void OnLevelStarted(int level)
         {
             _pendingPanel?.Kill();
-            _resultLevel = -1;
             hud.SetLevel(level);
             if (completePanel.IsVisible) completePanel.Hide();
             if (failPanel.IsVisible) failPanel.Hide();
         }
 
-        // ---------- level result ----------
-        private void OnWon()
+        private void OnLevelWon(int level)
         {
-            int level = flow.CurrentLevel;
-            _resultLevel = level;
             _pendingPanel?.Kill();
-            _pendingPanel = DOVirtual.DelayedCall(completePanelDelay, () =>
-            {
-                if (flow.CurrentLevel == level) completePanel.Show(level);
-            }).SetLink(gameObject);
+            _pendingPanel = DOVirtual.DelayedCall(completePanelDelay, () => completePanel.Show(level))
+                .SetLink(gameObject);
         }
 
-        private void OnOutOfMoves()
-        {
-            int level = flow.CurrentLevel;
-            _resultLevel = level;
-            _pendingPanel?.Kill();
-            _pendingPanel = DOVirtual.DelayedCall(failPanelDelay, () =>
-            {
-                if (flow.CurrentLevel == level) failPanel.Show(level);
-            }).SetLink(gameObject);
-        }
+        private void OnLevelFailed(int level) => failPanel.Show(level);
 
-        // The flow may already have moved on by itself; only start the next level if it has not.
         private void OnContinueClicked()
         {
             PlayClick();
             completePanel.Hide();
-            if (_resultLevel > 0 && flow.CurrentLevel == _resultLevel)
-                flow.StartLevel(_save != null ? Mathf.Max(_resultLevel + 1, _save.Level) : _resultLevel + 1);
+            flow.NextLevel();
         }
 
         private void OnFailRetryClicked()
         {
             PlayClick();
             failPanel.Hide();
-            if (_resultLevel > 0) flow.Retry();
+            flow.Retry();
         }
 
         // ---------- hud ----------
@@ -157,9 +114,14 @@ namespace Runtime.UI
         private void OnSettingsClicked()
         {
             PlayClick();
-            bool soundOn = audioPlayer != null ? audioPlayer.SoundOn : _save == null || _save.SoundOn;
-            bool hapticsOn = _save == null || _save.HapticsOn;
-            settings.Show(soundOn, hapticsOn);
+            settings.Show(_audio.SoundOn, _save.HapticsOn);
+            timer.Frozen = true;
+        }
+
+        private void OnSettingsClosed()
+        {
+            timer.Frozen = false;
+            PlayClick();
         }
 
         private void OnHomeClicked()
@@ -171,20 +133,16 @@ namespace Runtime.UI
         // ---------- settings ----------
         private void OnSoundChanged(bool on)
         {
-            if (audioPlayer != null) audioPlayer.SoundOn = on;
-            else if (_save != null) _save.SoundOn = on;
+            _audio.SoundOn = on;
             PlayClick();
         }
 
         private void OnHapticsChanged(bool on)
         {
-            if (_save != null) _save.HapticsOn = on;
+            _save.HapticsOn = on;
             PlayClick();
         }
 
-        private void PlayClick()
-        {
-            if (audioPlayer != null) audioPlayer.Play(SfxType.ButtonClick);
-        }
+        private void PlayClick() => _audio.Play(SfxType.ButtonClick);
     }
 }

@@ -1,10 +1,10 @@
 using System;
-using System.Collections.Generic;
 using DG.Tweening;
 using Runtime.Entities;
 using Runtime.Level;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.Serialization;
 
 namespace Runtime.Gameplay
 {
@@ -12,9 +12,8 @@ namespace Runtime.Gameplay
     //  - Drag: the pin is lifted (dragOffset) and eased towards the finger every fixed step, clamped to
     //    maxPinDistance from every pin it is roped to. Released over a free slot -> slides in, otherwise slides back.
     //    The drag is cancelled when a rope it pulls (or one touching it) gets too tense.
-    //  - Tap-move: tap a pin (reachable slots light up) -> tap a slot -> the pin flies there.
     //  - A move that leaves its rope over-stretched is taken back automatically shortly after the drop.
-    //  - Locked (nailed) pins never move; pressing one only plays the reject feedback.
+    //  - Locked (nailed) pins never move and don't react to touch at all.
     public class PinInputController : MonoBehaviour
     {
         [SerializeField] private LevelBuilder level;
@@ -41,22 +40,23 @@ namespace Runtime.Gameplay
         [Header("Placement tweens")]
         [SerializeField] private float placeSpeed = 6f;              // slot transfer (units / second)
         [SerializeField] private Ease placeEase = Ease.OutSine;
-        [SerializeField] private float tapMoveSecondsPerUnit = 0.2f;
-        [SerializeField] private Ease tapMoveEase = Ease.InOutQuad;
+        [FormerlySerializedAs("tapMoveSecondsPerUnit")]
+        [SerializeField] private float undoSecondsPerUnit = 0.2f;
+        [FormerlySerializedAs("tapMoveEase")]
+        [SerializeField] private Ease undoEase = Ease.InOutQuad;
 
         private readonly MoveHistory _history = new();
-        private readonly List<GridCellEntity> _highlighted = new();
-        private BoardModel.Pin _pressed, _selected, _dragged;
+        private BoardModel.Pin _pressed, _dragged;
         private Vector2 _pressScreen;
         private Vector3 _dragTarget;
         private float _dragTime;
         private GridCellEntity _dropCandidate;
 
-        // Pin grabbed (drag start) or selected for a tap-move.
+        // Pin grabbed (drag start).
         public event Action<PinEntity> PinPicked;
-        // Pin committed to a new slot (drag drop or tap-move).
+        // Pin committed to a new slot.
         public event Action<PinEntity> PinDropped;
-        // Locked pin pressed, drag cancelled by rope tension, tap-move refused or move taken back.
+        // Drag cancelled by rope tension or move taken back because it over-stretched a rope.
         public event Action<PinEntity> PinMoveRejected;
 
         public bool Enabled { get; set; } = true;
@@ -77,7 +77,6 @@ namespace Runtime.Gameplay
             _pressed = null;
             _dragged = null;
             SetDropCandidate(null);
-            Select(null);
         }
 
         public bool Undo() => _history.TryUndo(Board, this);
@@ -96,7 +95,6 @@ namespace Runtime.Gameplay
                 if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject()) return;
                 _pressScreen = Input.mousePosition;
                 _pressed = PickPin();
-                if (_pressed != null && _pressed.Locked) Reject(_pressed);
             }
             else if (Input.GetMouseButton(0))
             {
@@ -113,7 +111,6 @@ namespace Runtime.Gameplay
             else if (Input.GetMouseButtonUp(0))
             {
                 if (_dragged != null) Drop();
-                else Tap(_pressed);
                 _pressed = null;
             }
         }
@@ -145,7 +142,6 @@ namespace Runtime.Gameplay
         // ---------- drag ----------
         private void BeginDrag(BoardModel.Pin pin)
         {
-            Select(null);
             _dragged = pin;
             _dragTime = 0f;
             var view = level.PinViews[pin.Id].transform;
@@ -233,68 +229,17 @@ namespace Runtime.Gameplay
             if (_dropCandidate != null) _dropCandidate.SetHighlight(true);
         }
 
-        // ---------- tap-move ----------
-        private void Tap(BoardModel.Pin tappedPin)
-        {
-            if (tappedPin != null)
-            {
-                bool select = _selected != tappedPin && Board.CanControl(tappedPin);
-                Select(select ? tappedPin : null);
-                if (select) PinPicked?.Invoke(level.PinViews[tappedPin.Id]);
-                return;
-            }
-
-            if (_selected == null || !TrySurfacePoint(out var p)) return;
-            var pin = _selected;
-            var cell = level.Grid.WorldToCell(p);
-            Select(null);
-            if (!Board.CanMove(pin, cell)) return;
-            if (IsAnyRopeTooTense(pin))
-            {
-                Reject(pin);
-                return;
-            }
-            MoveTo(pin, cell, record: true, tapMoveSecondsPerUnit, tapMoveEase, byDistance: true);
-        }
-
-        private bool IsAnyRopeTooTense(BoardModel.Pin pin)
-        {
-            foreach (var rope in pin.Ropes)
-                if (!rope.Merged && level.RopeViews.TryGetValue(rope.Id, out var v) && v.TensionPercentage >= cancelTension)
-                    return true;
-            return false;
-        }
-
-        private void Select(BoardModel.Pin pin)
-        {
-            if (_selected != null && level.PinViews.TryGetValue(_selected.Id, out var old)) old.SetSelected(false);
-            foreach (var c in _highlighted) c.SetHighlight(false);
-            _highlighted.Clear();
-
-            _selected = pin;
-            if (pin == null) return;
-            level.PinViews[pin.Id].SetSelected(true);
-            foreach (var kv in level.Cells)
-                if (Board.CanMove(pin, kv.Key))
-                {
-                    kv.Value.SetHighlight(true);
-                    _highlighted.Add(kv.Value);
-                }
-        }
-
         private void Reject(BoardModel.Pin pin)
         {
-            if (!level.PinViews.TryGetValue(pin.Id, out var view)) return;
-            if (pin.Locked) view.PlayLockedFeedback();
-            PinMoveRejected?.Invoke(view);
+            if (level.PinViews.TryGetValue(pin.Id, out var view)) PinMoveRejected?.Invoke(view);
         }
 
         // ---------- shared ----------
-        // byDistance: duration = distance * value (tap-move); otherwise value is a speed (slot transfer).
+        // byDistance: duration = distance * value (undo / revert hop); otherwise value is a speed (slot transfer).
         private void MoveTo(BoardModel.Pin pin, Vector2Int cell, bool record, float value, Ease ease, bool byDistance)
         {
             var from = pin.Cell;
-            Board.CommitMove(pin, cell, countMove: record);
+            Board.CommitMove(pin, cell);
             Fly(pin, level.Grid.CellToWorld(cell), value, ease, byDistance);
             if (!record) return;
 
@@ -308,7 +253,7 @@ namespace Runtime.Gameplay
         }
 
         public void MoveTo(BoardModel.Pin pin, Vector2Int cell, bool record) =>
-            MoveTo(pin, cell, record, tapMoveSecondsPerUnit, tapMoveEase, byDistance: true);
+            MoveTo(pin, cell, record, undoSecondsPerUnit, undoEase, byDistance: true);
 
         private void RevertIfOverStretched(BoardModel.Pin pin, Vector2Int from, Vector2Int to)
         {
@@ -317,6 +262,14 @@ namespace Runtime.Gameplay
             _history.DiscardLast(pin.Id);
             MoveTo(pin, from, record: false);
             Reject(pin);
+        }
+
+        private bool IsAnyRopeTooTense(BoardModel.Pin pin)
+        {
+            foreach (var rope in pin.Ropes)
+                if (!rope.Merged && level.RopeViews.TryGetValue(rope.Id, out var v) && v.TensionPercentage >= cancelTension)
+                    return true;
+            return false;
         }
 
         private void PlaceBack(BoardModel.Pin pin)
@@ -331,7 +284,7 @@ namespace Runtime.Gameplay
             float duration = byDistance ? dist * value : dist / Mathf.Max(0.01f, value);
             level.SetPinPlaced(pin.Id, false);
             view.DOKill();
-            // A pin sent from its slot (tap-move, undo) hops over the ropes at drag height instead of ploughing
+            // A pin sent from its slot (undo, revert) hops over the ropes at drag height instead of ploughing
             // through them; a released drag is already lifted and just slides in.
             Tween tween = byDistance
                 ? view.DOJump(target, dragOffset.y, 1, duration)

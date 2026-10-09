@@ -34,7 +34,7 @@ namespace Runtime.MainMenu
 
         public void OnEndDrag(PointerEventData eventData)
         {
-            _returnTween = _rectTransform.DOAnchorPos(_originalAnchoredPosition, returnDuration).SetEase(Ease.OutBack);
+            _returnTween = _rectTransform.DOAnchorPos(_originalAnchoredPosition, returnDuration).SetEase(Ease.OutBack).SetLink(gameObject);
         }
     }
 }

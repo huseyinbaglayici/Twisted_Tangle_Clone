@@ -1,5 +1,4 @@
 using System;
-using System.Threading;
 using Cysharp.Threading.Tasks;
 using Reflex.Attributes;
 using Runtime.Boostrap;
@@ -9,7 +8,8 @@ using UnityEngine;
 
 namespace Runtime.Gameplay
 {
-    // Level loop: load saved level -> build -> physics win/merge check -> on win save + build the next one.
+    // Level loop: load saved level -> build -> physics win/merge check. A win saves progress and waits for the
+    // UI (Continue -> NextLevel), running out of time waits for Retry. Nothing advances by itself.
     public class LevelFlowController : MonoBehaviour
     {
         [Inject] private SaveService _save;
@@ -19,13 +19,11 @@ namespace Runtime.Gameplay
         [SerializeField] private PinInputController input;
         [SerializeField] private MapFinishChecker finishChecker;
         [SerializeField] private TutorialController tutorial;
-        [SerializeField] private float winDelay = 0.6f;
-        [SerializeField] private float failRetryDelay = 1f;
+        [SerializeField] private LevelTimer timer;
         [Tooltip("0 = continue from saved progress. Set a number to always start on that level (testing).")]
         [SerializeField] private int startLevelOverride;
 
         private LevelRepository _levels;
-        private CancellationTokenSource _pendingStart;
         private bool _finished;
 
         public int CurrentLevel { get; private set; }
@@ -38,7 +36,7 @@ namespace Runtime.Gameplay
         private void Start()
         {
             finishChecker.Won += OnWon;
-            finishChecker.OutOfMoves += OnOutOfMoves;
+            timer.TimeUp += OnOutOfTime;
 
             _levels = new LevelRepository();
             int saved = _save.Level;
@@ -49,13 +47,11 @@ namespace Runtime.Gameplay
         private void OnDestroy()
         {
             finishChecker.Won -= OnWon;
-            finishChecker.OutOfMoves -= OnOutOfMoves;
-            CancelPendingStart();
+            timer.TimeUp -= OnOutOfTime;
         }
 
         public void StartLevel(int levelNumber)
         {
-            CancelPendingStart();
             tutorial.End();
             _finished = false;
             CurrentLevel = levelNumber;
@@ -63,10 +59,13 @@ namespace Runtime.Gameplay
             var level = _levels.Load(levelNumber);
             levelBuilder.Build(level);
             finishChecker.Begin();
+            timer.Begin(level.timeLimitSeconds);
             tutorial.Begin(level);
             input.Enabled = true;
             LevelStarted?.Invoke(levelNumber);
         }
+
+        public void NextLevel() => StartLevel(CurrentLevel + 1);
 
         public void Retry() => StartLevel(CurrentLevel);
 
@@ -75,6 +74,7 @@ namespace Runtime.Gameplay
             _finished = true;
             input.Enabled = false;
             finishChecker.Stop();
+            timer.Stop();
             tutorial.End();
             _sceneFlow.LoadMainMenu().Forget();
         }
@@ -92,40 +92,26 @@ namespace Runtime.Gameplay
 
         private void OnWon()
         {
-            if (_finished) return;
-            _finished = true;
-            input.Enabled = false;
-            tutorial.End();
+            if (!Finish()) return;
             _save.Level = CurrentLevel + 1;
             LevelWon?.Invoke(CurrentLevel);
-            StartAfterDelay(CurrentLevel + 1, winDelay).Forget();
         }
 
-        // No fail popup yet: restart the same level.
-        private void OnOutOfMoves()
+        private void OnOutOfTime()
         {
-            if (_finished) return;
+            if (Finish()) LevelFailed?.Invoke(CurrentLevel);
+        }
+
+        // Locks the board until the player picks Continue / Retry / Home.
+        private bool Finish()
+        {
+            if (_finished) return false;
             _finished = true;
             input.Enabled = false;
+            finishChecker.Stop();
+            timer.Stop();
             tutorial.End();
-            LevelFailed?.Invoke(CurrentLevel);
-            StartAfterDelay(CurrentLevel, failRetryDelay).Forget();
-        }
-
-        private async UniTaskVoid StartAfterDelay(int levelNumber, float delay)
-        {
-            CancelPendingStart();
-            _pendingStart = CancellationTokenSource.CreateLinkedTokenSource(destroyCancellationToken);
-            bool cancelled = await UniTask.Delay((int)(delay * 1000), cancellationToken: _pendingStart.Token)
-                .SuppressCancellationThrow();
-            if (!cancelled) StartLevel(levelNumber);
-        }
-
-        private void CancelPendingStart()
-        {
-            _pendingStart?.Cancel();
-            _pendingStart?.Dispose();
-            _pendingStart = null;
+            return true;
         }
     }
 }

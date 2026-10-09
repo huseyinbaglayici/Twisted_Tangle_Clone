@@ -16,12 +16,8 @@ namespace Runtime.Entities
         [Header("Locked (nailed) pin")]
         [SerializeField] private GameObject lockVisual;       // nail head, shown only on locked pins
         [SerializeField] private Color lockedBodyColor = new(0.415f, 0.415f, 0.415f);
-        [SerializeField] private Vector3 lockedShakeStrength = new(0.08f, 0f, 0f);
-        [SerializeField] private float lockedShakeDuration = 0.3f;
-        [SerializeField] private int lockedShakeVibrato = 10;
 
         private MaterialPropertyBlock _block;
-        private Tween _shake;
 
         public BoardModel.Pin Model { get; private set; }
         public Transform RopeConnectPoint => ropeConnectPoint != null ? ropeConnectPoint : transform;
@@ -42,16 +38,6 @@ namespace Runtime.Entities
             if (lockVisual != null) lockVisual.SetActive(model.Locked);
         }
 
-        public void SetSelected(bool on) => transform.DOScale(on ? 1.15f : 1f, 0.1f);
-
-        // Short sideways shake when the player tries to move a locked pin.
-        public void PlayLockedFeedback()
-        {
-            if (_shake != null && _shake.IsActive()) return;
-            _shake = transform.DOPunchPosition(lockedShakeStrength, lockedShakeDuration, lockedShakeVibrato, 1f)
-                .SetTarget(transform);
-        }
-
         private void SetColor(Color color)
         {
             if (pinRenderer == null) return;
@@ -66,7 +52,6 @@ namespace Runtime.Entities
         public void Despawn()
         {
             transform.DOKill();
-            _shake = null;
             Model = null;
         }
     }
