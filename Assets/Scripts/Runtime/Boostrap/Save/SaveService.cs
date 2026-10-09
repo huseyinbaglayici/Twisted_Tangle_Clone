@@ -1,20 +1,16 @@
-﻿using System;
-using System.Collections.Generic;
+using ES3KeyManager;
 
 namespace Runtime.Boostrap.Save
 {
+    // Player progress on disk. Keys and defaults live in Resources/ES3KeyRegistry.
     public class SaveService
     {
-        private readonly Dictionary<Type, object> _storages = new();
+        private const string LevelKey = "Level";
 
-        public void Register<TStorage>(TStorage storage) where TStorage : ISavable
+        public int Level
         {
-            _storages[typeof(TStorage)] = storage;
-        }
-
-        public TStorage Get<TStorage>()
-        {
-            return (TStorage)_storages[typeof(TStorage)];
+            get => ES3Keys.LoadInt(LevelKey);
+            set => ES3Keys.SaveInt(LevelKey, value);
         }
     }
 }

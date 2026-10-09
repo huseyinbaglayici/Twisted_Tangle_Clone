@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace Runtime.Level
+namespace Editor.Geometry
 {
     // Logical stand-in for the physical crossing test (Obi contact or particle pair closer than 0.15 on XZ).
     // Over/under does not matter: a rope lying on top still touches the one below.

@@ -39,6 +39,8 @@ MonoBehaviour:
     - Assembly-CSharp-firstpass
     - EasySave3
     - ES3KeyManager
+    - MCPForUnity.Runtime
+    - MultiAspectRecorder.Runtime
     - Obi
     - Reflex
     - ToonyColorsPro.Runtime

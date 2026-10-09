@@ -1,6 +1,6 @@
 using Reflex.Core;
 using Runtime.Boostrap;
-using Runtime.Gameplay.Managers;
+using Runtime.Boostrap.Save;
 using UnityEngine;
 
 namespace Runtime._Installers
@@ -9,8 +9,8 @@ namespace Runtime._Installers
     {
         public void InstallBindings(ContainerBuilder builder)
         {
-            builder.RegisterValue(new BoostrapReadyService());
-            builder.RegisterValue(new GameplayReadyService());
+            builder.RegisterValue(new SaveService());
+            builder.RegisterValue(new SceneFlowService());
         }
     }
 }

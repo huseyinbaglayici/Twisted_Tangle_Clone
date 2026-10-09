@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using Editor.Canvas;
+using Editor.Geometry;
 using Editor.Input;
 using Runtime.Level;
 using TwistedTangle.Editor;
@@ -1226,14 +1227,7 @@ namespace Editor.Windows
             _canvas.Redraw();
         }
 
-        private HashSet<int> TangledRopes()
-        {
-            var set = new HashSet<int>();
-            foreach (var r in LevelValidator.BuildBoard(Level).Ropes)
-                if (r.CrossingCount > 0)
-                    set.Add(r.Id);
-            return set;
-        }
+        private HashSet<int> TangledRopes() => LevelValidator.TangledRopeIds(Level, out _);
 
         #endregion
 

@@ -1,18 +1,14 @@
 using Cysharp.Threading.Tasks;
 using Reflex.Attributes;
 using UnityEngine;
-using UnityEngine.SceneManagement;
 
 namespace Runtime.Boostrap
 {
+    // Entry point of the Boostrap scene: opens the main menu.
     public class SceneLoader : MonoBehaviour
     {
-        [Inject] private BoostrapReadyService _readyService;
+        [Inject] private SceneFlowService _sceneFlow;
 
-        private async UniTaskVoid Start()
-        {
-            await _readyService.WaitUntilReady();
-            await SceneManager.LoadSceneAsync("MainMenu", LoadSceneMode.Additive);
-        }
+        private void Start() => _sceneFlow.LoadMainMenu().Forget();
     }
 }

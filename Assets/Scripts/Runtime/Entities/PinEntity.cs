@@ -12,16 +12,16 @@ namespace Runtime.Entities
 
         [SerializeField] private Renderer pinRenderer;
         [SerializeField] private GameObject lockVisual;
-        [SerializeField] private Collider pickCollider;   // put on a "Pin" layer for raycasts
+        [SerializeField] private Transform ropeConnectPoint; // rope end attachment target (0.2 above the board)
 
         private MaterialPropertyBlock _block;
 
         public BoardModel.Pin Model { get; private set; }
+        public Transform RopeConnectPoint => ropeConnectPoint != null ? ropeConnectPoint : transform;
 
         private void Awake()
         {
             if (pinRenderer == null) pinRenderer = GetComponentInChildren<Renderer>();
-            if (pickCollider == null) pickCollider = GetComponentInChildren<Collider>();
             _block = new MaterialPropertyBlock();
         }
 
@@ -45,10 +45,7 @@ namespace Runtime.Entities
             pinRenderer.SetPropertyBlock(_block);
         }
 
-        public void Spawn()
-        {
-            if (pickCollider != null) pickCollider.enabled = true;
-        }
+        public void Spawn() { }
 
         public void Despawn()
         {

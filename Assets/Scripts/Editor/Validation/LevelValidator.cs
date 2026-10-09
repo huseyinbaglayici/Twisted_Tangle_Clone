@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Editor.Geometry;
 using Runtime.Level;
 using UnityEngine;
 
@@ -136,14 +137,9 @@ namespace TwistedTangle.Editor.Validation
 
             if (ropesValid && report.Errors.Count == 0)
             {
-                var board = BuildBoard(level);
-                int sum = 0;
-                foreach (var r in board.Ropes)
-                {
-                    sum += r.CrossingCount;
-                    if (r.CrossingCount > 0) metrics.TangledRopes++;
-                }
-                metrics.CrossingPairs = sum / 2;
+                var tangled = TangledRopeIds(level, out int pairs);
+                metrics.CrossingPairs = pairs;
+                metrics.TangledRopes = tangled.Count;
 
                 if (stage.ropes.Count > 0 && metrics.TangledRopes == 0)
                     report.Warnings.Add("No rope touches another — the level is already solved.");
@@ -153,13 +149,40 @@ namespace TwistedTangle.Editor.Validation
             return report;
         }
 
-        /// <summary>Loads stage 1 into the runtime BoardModel (call only on a level without errors).</summary>
-        public static BoardModel BuildBoard(LevelJson level)
+        /// <summary>
+        /// Ropes of stage 1 whose authored path touches another rope's path (call only on a level without errors).
+        /// </summary>
+        public static HashSet<int> TangledRopeIds(LevelJson level, out int crossingPairs)
         {
             var stage = level.stages[0];
-            var board = new BoardModel();
-            board.Load(stage, level.moveLimit, new BoardGrid(stage.gridWidth, stage.gridHeight));
-            return board;
+            var paths = new List<Vector2[]>();
+            foreach (var rope in stage.ropes) paths.Add(PathOf(stage, rope));
+
+            var tangled = new HashSet<int>();
+            crossingPairs = 0;
+            for (int i = 0; i < paths.Count; i++)
+            for (int j = i + 1; j < paths.Count; j++)
+            {
+                if (!RopeGeometry.PathsTouch(paths[i], paths[j])) continue;
+                crossingPairs++;
+                tangled.Add(stage.ropes[i].id);
+                tangled.Add(stage.ropes[j].id);
+            }
+            return tangled;
+        }
+
+        // Authored path in cell space, or a straight line between the pins when there is none.
+        private static Vector2[] PathOf(StageJson stage, RopeJson rope)
+        {
+            var a = stage.pins.Find(p => p.id == rope.pinA).Cell;
+            var b = stage.pins.Find(p => p.id == rope.pinB).Cell;
+            if (rope.path == null || rope.path.Count < 2) return RopeShape.Straight(a, b);
+
+            var pts = new Vector2[rope.path.Count];
+            for (int i = 0; i < pts.Length; i++) pts[i] = new Vector2(rope.path[i].x, rope.path[i].y);
+            pts[0] = a;
+            pts[^1] = b;
+            return pts;
         }
 
         private static bool InBounds(Vector2Int c, StageJson stage) =>
