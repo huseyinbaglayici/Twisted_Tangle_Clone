@@ -34,3 +34,17 @@ MonoBehaviour:
     boolDefault: 0
     stringDefault: 
     byteDefault: 0
+  - key: SoundOn
+    type: 2
+    intDefault: 0
+    floatDefault: 0
+    boolDefault: 1
+    stringDefault: 
+    byteDefault: 0
+  - key: HapticsOn
+    type: 2
+    intDefault: 0
+    floatDefault: 0
+    boolDefault: 1
+    stringDefault: 
+    byteDefault: 0
