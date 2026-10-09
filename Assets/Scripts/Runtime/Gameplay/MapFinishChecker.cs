@@ -6,7 +6,7 @@ using UnityEngine;
 
 namespace Runtime.Gameplay
 {
-    // Physics-driven win loop (fixed step, paused while a pin is dragged):
+    // Physics-driven win loop (fixed step, paused from the moment a movable pin is pressed until it is let go):
     //  - a rope is free once Obi reports no rope contact for successCheckDelay,
     //  - a free rope merges when one of its pins holds only it and neither it nor its connected ropes touch or
     //    cross another rope (cross = particles at the same XZ point with different heights),
@@ -57,8 +57,8 @@ namespace Runtime.Gameplay
 
         private void FixedUpdate()
         {
-            // Paused (timers frozen) while a pin is dragged or the level is still being created.
-            if (!_running || Succeeded || input.IsDragging || !AllRopesReady()) return;
+            // Paused (timers frozen) while a pin is held or the level is still being created.
+            if (!_running || Succeeded || input.IsHoldingPin || !AllRopesReady()) return;
             float dt = Time.fixedDeltaTime;
 
             foreach (var rope in Board.Ropes)

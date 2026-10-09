@@ -94,16 +94,56 @@ namespace Runtime.Level
             Count = Resources.LoadAll<TextAsset>(Folder).Length;
         }
 
+        // The tutorial level is never replayed once the player has gone past the last level.
+        public const int FirstLoopLevel = 2;
+
         public static string FileName(int levelNumber) => $"level_{levelNumber:000}";
 
-        // After the last level, keep looping.
         public LevelJson Load(int levelNumber)
         {
-            int n = Count == 0 ? 1 : ((levelNumber - 1) % Count) + 1;
+            int n = FileNumber(levelNumber);
             var asset = Resources.Load<TextAsset>(Folder + FileName(n));
             if (asset == null)
                 throw new InvalidOperationException($"Level json not found: {FileName(n)}");
             return LevelJson.FromJson(asset.text);
+        }
+
+        // Level numbers keep counting up after the last file. Past the end I replay the levels from
+        // FirstLoopLevel on in a shuffled order: every round is a fresh shuffle seeded by the round index
+        // (same number -> same level, so a saved level number always reloads the same board), and a round
+        // never starts with the level the previous round ended on.
+        public int FileNumber(int levelNumber)
+        {
+            if (Count == 0) return 1;
+            if (levelNumber <= Count) return Mathf.Max(1, levelNumber);
+
+            int loopSize = Count - FirstLoopLevel + 1;
+            if (loopSize <= 1) return Count;
+
+            int index = levelNumber - Count - 1;
+            int round = index / loopSize;
+            var order = LoopOrder(round);
+            if (round > 0)
+            {
+                var previous = LoopOrder(round - 1);
+                if (order[0] == previous[loopSize - 1]) (order[0], order[1]) = (order[1], order[0]);
+            }
+            return order[index % loopSize];
+        }
+
+        private int[] LoopOrder(int round)
+        {
+            int size = Count - FirstLoopLevel + 1;
+            var order = new int[size];
+            for (int i = 0; i < size; i++) order[i] = FirstLoopLevel + i;
+
+            var random = new System.Random(round * 7919 + 17);
+            for (int i = size - 1; i > 0; i--)
+            {
+                int j = random.Next(i + 1);
+                (order[i], order[j]) = (order[j], order[i]);
+            }
+            return order;
         }
     }
 }

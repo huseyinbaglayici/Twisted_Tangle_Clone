@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using DG.Tweening;
 using Runtime.Entities;
@@ -12,6 +13,8 @@ namespace Runtime.Gameplay
     //    maxPinDistance from every pin it is roped to. Released over a free slot -> slides in, otherwise slides back.
     //    The drag is cancelled when a rope it pulls (or one touching it) gets too tense.
     //  - Tap-move: tap a pin (reachable slots light up) -> tap a slot -> the pin flies there.
+    //  - A move that leaves its rope over-stretched is taken back automatically shortly after the drop.
+    //  - Locked (nailed) pins never move; pressing one only plays the reject feedback.
     public class PinInputController : MonoBehaviour
     {
         [SerializeField] private LevelBuilder level;
@@ -32,6 +35,9 @@ namespace Runtime.Gameplay
         [SerializeField] private float cancelHigherTension = 0.75f;
         [SerializeField] private float cancelHigherTensionDelay = 0.1f;
 
+        [Header("Over-stretched move revert")]
+        [SerializeField] private float revertCheckDelay = 0.2f;
+
         [Header("Placement tweens")]
         [SerializeField] private float placeSpeed = 6f;              // slot transfer (units / second)
         [SerializeField] private Ease placeEase = Ease.OutSine;
@@ -46,8 +52,17 @@ namespace Runtime.Gameplay
         private float _dragTime;
         private GridCellEntity _dropCandidate;
 
+        // Pin grabbed (drag start) or selected for a tap-move.
+        public event Action<PinEntity> PinPicked;
+        // Pin committed to a new slot (drag drop or tap-move).
+        public event Action<PinEntity> PinDropped;
+        // Locked pin pressed, drag cancelled by rope tension, tap-move refused or move taken back.
+        public event Action<PinEntity> PinMoveRejected;
+
         public bool Enabled { get; set; } = true;
         public bool IsDragging => _dragged != null;
+        // From pressing a movable pin until it is released (the win check waits meanwhile).
+        public bool IsHoldingPin => _dragged != null || (_pressed != null && Board.CanControl(_pressed));
 
         private BoardModel Board => level.Board;
 
@@ -72,6 +87,7 @@ namespace Runtime.Gameplay
             if (!Enabled)
             {
                 if (_dragged != null) CancelDrag();
+                _pressed = null;
                 return;
             }
 
@@ -80,11 +96,12 @@ namespace Runtime.Gameplay
                 if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject()) return;
                 _pressScreen = Input.mousePosition;
                 _pressed = PickPin();
+                if (_pressed != null && _pressed.Locked) Reject(_pressed);
             }
             else if (Input.GetMouseButton(0))
             {
                 if (_pressed != null && _dragged == null &&
-                    Vector2.Distance(_pressScreen, Input.mousePosition) > dragThresholdPixels && CanControl(_pressed))
+                    Vector2.Distance(_pressScreen, Input.mousePosition) > dragThresholdPixels && Board.CanControl(_pressed))
                     BeginDrag(_pressed);
 
                 if (_dragged != null && TrySurfacePoint(out var hit))
@@ -105,8 +122,8 @@ namespace Runtime.Gameplay
         {
             if (_dragged == null) return;
 
-            // The rope can free itself and merge mid-air; the merge animation owns the pin then.
-            if (!CanControl(_dragged))
+            // The pin can get frozen mid-drag (its merge chain started); the merge animation owns it then.
+            if (!Board.CanControl(_dragged))
             {
                 ReleaseDragged();
                 return;
@@ -115,15 +132,15 @@ namespace Runtime.Gameplay
             _dragTime += Time.fixedDeltaTime;
             if (ShouldCancelDrag())
             {
+                var pin = _dragged;
                 CancelDrag();
+                Reject(pin);
                 return;
             }
 
             var view = level.PinViews[_dragged.Id].transform;
             view.position = Vector3.Lerp(view.position, _dragTarget, Mathf.Clamp01(Time.fixedDeltaTime * moveTime));
         }
-
-        private static bool CanControl(BoardModel.Pin p) => p != null && !p.Removed && !p.Locked && p.InputEnabled;
 
         // ---------- drag ----------
         private void BeginDrag(BoardModel.Pin pin)
@@ -135,6 +152,7 @@ namespace Runtime.Gameplay
             view.DOKill();
             _dragTarget = view.position + dragOffset;
             level.SetPinPlaced(pin.Id, false);
+            PinPicked?.Invoke(level.PinViews[pin.Id]);
         }
 
         private void Drop()
@@ -220,15 +238,23 @@ namespace Runtime.Gameplay
         {
             if (tappedPin != null)
             {
-                Select(_selected == tappedPin || !CanControl(tappedPin) ? null : tappedPin);
+                bool select = _selected != tappedPin && Board.CanControl(tappedPin);
+                Select(select ? tappedPin : null);
+                if (select) PinPicked?.Invoke(level.PinViews[tappedPin.Id]);
                 return;
             }
 
             if (_selected == null || !TrySurfacePoint(out var p)) return;
+            var pin = _selected;
             var cell = level.Grid.WorldToCell(p);
-            if (CanControl(_selected) && Board.CanMove(_selected, cell) && !IsAnyRopeTooTense(_selected))
-                MoveTo(_selected, cell, record: true, tapMoveSecondsPerUnit, tapMoveEase, byDistance: true);
             Select(null);
+            if (!Board.CanMove(pin, cell)) return;
+            if (IsAnyRopeTooTense(pin))
+            {
+                Reject(pin);
+                return;
+            }
+            MoveTo(pin, cell, record: true, tapMoveSecondsPerUnit, tapMoveEase, byDistance: true);
         }
 
         private bool IsAnyRopeTooTense(BoardModel.Pin pin)
@@ -256,18 +282,42 @@ namespace Runtime.Gameplay
                 }
         }
 
+        private void Reject(BoardModel.Pin pin)
+        {
+            if (!level.PinViews.TryGetValue(pin.Id, out var view)) return;
+            if (pin.Locked) view.PlayLockedFeedback();
+            PinMoveRejected?.Invoke(view);
+        }
+
         // ---------- shared ----------
         // byDistance: duration = distance * value (tap-move); otherwise value is a speed (slot transfer).
         private void MoveTo(BoardModel.Pin pin, Vector2Int cell, bool record, float value, Ease ease, bool byDistance)
         {
             var from = pin.Cell;
             Board.CommitMove(pin, cell, countMove: record);
-            if (record) _history.Push(pin.Id, from, cell);
             Fly(pin, level.Grid.CellToWorld(cell), value, ease, byDistance);
+            if (!record) return;
+
+            _history.Push(pin.Id, from, cell);
+            var view = level.PinViews[pin.Id];
+            PinDropped?.Invoke(view);
+            // Shortly after the drop the move is taken back if it left a rope over-stretched. Targeting the view
+            // means a new grab (DOKill) cancels the check.
+            DOVirtual.DelayedCall(revertCheckDelay, () => RevertIfOverStretched(pin, from, cell))
+                .SetTarget(view.transform);
         }
 
         public void MoveTo(BoardModel.Pin pin, Vector2Int cell, bool record) =>
             MoveTo(pin, cell, record, tapMoveSecondsPerUnit, tapMoveEase, byDistance: true);
+
+        private void RevertIfOverStretched(BoardModel.Pin pin, Vector2Int from, Vector2Int to)
+        {
+            if (pin.Cell != to || !Board.CanControl(pin) || pin == _dragged || !IsAnyRopeTooTense(pin)) return;
+            if (!Board.IsCellFree(from)) return;
+            _history.DiscardLast(pin.Id);
+            MoveTo(pin, from, record: false);
+            Reject(pin);
+        }
 
         private void PlaceBack(BoardModel.Pin pin)
         {
@@ -281,8 +331,12 @@ namespace Runtime.Gameplay
             float duration = byDistance ? dist * value : dist / Mathf.Max(0.01f, value);
             level.SetPinPlaced(pin.Id, false);
             view.DOKill();
-            view.DOMove(target, duration).SetEase(ease).SetTarget(view)
-                .OnComplete(() => level.SetPinPlaced(pin.Id, true));
+            // A pin sent from its slot (tap-move, undo) hops over the ropes at drag height instead of ploughing
+            // through them; a released drag is already lifted and just slides in.
+            Tween tween = byDistance
+                ? view.DOJump(target, dragOffset.y, 1, duration)
+                : view.DOMove(target, duration);
+            tween.SetEase(ease).SetTarget(view).OnComplete(() => level.SetPinPlaced(pin.Id, true));
         }
 
         // Closest pin under the pointer on the board plane.

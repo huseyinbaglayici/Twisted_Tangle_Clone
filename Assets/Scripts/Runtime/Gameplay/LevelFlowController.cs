@@ -1,3 +1,4 @@
+using System;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using Reflex.Attributes;
@@ -29,6 +30,11 @@ namespace Runtime.Gameplay
 
         public int CurrentLevel { get; private set; }
 
+        // Level number as shown to the player (keeps counting past the last level file).
+        public event Action<int> LevelStarted;
+        public event Action<int> LevelWon;
+        public event Action<int> LevelFailed;
+
         private void Start()
         {
             finishChecker.Won += OnWon;
@@ -59,6 +65,7 @@ namespace Runtime.Gameplay
             finishChecker.Begin();
             tutorial.Begin(level);
             input.Enabled = true;
+            LevelStarted?.Invoke(levelNumber);
         }
 
         public void Retry() => StartLevel(CurrentLevel);
@@ -90,6 +97,7 @@ namespace Runtime.Gameplay
             input.Enabled = false;
             tutorial.End();
             _save.Level = CurrentLevel + 1;
+            LevelWon?.Invoke(CurrentLevel);
             StartAfterDelay(CurrentLevel + 1, winDelay).Forget();
         }
 
@@ -100,6 +108,7 @@ namespace Runtime.Gameplay
             _finished = true;
             input.Enabled = false;
             tutorial.End();
+            LevelFailed?.Invoke(CurrentLevel);
             StartAfterDelay(CurrentLevel, failRetryDelay).Forget();
         }
 

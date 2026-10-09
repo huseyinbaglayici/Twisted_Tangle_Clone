@@ -438,6 +438,7 @@ MonoBehaviour:
   cancelTensionDelay: 0.25
   cancelHigherTension: 0.75
   cancelHigherTensionDelay: 0.1
+  revertCheckDelay: 0.2
   placeSpeed: 6
   placeEase: 3
   tapMoveSecondsPerUnit: 0.2
@@ -455,10 +456,12 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   level: {fileID: 212080835}
+  collisions: {fileID: 212080839}
   jumpPower: 1
   jumpDuration: 0.3
   jumpTargetOffset: 0.5
   jumpEase: 3
+  flipAngle: 180
   punchScale: {x: 0.5, y: 0, z: 0.5}
   punchDuration: 0.1875
   destroyScaleDuration: 0.1125

@@ -63,10 +63,9 @@ namespace Runtime.Gameplay
             _sequence = null;
             if (hand != null) hand.gameObject.SetActive(false);
 
-            // Unlock what we locked, unless its rope is already merging away.
+            // Unlock what I locked; pins of a merging rope stay frozen through BoardModel.CanControl anyway.
             foreach (var p in _lockedPins)
-                if (!p.Removed && !IsMerging(p))
-                    p.InputEnabled = true;
+                p.InputEnabled = true;
             _lockedPins.Clear();
             _pin = null;
         }
@@ -87,13 +86,6 @@ namespace Runtime.Gameplay
 
         private Vector3 PinPosition() =>
             level.PinViews.TryGetValue(_pin.Id, out var view) ? view.transform.position : level.Grid.CellToWorld(_pin.Cell);
-
-        private static bool IsMerging(BoardModel.Pin pin)
-        {
-            foreach (var r in pin.Ropes)
-                if (r.Merging) return true;
-            return false;
-        }
 
         private void OnDestroy() => End();
     }

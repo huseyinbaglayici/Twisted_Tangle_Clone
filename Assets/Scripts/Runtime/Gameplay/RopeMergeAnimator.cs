@@ -1,57 +1,66 @@
+using System;
 using DG.Tweening;
 using Runtime.Level;
 using UnityEngine;
 
 namespace Runtime.Gameplay
 {
-    // A free rope merges: single-rope pins jump to the meeting point while the rope reels in, punch, then scale out
-    // and everything returns to the pools. A pin still holding another rope stays put and becomes the target.
+    // A free rope merges: the source pin (first end holding only this rope) jumps onto the target pin, flipping
+    // over, while the rope reels in. Then both punch, the rope disappears, the pins scale out and everything returns
+    // to the pools. A target pin still held by another rope stays on the board untouched.
     public class RopeMergeAnimator : MonoBehaviour
     {
         [SerializeField] private LevelBuilder level;
+        [SerializeField] private RopeCollisionTracker collisions;
         [SerializeField] private float jumpPower = 1f;
         [SerializeField] private float jumpDuration = 0.3f;
-        [SerializeField] private float jumpTargetOffset = 0.5f;
+        [SerializeField] private float jumpTargetOffset = 0.5f;   // lands this high above the target pin
         [SerializeField] private Ease jumpEase = Ease.OutSine;
+        [SerializeField] private float flipAngle = 180f;
         [SerializeField] private Vector3 punchScale = new(0.5f, 0f, 0.5f);
         [SerializeField] private float punchDuration = 0.1875f;
         [SerializeField] private float destroyScaleDuration = 0.1125f;
 
+        // World position where the pins meet (the target pin).
+        public event Action<Vector3> MergeStarted;
+        public event Action<Vector3> MergeCompleted;
+
         public void Play(BoardModel.Rope rope)
         {
             if (!level.RopeViews.TryGetValue(rope.Id, out var ropeView)) return;
-            var a = level.PinViews[rope.A.Id].transform;
-            var b = level.PinViews[rope.B.Id].transform;
-            bool aMoves = rope.A.ActiveRopeCount == 1, bMoves = rope.B.ActiveRopeCount == 1;
+            var sourcePin = BoardModel.MergeSource(rope);
+            var targetPin = rope.Other(sourcePin);
+            var source = level.PinViews[sourcePin.Id].transform;
+            var target = level.PinViews[targetPin.Id].transform;
+            bool targetGoes = BoardModel.IsLastRopeOf(targetPin, rope);
+            Vector3 meet = target.position;
 
-            Vector3 meet = aMoves && bMoves
-                ? Vector3.Lerp(a.position, b.position, jumpTargetOffset)
-                : aMoves ? b.position : a.position;
-
-            if (aMoves) { a.DOKill(); level.SetPinPlaced(rope.A.Id, false); }
-            if (bMoves) { b.DOKill(); level.SetPinPlaced(rope.B.Id, false); }
+            collisions.Ignore(ropeView.Obi);
+            source.DOKill();
+            if (targetGoes) target.DOKill();
+            level.SetPinPlaced(sourcePin.Id, false);
+            MergeStarted?.Invoke(meet);
 
             // Target = rope view, so a level reset (rope despawn) kills the whole sequence.
             var seq = DOTween.Sequence().SetTarget(ropeView);
-            if (aMoves) seq.Join(a.DOJump(meet, jumpPower, 1, jumpDuration).SetEase(jumpEase));
-            if (bMoves) seq.Join(b.DOJump(meet, jumpPower, 1, jumpDuration).SetEase(jumpEase));
-            // Rope reels in (rest length -> 0) while the pins jump together.
+            seq.Append(source.DOJump(meet + Vector3.up * jumpTargetOffset, jumpPower, 1, jumpDuration).SetEase(jumpEase));
+            seq.Join(source.DORotateQuaternion(source.rotation * Quaternion.AngleAxis(flipAngle, Vector3.right), jumpDuration));
+            // Rope reels in (rest length -> 0) while the pin is in the air.
             float length = ropeView.RestLength;
-            seq.Join(DOTween.To(() => length, v => { ropeView.ChangeLength(v - length); length = v; }, 0f, jumpDuration).SetEase(jumpEase));
-            seq.AppendCallback(() =>
-            {
-                if (aMoves) a.DOPunchScale(punchScale, punchDuration, 1, 0f);
-                if (bMoves) b.DOPunchScale(punchScale, punchDuration, 1, 0f);
-            });
-            seq.AppendInterval(punchDuration);
-            if (aMoves) seq.Append(a.DOScale(0f, destroyScaleDuration));
-            if (bMoves) seq.Join(b.DOScale(0f, destroyScaleDuration));
+            seq.Join(DOTween.To(() => length, v => { ropeView.ChangeLength(v - length); length = v; }, 0f, jumpDuration));
+            seq.Append(source.DOPunchScale(punchScale, punchDuration, 1, 1f));
+            if (targetGoes) seq.Join(target.DOPunchScale(punchScale, punchDuration, 1, 1f));
+            seq.AppendCallback(() => ropeView.gameObject.SetActive(false));
+            seq.Append(source.DOScale(0f, destroyScaleDuration));
+            if (targetGoes) seq.Join(target.DOScale(0f, destroyScaleDuration));
             seq.OnComplete(() =>
             {
                 level.Board.CompleteMerge(rope, out bool removeA, out bool removeB);
+                collisions.Unignore(ropeView.Obi);
                 level.ReleaseRope(rope.Id);
                 if (removeA) level.ReleasePin(rope.A.Id);
                 if (removeB) level.ReleasePin(rope.B.Id);
+                MergeCompleted?.Invoke(meet);
             });
         }
     }

@@ -18,6 +18,7 @@ namespace Runtime.Gameplay
 
         private readonly Dictionary<ObiActor, Dictionary<ObiActor, float>> _contacts = new();
         private readonly List<ObiActor> _expired = new();
+        private readonly HashSet<ObiActor> _ignored = new();
         private ObiSolver _solver;
         private float _lastContactSample = float.MinValue;
         private float _lastCleanup = float.MinValue;
@@ -33,7 +34,22 @@ namespace Runtime.Gameplay
             if (_solver != null) _solver.OnParticleCollision -= HandleParticleContacts;
         }
 
-        public void Clear() => _contacts.Clear();
+        public void Clear()
+        {
+            _contacts.Clear();
+            _ignored.Clear();
+        }
+
+        // A merging rope reels in across the board; its contacts must not keep other ropes from freeing.
+        public void Ignore(ObiActor actor)
+        {
+            if (actor == null) return;
+            _ignored.Add(actor);
+            _contacts.Remove(actor);
+            foreach (var with in _contacts.Values) with.Remove(actor);
+        }
+
+        public void Unignore(ObiActor actor) => _ignored.Remove(actor);
 
         public bool IsColliding(ObiActor actor) =>
             actor != null && _contacts.TryGetValue(actor, out var with) && with.Count > 0;
@@ -69,7 +85,7 @@ namespace Runtime.Gameplay
 
                 var a = ActorOf(solver, c.bodyA);
                 var b = ActorOf(solver, c.bodyB);
-                if (a == null || b == null || a == b) continue;
+                if (a == null || b == null || a == b || _ignored.Contains(a) || _ignored.Contains(b)) continue;
                 Touch(a, b);
                 Touch(b, a);
             }

@@ -13,15 +13,24 @@ namespace Runtime.Gameplay
 
         public void Clear() => _stack.Clear();
 
+        // Drops the newest entry when it belongs to this pin (a move that was taken back automatically).
+        public void DiscardLast(int pin)
+        {
+            if (_stack.Count > 0 && _stack.Peek().pin == pin) _stack.Pop();
+        }
+
         public bool TryUndo(BoardModel board, PinInputController input)
         {
             while (_stack.Count > 0)
             {
                 var m = _stack.Pop();
-                if (!board.Pins.TryGetValue(m.pin, out var pin) || pin.Removed || !pin.InputEnabled)
+                if (!board.Pins.TryGetValue(m.pin, out var pin) || pin.Removed)
                     continue; // its rope already merged
-                if (!board.IsCellFree(m.from) || !board.IsWithinPinDistance(pin, m.from))
+                if (!board.CanControl(pin) || !board.IsCellFree(m.from) || !board.IsWithinPinDistance(pin, m.from))
+                {
+                    _stack.Push(m);
                     return false;
+                }
                 input.MoveTo(pin, m.from, record: false);
                 return true;
             }
