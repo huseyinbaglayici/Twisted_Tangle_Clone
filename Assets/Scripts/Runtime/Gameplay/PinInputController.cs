@@ -50,7 +50,7 @@ namespace Runtime.Gameplay
         private Vector2 _pressScreen;
         private Vector3 _dragTarget;
         private float _dragTime;
-        private GridCellEntity _dropCandidate;
+        private GridCellEntity _dropCandidate, _originCell;
 
         // Pin grabbed (drag start).
         public event Action<PinEntity> PinPicked;
@@ -77,6 +77,7 @@ namespace Runtime.Gameplay
             _pressed = null;
             _dragged = null;
             SetDropCandidate(null);
+            SetOriginCell(null);
         }
 
         public bool Undo() => _history.TryUndo(Board, this);
@@ -148,6 +149,7 @@ namespace Runtime.Gameplay
             view.DOKill();
             _dragTarget = view.position + dragOffset;
             level.SetPinPlaced(pin.Id, false);
+            SetOriginCell(level.Cells.TryGetValue(pin.Cell, out var origin) ? origin : null);
             PinPicked?.Invoke(level.PinViews[pin.Id]);
         }
 
@@ -172,6 +174,7 @@ namespace Runtime.Gameplay
             _dragged = null;
             _pressed = null;
             SetDropCandidate(null);
+            SetOriginCell(null);
         }
 
         // A rope pulled by the dragged pin (or a rope it is touching) is too tense.
@@ -227,6 +230,14 @@ namespace Runtime.Gameplay
             if (_dropCandidate != null) _dropCandidate.SetHighlight(false);
             _dropCandidate = cell;
             if (_dropCandidate != null) _dropCandidate.SetHighlight(true);
+        }
+
+        private void SetOriginCell(GridCellEntity cell)
+        {
+            if (_originCell == cell) return;
+            if (_originCell != null) _originCell.SetOrigin(false);
+            _originCell = cell;
+            if (_originCell != null) _originCell.SetOrigin(true);
         }
 
         private void Reject(BoardModel.Pin pin)
