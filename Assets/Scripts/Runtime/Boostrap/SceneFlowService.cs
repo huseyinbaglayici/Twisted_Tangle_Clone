@@ -21,6 +21,9 @@ namespace Runtime.Boostrap
 
         public bool IsBusy => _busy;
 
+        // Still fully hidden behind the curtain (a menu waits for this before playing its intro).
+        public bool IsScreenCovered => _fader.IsCovered;
+
         // App start: the fader is up as a splash, the menu loads under it.
         public async UniTask Boot()
         {

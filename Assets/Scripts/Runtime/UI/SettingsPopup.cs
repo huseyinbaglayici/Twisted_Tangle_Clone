@@ -4,7 +4,7 @@ using UnityEngine.UI;
 
 namespace Runtime.UI
 {
-    // Sound / haptics switches plus a home button. Tapping the dim background or the X closes it.
+    // Sound / haptics switches plus an optional home button (gameplay only). Tapping the dim background or the X closes it.
     [RequireComponent(typeof(UiPanelAnimator))]
     public class SettingsPopup : MonoBehaviour
     {
@@ -49,7 +49,7 @@ namespace Runtime.UI
             _listening = true;
             soundToggle.Changed += on => SoundChanged?.Invoke(on);
             hapticsToggle.Changed += on => HapticsChanged?.Invoke(on);
-            homeButton.onClick.AddListener(() => HomeClicked?.Invoke());
+            if (homeButton != null) homeButton.onClick.AddListener(() => HomeClicked?.Invoke());
             closeButton.onClick.AddListener(Close);
             if (dimButton != null) dimButton.onClick.AddListener(Close);
         }
