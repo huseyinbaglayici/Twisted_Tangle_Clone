@@ -3,17 +3,20 @@ using Cysharp.Threading.Tasks;
 using Reflex.Attributes;
 using Runtime.Boostrap;
 using Runtime.Boostrap.Save;
+using Runtime.Effects;
 using Runtime.Level;
 using UnityEngine;
 
 namespace Runtime.Gameplay
 {
     // Level loop: load saved level -> build -> physics win/merge check. A win saves progress and waits for the
-    // UI (Continue -> NextLevel), running out of time waits for Retry. Nothing advances by itself.
+    // UI (Continue -> back to the menu, which then opens the next level), running out of time waits for Retry.
+    // Nothing advances by itself.
     public class LevelFlowController : MonoBehaviour
     {
         [Inject] private SaveService _save;
         [Inject] private SceneFlowService _sceneFlow;
+        [Inject] private FxPlayer _fx;
 
         [SerializeField] private LevelBuilder levelBuilder;
         [SerializeField] private PinInputController input;
@@ -65,18 +68,28 @@ namespace Runtime.Gameplay
             LevelStarted?.Invoke(levelNumber);
         }
 
-        public void NextLevel() => StartLevel(CurrentLevel + 1);
+        // Rebuilt behind the fader so the old board never visibly pops into the new one.
+        public void Retry()
+        {
+            if (_sceneFlow.IsBusy) return;
+            Lock();
+            _sceneFlow.Transition(() => StartLevel(CurrentLevel)).Forget();
+        }
 
-        public void Retry() => StartLevel(CurrentLevel);
-
+        // Home, back button and Continue after a win (progress is already saved by then).
         public void ExitToMenu()
         {
-            _finished = true;
-            input.Enabled = false;
-            finishChecker.Stop();
-            timer.Stop();
-            tutorial.End();
-            _sceneFlow.LoadMainMenu().Forget();
+            if (_sceneFlow.IsBusy) return;
+            Lock();
+            _sceneFlow.LoadMainMenu(ReleaseLevel).Forget();
+        }
+
+        // Every pooled view goes back to its pool before Gameplay unloads; pool holders and the solver live in
+        // Boostrap, so nothing pooled is destroyed with this scene.
+        private void ReleaseLevel()
+        {
+            levelBuilder.Clear();
+            _fx.DespawnAll();
         }
 
         // Escape = Android back button.
@@ -106,12 +119,17 @@ namespace Runtime.Gameplay
         private bool Finish()
         {
             if (_finished) return false;
+            Lock();
+            return true;
+        }
+
+        private void Lock()
+        {
             _finished = true;
             input.Enabled = false;
             finishChecker.Stop();
             timer.Stop();
             tutorial.End();
-            return true;
         }
     }
 }

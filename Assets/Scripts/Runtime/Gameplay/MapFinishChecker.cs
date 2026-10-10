@@ -17,6 +17,8 @@ namespace Runtime.Gameplay
         [SerializeField] private RopeCollisionTracker collisions;
         [SerializeField] private RopeMergeAnimator mergeAnimator;
         [SerializeField] private float successCheckDelay = 0.15f;
+        [Tooltip("Freshly built ropes settle this long before anything is checked.")]
+        [SerializeField] private float startDelay = 0.75f;
         [SerializeField] private PinInputController input;
         [SerializeField] private bool mergeOnAir = true;
         [SerializeField] private float ropesIntersectRadius = 0.15f;
@@ -33,6 +35,7 @@ namespace Runtime.Gameplay
         private readonly List<Vector3> _pointsA = new(), _pointsB = new();
         private readonly List<BoardModel.Rope> _group = new();
         private float _successTimer;
+        private float _startTime;
         private bool _running;
 
         public event Action Won;
@@ -48,6 +51,7 @@ namespace Runtime.Gameplay
             _successTimer = 0f;
             Succeeded = false;
             _running = true;
+            _startTime = Time.time + startDelay;
         }
 
         public void Stop() => _running = false;
@@ -55,7 +59,7 @@ namespace Runtime.Gameplay
         private void FixedUpdate()
         {
             // Paused (timers frozen) while a pin is held or the level is still being created.
-            if (!_running || Succeeded || input.IsHoldingPin || !AllRopesReady()) return;
+            if (!_running || Succeeded || Time.time < _startTime || input.IsHoldingPin || !AllRopesReady()) return;
             float dt = Time.fixedDeltaTime;
 
             foreach (var rope in Board.Ropes)

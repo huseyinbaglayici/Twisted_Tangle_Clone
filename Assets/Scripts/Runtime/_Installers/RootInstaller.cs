@@ -4,6 +4,7 @@ using Runtime.Audio;
 using Runtime.Boostrap;
 using Runtime.Boostrap.Save;
 using Runtime.Effects;
+using Runtime.UI;
 using UnityEngine;
 
 namespace Runtime._Installers
@@ -12,13 +13,16 @@ namespace Runtime._Installers
     {
         [SerializeField] private FxPlayer fxPlayerPrefab;
         [SerializeField] private AudioPlayer audioPlayerPrefab;
+        [SerializeField] private ScreenFader screenFaderPrefab;
 
         public void InstallBindings(ContainerBuilder builder)
         {
+            // Effects, sounds and the loading curtain outlive the menu / gameplay swaps, so they are created once
+            // with the root container.
+            var fader = Spawn(screenFaderPrefab);
             builder.RegisterValue(new SaveService());
-            builder.RegisterValue(new SceneFlowService());
+            builder.RegisterValue(new SceneFlowService(fader));
 
-            // Effects and sounds outlive the menu / gameplay swaps, so they are created once with the root container.
             var fx = Spawn(fxPlayerPrefab);
             var audio = Spawn(audioPlayerPrefab);
             builder.RegisterValue(fx);

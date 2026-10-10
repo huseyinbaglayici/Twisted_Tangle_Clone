@@ -1,54 +1,95 @@
 using System;
 using DG.Tweening;
-using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
 namespace Runtime.UI
 {
-    // "Level Complete!" screen: ribbon title, stars popping in one by one, continue button.
-    [RequireComponent(typeof(UiPanelAnimator))]
+    // "Level Complete!" card: the blue backdrop fades in, the ribbon title grows out of nothing with light rays
+    // turning behind it, the emoji pops and the Continue button slides up from the bottom.
+    [RequireComponent(typeof(CanvasGroup))]
     public class LevelCompletePanel : MonoBehaviour
     {
-        [SerializeField] private TMP_Text levelLabel;
+        [SerializeField] private CanvasGroup background;
+        [SerializeField] private RectTransform title;
+        [SerializeField] private RectTransform rays;
+        [SerializeField] private RectTransform emoji;
+        [SerializeField] private RectTransform continueRoot;
         [SerializeField] private Button continueButton;
-        [SerializeField] private RectTransform[] stars;
-        [SerializeField] private float starDelay = 0.3f;
-        [SerializeField] private float starStagger = 0.12f;
-        [SerializeField] private float starDuration = 0.35f;
 
-        private UiPanelAnimator _animator;
-        private bool _listening;
+        [Header("Intro")]
+        [SerializeField] private float duration = 0.5f;
+        [SerializeField] private Ease ease = Ease.OutExpo;
+        [SerializeField] private float emojiDelay = 0.1f;
+        [SerializeField] private Ease emojiEase = Ease.OutBack;
+        [SerializeField] private float slideDistance = 1200f;
+        [SerializeField] private float raysTurnTime = 8f;   // seconds per full turn
+        [SerializeField] private float hideDuration = 0.2f;
+
+        private CanvasGroup _group;
+        private Vector2 _continuePosition;
+        private Sequence _sequence;
+        private bool _initialized;
 
         public event Action ContinueClicked;
 
-        public bool IsVisible => Animator.IsVisible;
+        public bool IsVisible { get; private set; }
 
-        private UiPanelAnimator Animator => _animator != null ? _animator : _animator = GetComponent<UiPanelAnimator>();
-
-        public void Show(int completedLevel)
+        public void Show()
         {
-            Listen();
-            levelLabel.text = $"Level {completedLevel}";
+            Init();
+            Kill();
+            IsVisible = true;
+            gameObject.SetActive(true);
+            _group.alpha = 1f;
+            _group.blocksRaycasts = true;
             continueButton.interactable = true;
-            Animator.Show();
 
-            for (int i = 0; i < stars.Length; i++)
-            {
-                var star = stars[i];
-                star.DOKill();
-                star.localScale = Vector3.zero;
-                star.DOScale(1f, starDuration).SetDelay(starDelay + i * starStagger).SetEase(Ease.OutBack)
-                    .SetUpdate(true).SetLink(gameObject);
-            }
+            background.alpha = 0f;
+            title.localScale = Vector3.zero;
+            emoji.localScale = Vector3.zero;
+            continueRoot.anchoredPosition = _continuePosition + Vector2.down * slideDistance;
+
+            _sequence = DOTween.Sequence().SetUpdate(true).SetLink(gameObject)
+                .Join(background.DOFade(1f, duration).SetEase(ease))
+                .Join(title.DOScale(1f, duration).SetEase(ease))
+                .Join(continueRoot.DOAnchorPos(_continuePosition, duration).SetEase(ease))
+                .Insert(emojiDelay, emoji.DOScale(1f, duration).SetEase(emojiEase));
+
+            if (rays != null)
+                rays.DOLocalRotate(new Vector3(0f, 0f, -360f), raysTurnTime, RotateMode.FastBeyond360)
+                    .SetEase(Ease.Linear).SetLoops(-1).SetUpdate(true).SetLink(gameObject);
         }
 
-        public void Hide(bool instant = false) => Animator.Hide(instant);
-
-        private void Listen()
+        public void Hide(bool instant = false)
         {
-            if (_listening) return;
-            _listening = true;
+            Init();
+            Kill();
+            IsVisible = false;
+            _group.blocksRaycasts = false;
+            if (instant || !gameObject.activeInHierarchy)
+            {
+                gameObject.SetActive(false);
+                return;
+            }
+
+            _sequence = DOTween.Sequence().SetUpdate(true).SetLink(gameObject)
+                .Append(_group.DOFade(0f, hideDuration))
+                .OnComplete(() => gameObject.SetActive(false));
+        }
+
+        private void Kill()
+        {
+            _sequence?.Kill();
+            if (rays != null) rays.DOKill();
+        }
+
+        private void Init()
+        {
+            if (_initialized) return;
+            _initialized = true;
+            _group = GetComponent<CanvasGroup>();
+            _continuePosition = continueRoot.anchoredPosition;
             continueButton.onClick.AddListener(() =>
             {
                 continueButton.interactable = false;

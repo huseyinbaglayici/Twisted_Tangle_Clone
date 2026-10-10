@@ -78,7 +78,7 @@ namespace Runtime.UI
         private void OnLevelWon(int level)
         {
             _pendingPanel?.Kill();
-            _pendingPanel = DOVirtual.DelayedCall(completePanelDelay, () => completePanel.Show(level))
+            _pendingPanel = DOVirtual.DelayedCall(completePanelDelay, completePanel.Show)
                 .SetLink(gameObject);
         }
 
@@ -87,15 +87,13 @@ namespace Runtime.UI
         private void OnContinueClicked()
         {
             PlayClick();
-            completePanel.Hide();
-            flow.NextLevel();
+            flow.ExitToMenu();
         }
 
         private void OnFailRetryClicked()
         {
             PlayClick();
-            failPanel.Hide();
-            flow.Retry();
+            flow.Retry(); // the panel closes on LevelStarted, behind the fader
         }
 
         // ---------- hud ----------

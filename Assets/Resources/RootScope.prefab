@@ -97,6 +97,8 @@ MonoBehaviour:
     type: 3}
   audioPlayerPrefab: {fileID: 7978443334026740436, guid: e5c6a23498062374c998a9c5863e165b,
     type: 3}
+  screenFaderPrefab: {fileID: 993161069647609572, guid: 1ff712f3c9431cd4d87c9e111bc4a975,
+    type: 3}
 --- !u!114 &4904139551816778875
 MonoBehaviour:
   m_ObjectHideFlags: 0

@@ -38,9 +38,12 @@ namespace Runtime.Boostrap.Pool
             builder.RegisterValue(registry);
         }
 
+        // Holders must survive every scene swap, whichever scene happens to be active at install time.
         private Transform CreateParents(string holderName)
         {
-            return new GameObject(holderName).transform;
+            var holder = new GameObject(holderName);
+            DontDestroyOnLoad(holder);
+            return holder.transform;
         }
 
         // this method prewarms & register pool to the registry
