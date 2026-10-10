@@ -5,8 +5,6 @@ namespace Runtime.Effects
         MergePop,
         PinPick,
         PinDrop,
-        LockedDeny,
-        LevelWinConfetti,
-        ButtonTap
+        LevelWinConfetti
     }
 }

@@ -42,7 +42,7 @@ namespace Editor.Windows
         private int _draggingPinId = -1;  // pin tool: pin being dragged to another cell
         private readonly Dictionary<int, (Vector2[] path, float length)> _dragBasePaths = new();
 
-        private IntegerField _levelNumberField, _mapField, _moveLimitField, _timeLimitField;
+        private IntegerField _levelNumberField, _mapField, _timeLimitField;
         private DropdownField _difficultyField;
         private Label _gridSizeLabel, _tutorialLabel;
         private RopeCanvasElement _canvas;
@@ -231,16 +231,6 @@ namespace Editor.Windows
                 Level.difficulty = e.newValue;
             });
             bar.Add(_difficultyField);
-
-            _moveLimitField = CompactIntField("Moves", 0);
-            _moveLimitField.tooltip = "Move limit (0 = unlimited).";
-            _moveLimitField.RegisterValueChangedCallback(e =>
-            {
-                if (Level == null || Level.moveLimit == e.newValue) return;
-                Undo.RecordObject(_session, "Move Limit");
-                Level.moveLimit = Mathf.Max(0, e.newValue);
-            });
-            bar.Add(_moveLimitField);
 
             _timeLimitField = CompactIntField("Time(s)", 0);
             _timeLimitField.tooltip = "Time limit in seconds (0 = unlimited).";
@@ -772,7 +762,6 @@ namespace Editor.Windows
             AddMetricChip(metricsRow, m.CrossingPairs.ToString(), "crossings", m.CrossingPairs == 0);
             AddMetricChip(metricsRow, m.TangledRopes.ToString(), "tangled");
             AddMetricChip(metricsRow, m.FreeCells.ToString(), "free cells");
-            AddMetricChip(metricsRow, Level.moveLimit > 0 ? Level.moveLimit.ToString() : "∞", "moves");
             AddMetricChip(metricsRow, Level.timeLimitSeconds > 0 ? $"{Level.timeLimitSeconds}s" : "∞", "time");
             _validationContainer.Add(metricsRow);
 
@@ -885,7 +874,6 @@ namespace Editor.Windows
             {
                 levelNumber = Mathf.Max(1, _levelNumberField.value),
                 difficulty = _difficultyField.value,
-                moveLimit = Mathf.Max(0, _moveLimitField.value),
                 timeLimitSeconds = Mathf.Max(0, _timeLimitField.value),
                 tutorial = new TutorialJson(),
             };
@@ -1100,7 +1088,6 @@ namespace Editor.Windows
             if (!_difficultyField.choices.Contains(Level.difficulty))
                 _difficultyField.choices.Add(Level.difficulty);
             _difficultyField.SetValueWithoutNotify(Level.difficulty);
-            _moveLimitField.SetValueWithoutNotify(Level.moveLimit);
             _timeLimitField.SetValueWithoutNotify(Level.timeLimitSeconds);
         }
 

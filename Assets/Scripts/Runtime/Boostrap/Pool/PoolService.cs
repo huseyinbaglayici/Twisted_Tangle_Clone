@@ -15,7 +15,6 @@ namespace Runtime.Boostrap.Pool
         private readonly Func<T> _factory;
         private readonly Transform _parent;
 
-        public int ActiveCount => _active.Count;
         public IReadOnlyList<T> Active => _active;
 
         public PoolService(Func<T> factory, Transform parent)

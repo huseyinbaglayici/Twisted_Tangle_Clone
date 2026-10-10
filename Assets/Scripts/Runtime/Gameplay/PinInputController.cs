@@ -4,7 +4,6 @@ using Runtime.Entities;
 using Runtime.Level;
 using UnityEngine;
 using UnityEngine.EventSystems;
-using UnityEngine.Serialization;
 
 namespace Runtime.Gameplay
 {
@@ -40,9 +39,7 @@ namespace Runtime.Gameplay
         [Header("Placement tweens")]
         [SerializeField] private float placeSpeed = 6f;              // slot transfer (units / second)
         [SerializeField] private Ease placeEase = Ease.OutSine;
-        [FormerlySerializedAs("tapMoveSecondsPerUnit")]
         [SerializeField] private float undoSecondsPerUnit = 0.2f;
-        [FormerlySerializedAs("tapMoveEase")]
         [SerializeField] private Ease undoEase = Ease.InOutQuad;
 
         private readonly MoveHistory _history = new();
@@ -60,7 +57,6 @@ namespace Runtime.Gameplay
         public event Action<PinEntity> PinMoveRejected;
 
         public bool Enabled { get; set; } = true;
-        public bool IsDragging => _dragged != null;
         // From pressing a movable pin until it is released (the win check waits meanwhile).
         public bool IsHoldingPin => _dragged != null || (_pressed != null && Board.CanControl(_pressed));
 

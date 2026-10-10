@@ -6,7 +6,6 @@ namespace Runtime.Audio
         PinDrop,
         RopeMerge,
         Deny,
-        LockedTap,
         LevelComplete,
         ButtonClick,
         LevelStart

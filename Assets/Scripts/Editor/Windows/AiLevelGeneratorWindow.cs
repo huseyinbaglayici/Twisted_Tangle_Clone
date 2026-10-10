@@ -14,7 +14,7 @@ namespace Editor.Windows
 
         private static readonly List<string> DifficultyChoices = new() { "Easy", "Medium", "Hard" };
 
-        private IntegerField _mapId, _moveLimit, _refLevelId;
+        private IntegerField _mapId, _timeLimit, _refLevelId;
         private DropdownField _difficulty;
         private Label _refLabel, _statusLabel;
         private TextField _jsonField;
@@ -59,7 +59,7 @@ namespace Editor.Windows
         private void SavePrefs()
         {
             EditorPrefs.SetInt(P("Map"), _mapId?.value ?? 1);
-            EditorPrefs.SetInt(P("Moves"), _moveLimit?.value ?? 0);
+            EditorPrefs.SetInt(P("Time"), _timeLimit?.value ?? 0);
             EditorPrefs.SetString(P("Diff"), _difficulty?.value ?? "Easy");
             EditorPrefs.SetInt(P("RefId"), _refLevelId?.value ?? 0);
             EditorPrefs.SetString(P("Json"), _jsonField?.value ?? string.Empty);
@@ -67,11 +67,11 @@ namespace Editor.Windows
 
         private void ResetPrefs()
         {
-            foreach (var key in new[] { "Map", "Moves", "Diff", "RefId", "Json" })
+            foreach (var key in new[] { "Map", "Time", "Diff", "RefId", "Json" })
                 EditorPrefs.DeleteKey(P(key));
 
             _mapId?.SetValueWithoutNotify(1);
-            _moveLimit?.SetValueWithoutNotify(0);
+            _timeLimit?.SetValueWithoutNotify(0);
             _difficulty?.SetValueWithoutNotify("Easy");
             _refLevelId?.SetValueWithoutNotify(0);
             _jsonField?.SetValueWithoutNotify(string.Empty);
@@ -88,10 +88,10 @@ namespace Editor.Windows
             row.AddToClassList(Css.RowWrap);
             _mapId = CompactInt("Map", EditorPrefs.GetInt(P("Map"), 1));
             _mapId.tooltip = "Map id: grid = (3+N) × (5+N).";
-            _moveLimit = CompactInt("Moves", EditorPrefs.GetInt(P("Moves"), 0));
-            _moveLimit.tooltip = "Move limit (0 = unlimited).";
+            _timeLimit = CompactInt("Time(s)", EditorPrefs.GetInt(P("Time"), 0));
+            _timeLimit.tooltip = "Time limit in seconds (0 = unlimited).";
             row.Add(_mapId);
-            row.Add(_moveLimit);
+            row.Add(_timeLimit);
             s.Add(row);
 
             var diffRow = MakeRow();
@@ -236,7 +236,7 @@ namespace Editor.Windows
             return new LevelGenerationRequest
             {
                 MapId = Mathf.Max(1, _mapId?.value ?? 1),
-                MoveLimit = Mathf.Max(0, _moveLimit?.value ?? 0),
+                TimeLimitSeconds = Mathf.Max(0, _timeLimit?.value ?? 0),
                 Difficulty = _difficulty?.value ?? "Easy",
                 PaletteCount = paletteCount,
                 ReferenceLevelDescription = _refLevel != null ? LevelAiGenerator.DescribeLevel(_refLevel) : null,

@@ -62,18 +62,14 @@ MonoBehaviour:
     volume: 0.6
     pitchRange: {x: 1, y: 1}
   - type: 4
-    clip: {fileID: 8300000, guid: 33c4d5ac8387afd41a29f24eda583587, type: 3}
-    volume: 0.7
-    pitchRange: {x: 0.95, y: 1.05}
-  - type: 5
     clip: {fileID: 8300000, guid: 9014d49f738380f4286892034616a582, type: 3}
     volume: 0.9
     pitchRange: {x: 1, y: 1}
-  - type: 6
+  - type: 5
     clip: {fileID: 8300000, guid: c01ca1e1ec9c1c94680b7cda79f21acc, type: 3}
     volume: 0.6
     pitchRange: {x: 0.97, y: 1.03}
-  - type: 7
+  - type: 6
     clip: {fileID: 8300000, guid: abe459939d73c8349b02bf4b085cfc8f, type: 3}
     volume: 0.5
     pitchRange: {x: 1, y: 1}

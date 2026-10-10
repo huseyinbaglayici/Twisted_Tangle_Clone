@@ -19,9 +19,6 @@ namespace Runtime.Level
             Origin = origin;
         }
 
-        public static BoardGrid FromMapId(int mapId) =>
-            new(StageJson.WidthForMap(mapId), StageJson.HeightForMap(mapId));
-
         public Vector3 CellToWorld(Vector2Int cell) =>
             Origin + new Vector3((cell.x - (Width - 1) * 0.5f) * Spacing, 0f, (cell.y - (Height - 1) * 0.5f) * Spacing);
 
@@ -29,13 +26,6 @@ namespace Runtime.Level
         {
             var w = CellToWorld(cell);
             return new Vector2(w.x, w.z);
-        }
-
-        public Vector2Int WorldToCell(Vector3 world)
-        {
-            var local = (world - Origin) / Spacing;
-            return new Vector2Int(Mathf.RoundToInt(local.x + (Width - 1) * 0.5f),
-                                  Mathf.RoundToInt(local.z + (Height - 1) * 0.5f));
         }
 
         public bool Contains(Vector2Int cell) => cell.x >= 0 && cell.y >= 0 && cell.x < Width && cell.y < Height;

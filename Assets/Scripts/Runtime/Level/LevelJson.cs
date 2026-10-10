@@ -11,7 +11,6 @@ namespace Runtime.Level
     {
         public int levelNumber;
         public string difficulty = "Easy";
-        public int moveLimit;          // 0 = unlimited
         public int timeLimitSeconds;   // 0 = unlimited
         public List<StageJson> stages = new();
         public TutorialJson tutorial;  // pinId < 0 when absent

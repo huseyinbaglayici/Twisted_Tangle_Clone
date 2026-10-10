@@ -27,8 +27,6 @@ namespace Runtime.Gameplay
         private Vector3 _handScale;
         private Sequence _sequence;
 
-        public bool IsActive => _pin != null;
-
         private void Awake()
         {
             _handScale = hand.localScale;

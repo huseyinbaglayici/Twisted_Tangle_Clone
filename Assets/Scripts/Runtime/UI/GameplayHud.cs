@@ -2,7 +2,6 @@ using System;
 using DG.Tweening;
 using TMPro;
 using UnityEngine;
-using UnityEngine.Serialization;
 using UnityEngine.UI;
 
 namespace Runtime.UI
@@ -14,15 +13,10 @@ namespace Runtime.UI
         [SerializeField] private TMP_Text levelNumberLabel;
 
         [Header("Time")]
-        [FormerlySerializedAs("movesRoot")]
         [SerializeField] private GameObject timeRoot;
-        [FormerlySerializedAs("movesLabel")]
         [SerializeField] private TMP_Text timeLabel;
-        [FormerlySerializedAs("movesPunchTarget")]
         [SerializeField] private RectTransform alertTarget;
-        [FormerlySerializedAs("movesColor")]
         [SerializeField] private Color timeColor = Color.white;
-        [FormerlySerializedAs("movesWarningColor")]
         [SerializeField] private Color alertColor = new(1f, 0.38f, 0.32f);
         [Tooltip("A single pulse when the clock reaches each of these; the last one keeps pulsing every second.")]
         [SerializeField] private int[] alertTimes = { 30, 20, 10 };
@@ -81,7 +75,5 @@ namespace Runtime.UI
             alertTarget.DOKill(true);
             alertTarget.DOPunchScale(Vector3.one * 0.25f, 0.3f, 6, 0.5f).SetLink(gameObject);
         }
-
-        public void SetUndoInteractable(bool interactable) => undoButton.interactable = interactable;
     }
 }

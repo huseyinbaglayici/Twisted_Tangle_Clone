@@ -1,5 +1,4 @@
 {
- "moveLimit": 0,
  "timeLimitSeconds": 120,
  "difficulty": "Easy",
  "stages": [

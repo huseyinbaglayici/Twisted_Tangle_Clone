@@ -42,8 +42,8 @@ namespace TwistedTangle.Editor.Validation
 
             if (level.levelNumber < 1)
                 report.Errors.Add("Level number must be >= 1.");
-            if (level.moveLimit < 0 || level.timeLimitSeconds < 0)
-                report.Errors.Add("Move limit / time limit can't be negative (0 = unlimited).");
+            if (level.timeLimitSeconds < 0)
+                report.Errors.Add("Time limit can't be negative (0 = unlimited).");
 
             var stage = level.stages[0];
             if (level.stages.Count > 1)

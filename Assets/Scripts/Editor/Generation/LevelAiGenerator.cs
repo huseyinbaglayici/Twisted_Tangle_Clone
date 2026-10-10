@@ -9,7 +9,7 @@ namespace TwistedTangle.Editor.Generation
     public sealed class LevelGenerationRequest
     {
         public int MapId = 1;
-        public int MoveLimit;
+        public int TimeLimitSeconds;
         public string Difficulty = "Easy";
         public int PaletteCount = 8;
         public string ReferenceLevelDescription;
@@ -69,7 +69,7 @@ namespace TwistedTangle.Editor.Generation
             sb.Append(Rules(r, w, h));
             sb.Append("\nOutput ONLY a JSON object (no markdown code fences, no commentary) in EXACTLY this shape:\n");
             sb.Append("{\n");
-            sb.Append($"  \"difficulty\": \"{r.Difficulty}\", \"moveLimit\": {r.MoveLimit}, \"timeLimitSeconds\": 0,\n");
+            sb.Append($"  \"difficulty\": \"{r.Difficulty}\", \"timeLimitSeconds\": {r.TimeLimitSeconds},\n");
             sb.Append($"  \"stages\": [ {{ \"mapId\": {r.MapId}, \"gridWidth\": {w}, \"gridHeight\": {h},\n");
             sb.Append("    \"pins\":  [ { \"id\": <int>, \"x\": <int>, \"y\": <int>, \"locked\": <bool> } ],\n");
             sb.Append("    \"ropes\": [ { \"id\": <int>, \"pinA\": <pin id>, \"pinB\": <pin id>, \"colorIndex\": <int>, \"layer\": <int> } ]\n");
@@ -151,7 +151,6 @@ namespace TwistedTangle.Editor.Generation
             sb.AppendLine($"  • Initially EVERY rope must touch at least one other rope (nothing is free at the start).");
             sb.AppendLine($"  • Solvable in ≤ {p.MaxSolveMoves} moves.");
             sb.AppendLine($"  • {p.Hint}");
-            if (r.MoveLimit > 0) sb.AppendLine($"  • Move limit is {r.MoveLimit}: the solution must fit in it.");
             sb.AppendLine($"  • colorIndex: 0..{Mathf.Max(0, r.PaletteCount - 1)}, a different color per rope.");
             sb.AppendLine("  • Use 0–1 locked pins.");
 
