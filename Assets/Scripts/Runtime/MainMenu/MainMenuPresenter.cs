@@ -28,8 +28,6 @@ namespace Runtime.MainMenu
         [SerializeField] private RectTransform[] pathNodes;
         [SerializeField] private float nodeStagger = 0.06f;
         [SerializeField] private float showDuration = 0.45f;
-        [Tooltip("Soft glow behind Play, breathing in and out once the intro is done.")]
-        [SerializeField] private Graphic playGlow;
 
         private void Awake()
         {
@@ -89,11 +87,7 @@ namespace Runtime.MainMenu
             for (int i = 0; i < pathNodes.Length; i++)
                 intro.Insert(0.1f + i * nodeStagger, pathNodes[i].DOScale(1f, 0.3f).SetEase(Ease.OutBack));
             intro.Insert(0.2f, playButton.transform.DOScale(1f, showDuration).SetEase(Ease.OutBack));
-            if (playGlow != null) intro.Insert(0.2f, playGlow.transform.DOScale(1f, showDuration).SetEase(Ease.OutBack));
             intro.Insert(0.25f, settingsButton.transform.DOScale(1f, showDuration).SetEase(Ease.OutBack));
-            if (playGlow != null)
-                intro.OnComplete(() => playGlow.DOFade(0f, 1f).SetEase(Ease.InOutQuad).SetLoops(-1, LoopType.Yoyo)
-                    .SetLink(gameObject));
         }
 
         private void SetScale(Vector3 scale)
@@ -101,7 +95,6 @@ namespace Runtime.MainMenu
             foreach (var node in pathNodes) node.localScale = scale;
             playButton.transform.localScale = scale;
             settingsButton.transform.localScale = scale;
-            if (playGlow != null) playGlow.transform.localScale = scale;
         }
     }
 }
