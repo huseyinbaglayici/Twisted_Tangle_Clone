@@ -800,7 +800,7 @@ namespace Editor.Windows
             if (_tutorialLabel == null) return;
             var t = Level?.tutorial;
             _tutorialLabel.text = t != null && t.pinId >= 0
-                ? $"Hand drags pin {t.pinId} → cell ({t.toX},{t.toY}); other pins locked: {t.lockOtherPins}"
+                ? $"Hand drags pin {t.pinId} → cell ({t.toX},{t.toY})"
                 : "No tutorial on this level.";
         }
 
@@ -1051,7 +1051,6 @@ namespace Editor.Windows
             Level.tutorial.pinId = _pendingPinId;
             Level.tutorial.toX = cell.x;
             Level.tutorial.toY = cell.y;
-            Level.tutorial.lockOtherPins = true;
             _pendingPinId = -1;
             _tool = Tool.Pin;
         }

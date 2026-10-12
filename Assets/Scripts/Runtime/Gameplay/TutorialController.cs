@@ -1,18 +1,17 @@
-using System.Collections.Generic;
 using DG.Tweening;
 using Runtime.Level;
 using UnityEngine;
 
 namespace Runtime.Gameplay
 {
-    // First-level tutorial, driven by the level json "tutorial" block:
-    // every other pin is locked, a hand loops from the tutorial pin to the target slot until the level ends.
-    // The target is only a hint — the pin can be dropped anywhere, but with one movable pin the solution is forced.
+    // The hand only suggests a move: it hides while a pin is held and comes back after the drop
+    // until the level ends.
     public class TutorialController : MonoBehaviour
     {
         [SerializeField] private LevelBuilder level;
-        [SerializeField] private Transform hand;             // hidden by default
-        [SerializeField] private float handHeight = 1.2f;    // above lifted pins and ropes
+        [SerializeField] private PinInputController input;
+        [SerializeField] private Transform hand;
+        [SerializeField] private float handHeight = 1.2f;
 
         [Header("Hand animation")]
         [SerializeField] private float moveSourceDuration = 0.25f;
@@ -20,12 +19,13 @@ namespace Runtime.Gameplay
         [SerializeField] private float downScale = 0.6f;
         [SerializeField] private float scaleDuration = 0.3f;
         [SerializeField] private float delay = 0.1f;
+        [SerializeField] private float showAgainDelay = 0.75f;
 
-        private readonly List<BoardModel.Pin> _lockedPins = new();
         private BoardModel.Pin _pin;
         private Vector3 _target;
         private Vector3 _handScale;
         private Sequence _sequence;
+        private float _showAt;
 
         private void Awake()
         {
@@ -40,14 +40,37 @@ namespace Runtime.Gameplay
 
             _pin = pin;
             _target = level.Grid.CellToWorld(json.tutorial.TargetCell);
+            Show();
+        }
 
-            if (json.tutorial.lockOtherPins)
-                foreach (var p in level.Board.Pins.Values)
-                    if (p != pin && p.InputEnabled)
-                    {
-                        p.InputEnabled = false;
-                        _lockedPins.Add(p);
-                    }
+        public void End()
+        {
+            Hide();
+            _pin = null;
+        }
+
+        private void Update()
+        {
+            if (_pin == null) return;
+
+            if (input.IsHoldingPin)
+            {
+                if (hand.gameObject.activeSelf) Hide();
+                _showAt = Time.time + showAgainDelay;
+            }
+            else if (!hand.gameObject.activeSelf && Time.time >= _showAt)
+            {
+                Show();
+            }
+        }
+
+        private void Show()
+        {
+            if (_pin.Removed)
+            {
+                End();
+                return;
+            }
 
             hand.position = PinPosition() + Vector3.up * handHeight;
             hand.localScale = _handScale;
@@ -55,23 +78,22 @@ namespace Runtime.Gameplay
             PlayCycle();
         }
 
-        public void End()
+        private void Hide()
         {
             _sequence?.Kill();
             _sequence = null;
             if (hand != null) hand.gameObject.SetActive(false);
-
-            // Unlock what I locked; pins of a merging rope stay frozen through BoardModel.CanControl anyway.
-            foreach (var p in _lockedPins)
-                p.InputEnabled = true;
-            _lockedPins.Clear();
-            _pin = null;
         }
 
-        // One loop: go to the pin (it may have moved), press, drag to the target slot, release, wait.
+        // Go to the pin (it may have moved), press, drag to the target slot, release, wait.
         private void PlayCycle()
         {
-            if (_pin == null || _pin.Removed) return;
+            if (_pin == null || _pin.Removed)
+            {
+                End();
+                return;
+            }
+
             var up = Vector3.up * handHeight;
             _sequence = DOTween.Sequence().SetTarget(this)
                 .Append(hand.DOMove(PinPosition() + up, moveSourceDuration))

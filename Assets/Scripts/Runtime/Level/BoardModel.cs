@@ -18,7 +18,6 @@ namespace Runtime.Level
             public int Id;
             public Vector2Int Cell;
             public bool Locked;
-            public bool InputEnabled = true;
             public bool Removed;
             public readonly List<Rope> Ropes = new();
 
@@ -85,7 +84,7 @@ namespace Runtime.Level
         // Locked (nailed) pins never move. While a rope merges, every pin of it and of the ropes chained to it
         // through shared pins is frozen too; they all follow it in the same merge chain.
         public bool CanControl(Pin pin) =>
-            pin != null && !pin.Removed && !pin.Locked && pin.InputEnabled && !IsMergeBusy(pin);
+            pin != null && !pin.Removed && !pin.Locked && !IsMergeBusy(pin);
 
         public bool CanMove(Pin pin, Vector2Int to) =>
             CanControl(pin) && pin.Cell != to && IsCellFree(to) && IsWithinPinDistance(pin, to);

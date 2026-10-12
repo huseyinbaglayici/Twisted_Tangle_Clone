@@ -416,6 +416,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   level: {fileID: 212080835}
+  input: {fileID: 212080836}
   hand: {fileID: 1800106087}
   handHeight: 1.2
   moveSourceDuration: 0.25
@@ -423,6 +424,7 @@ MonoBehaviour:
   downScale: 0.6
   scaleDuration: 0.3
   delay: 0.1
+  showAgainDelay: 0.75
 --- !u!114 &212080841
 MonoBehaviour:
   m_ObjectHideFlags: 0

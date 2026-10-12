@@ -308,7 +308,6 @@
  "tutorial": {
   "pinId": 2,
   "toX": 0,
-  "toY": 4,
-  "lockOtherPins": true
+  "toY": 4
  }
 }

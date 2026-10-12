@@ -76,7 +76,6 @@ namespace Runtime.Level
         public int pinId = -1;
         public int toX;
         public int toY;
-        public bool lockOtherPins = true;
 
         public Vector2Int TargetCell => new(toX, toY);
     }
