@@ -9,9 +9,6 @@ using UnityEngine;
 
 namespace Runtime.Gameplay
 {
-    // Level loop: load saved level -> build -> physics win/merge check. A win saves progress and waits for the
-    // UI (Continue -> back to the menu, which then opens the next level), running out of time waits for Retry.
-    // Nothing advances by itself.
     public class LevelFlowController : MonoBehaviour
     {
         [Inject] private SaveService _save;
@@ -20,10 +17,10 @@ namespace Runtime.Gameplay
 
         [SerializeField] private LevelBuilder levelBuilder;
         [SerializeField] private PinInputController input;
-        [SerializeField] private MapFinishChecker finishChecker;
+        [SerializeField] private WinChecker winChecker;
         [SerializeField] private TutorialController tutorial;
         [SerializeField] private LevelTimer timer;
-        [Tooltip("0 = continue from saved progress. Set a number to always start on that level (testing).")]
+        [Tooltip("0 = saved progress, otherwise always start on this level.")]
         [SerializeField] private int startLevelOverride;
 
         private LevelRepository _levels;
@@ -31,14 +28,13 @@ namespace Runtime.Gameplay
 
         public int CurrentLevel { get; private set; }
 
-        // Level number as shown to the player (keeps counting past the last level file).
         public event Action<int> LevelStarted;
         public event Action<int> LevelWon;
         public event Action<int> LevelFailed;
 
         private void Start()
         {
-            finishChecker.Won += OnWon;
+            winChecker.Won += OnWon;
             timer.TimeUp += OnOutOfTime;
 
             _levels = new LevelRepository();
@@ -49,7 +45,7 @@ namespace Runtime.Gameplay
 
         private void OnDestroy()
         {
-            finishChecker.Won -= OnWon;
+            winChecker.Won -= OnWon;
             timer.TimeUp -= OnOutOfTime;
         }
 
@@ -61,14 +57,13 @@ namespace Runtime.Gameplay
             input.ResetState();
             var level = _levels.Load(levelNumber);
             levelBuilder.Build(level);
-            finishChecker.Begin();
+            winChecker.Begin();
             timer.Begin(level.timeLimitSeconds);
             tutorial.Begin(level);
             input.Enabled = true;
             LevelStarted?.Invoke(levelNumber);
         }
 
-        // Rebuilt behind the fader so the old board never visibly pops into the new one.
         public void Retry()
         {
             if (_sceneFlow.IsBusy) return;
@@ -76,7 +71,6 @@ namespace Runtime.Gameplay
             _sceneFlow.Transition(() => StartLevel(CurrentLevel)).Forget();
         }
 
-        // Home, back button and Continue after a win (progress is already saved by then).
         public void ExitToMenu()
         {
             if (_sceneFlow.IsBusy) return;
@@ -84,15 +78,13 @@ namespace Runtime.Gameplay
             _sceneFlow.LoadMainMenu(ReleaseLevel).Forget();
         }
 
-        // Every pooled view goes back to its pool before Gameplay unloads; pool holders and the solver live in
-        // Boostrap, so nothing pooled is destroyed with this scene.
+        // Pooled views go back to their pools before Gameplay unloads, otherwise they would be destroyed with it.
         private void ReleaseLevel()
         {
             levelBuilder.Clear();
             _fx.DespawnAll();
         }
 
-        // Escape = Android back button.
         private void Update()
         {
             if (Input.GetKeyDown(KeyCode.Escape)) ExitToMenu();
@@ -115,7 +107,6 @@ namespace Runtime.Gameplay
             if (Finish()) LevelFailed?.Invoke(CurrentLevel);
         }
 
-        // Locks the board until the player picks Continue / Retry / Home.
         private bool Finish()
         {
             if (_finished) return false;
@@ -127,7 +118,7 @@ namespace Runtime.Gameplay
         {
             _finished = true;
             input.Enabled = false;
-            finishChecker.Stop();
+            winChecker.Stop();
             timer.Stop();
             tutorial.End();
         }

@@ -3,13 +3,11 @@ using UnityEngine;
 
 namespace Runtime.Effects
 {
-    // One pooled particle effect (root system + children). It returns itself to its pool once every
-    // system in the hierarchy is dead, so callers just fire and forget.
     [RequireComponent(typeof(ParticleSystem))]
     public class FxEntity : MonoBehaviour, IPoolable
     {
         [SerializeField] private ParticleSystem root;
-        [SerializeField] private ParticleSystem[] tintTargets; // systems whose start colour follows the Play tint
+        [SerializeField] private ParticleSystem[] tintTargets;
 
         private ParticleSystem.MinMaxGradient[] _defaultColors;
         private PoolService<FxEntity> _pool;
@@ -41,7 +39,6 @@ namespace Runtime.Effects
             _pool?.Enqueue(this);
         }
 
-        // Tinted systems get a random start colour between the tint and a lighter version of it.
         private void ApplyTint(Color? tint)
         {
             for (int i = 0; i < tintTargets.Length; i++)

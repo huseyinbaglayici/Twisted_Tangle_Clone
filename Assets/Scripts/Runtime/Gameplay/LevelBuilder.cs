@@ -8,12 +8,11 @@ using UnityEngine;
 
 namespace Runtime.Gameplay
 {
-    // Builds a level stage from pooled views: grid slots -> pins -> Obi ropes.
     public class LevelBuilder : MonoBehaviour
     {
         [Inject] private PoolRegistry _pools;
 
-        [SerializeField] private Transform boardRoot;   // board center
+        [SerializeField] private Transform boardRoot;
         [SerializeField] private RopePaletteSO palette;
 
         private readonly HashSet<int> _unplacedPins = new();
@@ -37,8 +36,7 @@ namespace Runtime.Gameplay
             Grid = new BoardGrid(stage.gridWidth, stage.gridHeight, 1f, Origin);
             Board.Load(stage, Grid);
 
-            // Pooled objects stay out of this scene (pool holders / solver live in Boostrap): parenting them here
-            // would destroy them with the scene instead of returning them to the pool.
+            // Pooled objects are never parented into this scene, or unloading it would destroy them.
             var cellPool = _pools.Get<GridCellEntity>();
             for (int y = 0; y < Grid.Height; y++)
             for (int x = 0; x < Grid.Width; x++)
@@ -63,16 +61,15 @@ namespace Runtime.Gameplay
             {
                 var rope = Board.Ropes[i];
                 var view = ropePool.Dequeue(Solver.transform);
-                ParticlePositions(stage.ropes[i], rope);
+                FillPath(stage.ropes[i], rope);
                 view.Setup(rope, RopeColor(rope.ColorIndex),
-                    PinViews[rope.A.Id].RopeConnectPoint, PinViews[rope.B.Id].RopeConnectPoint,
+                    PinViews[rope.A.Id].RopeAnchor, PinViews[rope.B.Id].RopeAnchor,
                     _particles, rope.A.Ropes.Count > 1, rope.B.Ropes.Count > 1);
                 RopeViews[rope.Id] = view;
             }
         }
 
-        // Authored particle path (cell space + height) -> world. Ends snap onto the pins' connect points.
-        private void ParticlePositions(RopeJson json, BoardModel.Rope rope)
+        private void FillPath(RopeJson json, BoardModel.Rope rope)
         {
             _particles.Clear();
             var origin = Grid.CellToWorld(Vector2Int.zero);
@@ -83,8 +80,8 @@ namespace Runtime.Gameplay
             }
             else
             {
-                var a = PinViews[rope.A.Id].RopeConnectPoint.position;
-                var b = PinViews[rope.B.Id].RopeConnectPoint.position;
+                var a = PinViews[rope.A.Id].RopeAnchor.position;
+                var b = PinViews[rope.B.Id].RopeAnchor.position;
                 for (int i = 0; i < 25; i++) _particles.Add(Vector3.Lerp(a, b, i / 24f));
             }
         }
@@ -97,7 +94,6 @@ namespace Runtime.Gameplay
             else _unplacedPins.Add(pinId);
         }
 
-        // Returns every view to its pool.
         public void Clear()
         {
             _pools?.DespawnAll();

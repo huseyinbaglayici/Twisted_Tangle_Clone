@@ -6,10 +6,6 @@ using UnityEngine;
 
 namespace TwistedTangle.Editor.Utils
 {
-    /// <summary>
-    /// Reads/writes the level JSON files the runtime loads (Resources/Levels/level_NNN.json).
-    /// The editor has no separate level asset: what you save here is exactly what the game plays.
-    /// </summary>
     public static class LevelFileUtility
     {
         public static string PathFor(int levelNumber) =>
@@ -48,7 +44,6 @@ namespace TwistedTangle.Editor.Utils
             return File.Exists(path) && AssetDatabase.DeleteAsset(path);
         }
 
-        /// <summary>Level numbers of every level_NNN.json in the folder, ascending.</summary>
         public static List<int> ListLevelNumbers()
         {
             var result = new List<int>();

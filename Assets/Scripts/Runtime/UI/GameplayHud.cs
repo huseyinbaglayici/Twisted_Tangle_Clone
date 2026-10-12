@@ -6,7 +6,6 @@ using UnityEngine.UI;
 
 namespace Runtime.UI
 {
-    // In-game header (level, time left, retry) and footer (undo, settings). Pure view: raises button events, shows data.
     public class GameplayHud : MonoBehaviour
     {
         [Header("Level")]
@@ -19,7 +18,7 @@ namespace Runtime.UI
         [SerializeField] private Color timeColor = Color.white;
         [SerializeField] private Color alertColor = new(1f, 0.38f, 0.32f);
         [Tooltip("A single pulse when the clock reaches each of these; the last one keeps pulsing every second.")]
-        [SerializeField] private int[] alertTimes = { 30, 20, 10 };
+        [SerializeField] private int[] warnAtSeconds = { 30, 20, 10 };
 
         [Header("Buttons")]
         [SerializeField] private Button retryButton;
@@ -51,7 +50,6 @@ namespace Runtime.UI
 
         public void SetLevel(int level) => levelNumberLabel.text = level.ToString();
 
-        // Seconds left as a plain number; seconds < 0 = the level has no time limit.
         public void SetTime(int seconds)
         {
             timeRoot.SetActive(seconds >= 0);
@@ -64,9 +62,9 @@ namespace Runtime.UI
             bool ticking = _shownSeconds >= 0 && seconds < _shownSeconds;
             _shownSeconds = seconds;
             timeLabel.text = seconds.ToString();
-            int last = alertTimes.Length > 0 ? alertTimes[^1] : 0;
-            timeLabel.color = seconds <= last ? alertColor : timeColor; // red for the final stretch
-            if (ticking && (seconds <= last || Array.IndexOf(alertTimes, seconds) >= 0)) Pulse();
+            int last = warnAtSeconds.Length > 0 ? warnAtSeconds[^1] : 0;
+            timeLabel.color = seconds <= last ? alertColor : timeColor;
+            if (ticking && (seconds <= last || Array.IndexOf(warnAtSeconds, seconds) >= 0)) Pulse();
         }
 
         private void Pulse()

@@ -5,7 +5,6 @@ using UnityEngine;
 
 namespace Runtime.Audio
 {
-    // Plays short 2D sound effects by type. A few pooled sources so quick overlapping sounds don't cut each other.
     public class AudioPlayer : MonoBehaviour
     {
         [Inject] private SaveService _save;
@@ -20,7 +19,6 @@ namespace Runtime.Audio
 
         public bool SoundOn
         {
-            // Read once and keep it, no need to hit the save file on every play.
             get => _soundOn ??= _save == null || _save.SoundOn;
             set
             {
@@ -62,7 +60,6 @@ namespace Runtime.Audio
             foreach (var source in _sources) source.Stop();
         }
 
-        // Prefer an idle source; if all are busy, steal the oldest one in round-robin order.
         private AudioSource NextSource()
         {
             for (int i = 0; i < _sources.Length; i++)

@@ -2,7 +2,6 @@ using UnityEngine;
 
 namespace Runtime.UI
 {
-    // Fits this RectTransform to Screen.safeArea (notches, home indicator). Put it on a full-stretch child of the canvas.
     [RequireComponent(typeof(RectTransform))]
     public class SafeArea : MonoBehaviour
     {

@@ -6,14 +6,9 @@ using UnityEngine.UIElements;
 
 namespace TwistedTangle.Editor
 {
-    /// <summary>
-    /// Standalone window for assigning keyboard shortcuts to the Level Creator's actions. It only edits
-    /// the <see cref="KeyBindingStore"/> — it doesn't need the Level Creator to be open. Click a binding,
-    /// press the desired keys, and any open Level Creator picks up the change immediately.
-    /// </summary>
     public class KeyBindingWindow : EditorWindow
     {
-        private string _listeningId; // command currently capturing a key press, or null
+        private string _listeningId;
         private VisualElement _rowsHost;
 
         [MenuItem("TwistedTangle/Level Editor Key Bindings")]
@@ -106,8 +101,6 @@ namespace TwistedTangle.Editor
             bool listening = _listeningId == cmd.Id;
             var combo = KeyBindingStore.Get(cmd.Id);
 
-            // The name flexes (and ellipsises long text) so the fixed-width buttons always stay on one
-            // line — otherwise "Default" wraps below on narrow windows / long command names.
             var name = new Label(cmd.DisplayName) { tooltip = cmd.DisplayName };
             name.style.flexGrow = 1;
             name.style.flexShrink = 1;
@@ -121,7 +114,7 @@ namespace TwistedTangle.Editor
             {
                 _listeningId = listening ? null : cmd.Id;
                 Rebuild();
-                rootVisualElement.Focus(); // ensure key events reach the window while recording
+                rootVisualElement.Focus();
             })
             {
                 text = listening ? "Press keys…" : combo.ToString()
@@ -146,7 +139,6 @@ namespace TwistedTangle.Editor
                 row.Add(reset);
             }
 
-            // Surface clashes so two actions don't silently share one shortcut.
             var conflict = KeyBindingStore.FindConflict(combo, cmd.Id);
             if (conflict != null)
             {
@@ -166,7 +158,6 @@ namespace TwistedTangle.Editor
         {
             if (_listeningId == null) return;
 
-            // Esc cancels recording without changing the existing binding.
             if (e.keyCode == KeyCode.Escape)
             {
                 _listeningId = null;
@@ -176,7 +167,7 @@ namespace TwistedTangle.Editor
             }
 
             var combo = KeyCombo.FromEvent(e);
-            if (combo.IsEmpty) return; // modifier-only so far — wait for the actual key
+            if (combo.IsEmpty) return;
 
             KeyBindingStore.Set(_listeningId, combo);
             _listeningId = null;

@@ -96,7 +96,7 @@ GameObject:
   m_Component:
   - component: {fileID: 680369026053505076}
   m_Layer: 0
-  m_Name: RopeConnectPoint
+  m_Name: RopeAnchor
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -588,7 +588,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   pinRenderer: {fileID: 4374875285724423058}
-  ropeConnectPoint: {fileID: 680369026053505076}
+  ropeAnchor: {fileID: 680369026053505076}
   lockVisual: {fileID: 2686688880288618781}
   lockedBodyColor: {r: 0.415, g: 0.415, b: 0.415, a: 1}
 --- !u!4 &8761337552885964885 stripped

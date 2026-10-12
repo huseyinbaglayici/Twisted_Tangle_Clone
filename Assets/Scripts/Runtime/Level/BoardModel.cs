@@ -3,14 +3,10 @@ using UnityEngine;
 
 namespace Runtime.Level
 {
-    // Logical board state (no MonoBehaviour): which pin sits where, which pins each rope connects,
-    // and merge state. Physics (rope shapes, contacts) lives in the views and Obi.
     public class BoardModel
     {
-        // A dragged pin is clamped this far from every pin it is roped to.
         public const float MaxPinDistance = 2.85f;
-        // A slot is reachable when the clamped pin can still snap onto it (clamp + drop snap radius), e.g. the
-        // first tutorial move ends 3.16 away. Anything that ends up over-stretched is taken back by the tension check.
+        // Clamp distance + drop snap radius; a move that ends up over-stretched is taken back by the tension check.
         public const float MaxSlotDistance = 3.6f;
 
         public class Pin
@@ -81,15 +77,13 @@ namespace Runtime.Level
             return true;
         }
 
-        // Locked (nailed) pins never move. While a rope merges, every pin of it and of the ropes chained to it
-        // through shared pins is frozen too; they all follow it in the same merge chain.
+        // While a rope merges, every pin chained to it through shared pins is frozen too.
         public bool CanControl(Pin pin) =>
             pin != null && !pin.Removed && !pin.Locked && !IsMergeBusy(pin);
 
         public bool CanMove(Pin pin, Vector2Int to) =>
             CanControl(pin) && pin.Cell != to && IsCellFree(to) && IsWithinPinDistance(pin, to);
 
-        // True while any rope reachable from this pin through shared pins is merging.
         public bool IsMergeBusy(Pin pin)
         {
             _groupPins.Clear();
@@ -107,15 +101,12 @@ namespace Runtime.Level
 
         public void CommitMove(Pin pin, Vector2Int to) => pin.Cell = to;
 
-        // At least one end pin must belong only to this rope.
-        public static bool HasPinWithSingleRope(Rope r) => r.A.ActiveRopeCount == 1 || r.B.ActiveRopeCount == 1;
+        public static bool HasFreeEnd(Rope r) => r.A.ActiveRopeCount == 1 || r.B.ActiveRopeCount == 1;
 
         public void BeginMerge(Rope r) => r.Merging = true;
 
-        // The pin that jumps: the first end (A, then B) that holds only this rope. The other end is the target.
         public static Pin MergeSource(Rope r) => r.A.ActiveRopeCount == 1 ? r.A : r.B;
 
-        // The target disappears with the rope unless another rope still holds it.
         public static bool IsLastRopeOf(Pin pin, Rope r)
         {
             foreach (var other in pin.Ropes)
@@ -123,7 +114,6 @@ namespace Runtime.Level
             return true;
         }
 
-        // Called when the merge animation ends; reports which pins are now free and should be removed.
         public void CompleteMerge(Rope r, out bool removePinA, out bool removePinB)
         {
             r.Merging = false;

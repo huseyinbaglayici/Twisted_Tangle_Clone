@@ -6,35 +6,33 @@ using UnityEngine;
 
 namespace Runtime.Gameplay
 {
-    // Physics-driven win loop (fixed step, paused from the moment a movable pin is pressed until it is let go):
-    //  - a rope is free once Obi reports no rope contact for successCheckDelay,
+    // Runs on the physics step and pauses while a movable pin is held:
+    //  - a rope is free once it has had no rope contact for settleTime,
     //  - a free rope merges when one of its pins holds only it and neither it nor its connected ropes touch or
-    //    cross another rope (cross = particles at the same XZ point with different heights),
-    //  - the level is won when nothing is colliding or waiting to merge for successCheckDelay.
-    public class MapFinishChecker : MonoBehaviour
+    //    cross another rope (cross = particles at the same XZ point with clearly different heights),
+    //  - the level is won when nothing is colliding or waiting to merge for settleTime.
+    public class WinChecker : MonoBehaviour
     {
         [SerializeField] private LevelBuilder level;
         [SerializeField] private RopeCollisionTracker collisions;
         [SerializeField] private RopeMergeAnimator mergeAnimator;
-        [SerializeField] private float successCheckDelay = 0.15f;
-        [Tooltip("Freshly built ropes settle this long before anything is checked.")]
-        [SerializeField] private float startDelay = 0.75f;
         [SerializeField] private PinInputController input;
-        [SerializeField] private bool mergeOnAir = true;
-        [SerializeField] private float ropesIntersectRadius = 0.15f;
-        [SerializeField] private float minYDiffToCheckIntersection = 0.1f;
-        [SerializeField] private bool debugLog;
+        [SerializeField] private float settleTime = 0.15f;
+        [SerializeField] private float initialWait = 0.75f;
+        [SerializeField] private bool mergeWhileHeld = true;
+        [SerializeField] private float crossRadius = 0.15f;
+        [SerializeField] private float crossMinHeightGap = 0.1f;
 
-        private class RopeData
+        private class RopeState
         {
             public bool IsColliding = true;
             public float Timer;
         }
 
-        private readonly Dictionary<BoardModel.Rope, RopeData> _data = new();
+        private readonly Dictionary<BoardModel.Rope, RopeState> _states = new();
         private readonly List<Vector3> _pointsA = new(), _pointsB = new();
         private readonly List<BoardModel.Rope> _group = new();
-        private float _successTimer;
+        private float _winTimer;
         private float _startTime;
         private bool _running;
 
@@ -46,64 +44,59 @@ namespace Runtime.Gameplay
 
         public void Begin()
         {
-            _data.Clear();
+            _states.Clear();
             collisions.Clear();
-            _successTimer = 0f;
+            _winTimer = 0f;
             Succeeded = false;
             _running = true;
-            _startTime = Time.time + startDelay;
+            _startTime = Time.time + initialWait;
         }
 
         public void Stop() => _running = false;
 
         private void FixedUpdate()
         {
-            // Paused (timers frozen) while a pin is held or the level is still being created.
             if (!_running || Succeeded || Time.time < _startTime || input.IsHoldingPin || !AllRopesReady()) return;
             float dt = Time.fixedDeltaTime;
 
             foreach (var rope in Board.Ropes)
             {
                 if (rope.Merged || rope.Merging) continue;
-                if (!_data.TryGetValue(rope, out var d)) _data[rope] = d = new RopeData();
-                if (!d.IsColliding) continue;
+                if (!_states.TryGetValue(rope, out var s)) _states[rope] = s = new RopeState();
+                if (!s.IsColliding) continue;
 
                 if (collisions.IsColliding(View(rope).Obi))
                 {
-                    d.Timer = 0f;
+                    s.Timer = 0f;
                 }
-                else if (mergeOnAir || ArePinsPlaced(rope))
+                else if (mergeWhileHeld || PinsSettled(rope))
                 {
-                    d.Timer += dt;
-                    if (d.Timer >= successCheckDelay)
-                    {
-                        d.IsColliding = false;
-                        if (debugLog) Debug.Log($"[MapFinishChecker] rope {rope.Id} free t={Time.time:F2}");
-                    }
+                    s.Timer += dt;
+                    if (s.Timer >= settleTime) s.IsColliding = false;
                 }
             }
 
             foreach (var rope in Board.Ropes)
-                if (!rope.Merged && !rope.Merging && _data.TryGetValue(rope, out var d) && !d.IsColliding && CanMerge(rope))
+                if (!rope.Merged && !rope.Merging && _states.TryGetValue(rope, out var s) && !s.IsColliding && IsReadyToMerge(rope))
                     Merge(rope);
 
             bool anyColliding = false, anyFreeWaiting = false, anyMerging = false;
             foreach (var rope in Board.Ropes)
             {
                 if (rope.Merging) anyMerging = true;
-                if (rope.Merged || rope.Merging || !_data.TryGetValue(rope, out var d)) continue;
-                if (d.IsColliding) anyColliding = true;
+                if (rope.Merged || rope.Merging || !_states.TryGetValue(rope, out var s)) continue;
+                if (s.IsColliding) anyColliding = true;
                 else anyFreeWaiting = true;
             }
 
             if (anyColliding || anyFreeWaiting)
             {
-                _successTimer = 0f;
+                _winTimer = 0f;
                 return;
             }
 
-            _successTimer += dt;
-            if (_successTimer >= successCheckDelay && !anyMerging)
+            _winTimer += dt;
+            if (_winTimer >= settleTime && !anyMerging)
             {
                 Succeeded = true;
                 _running = false;
@@ -111,31 +104,28 @@ namespace Runtime.Gameplay
             }
         }
 
-        private bool CanMerge(BoardModel.Rope rope)
+        private bool IsReadyToMerge(BoardModel.Rope rope)
         {
-            if (!BoardModel.HasPinWithSingleRope(rope)) return false;
-            if (!mergeOnAir && !ArePinsPlaced(rope)) return false;
+            if (!BoardModel.HasFreeEnd(rope)) return false;
+            if (!mergeWhileHeld && !PinsSettled(rope)) return false;
 
-            ConnectedGroup(rope);
+            CollectGroup(rope);
             foreach (var member in _group)
             {
-                if (IsCollidingOutsideGroup(member)) return false;
-                if (IsIntersectingOutsideGroup(member)) return false;
+                if (TouchesOutsideGroup(member)) return false;
+                if (CrossesOutsideGroup(member)) return false;
             }
             return true;
         }
 
         private void Merge(BoardModel.Rope rope)
         {
-            if (debugLog)
-                Debug.Log($"[MapFinishChecker] merge rope {rope.Id} t={Time.time:F2} colliding={collisions.IsColliding(View(rope).Obi)}");
-            _data.Remove(rope);
+            _states.Remove(rope);
             Board.BeginMerge(rope);
             mergeAnimator.Play(rope);
         }
 
-        // Ropes reachable through shared pins (including the rope itself).
-        private void ConnectedGroup(BoardModel.Rope start)
+        private void CollectGroup(BoardModel.Rope start)
         {
             _group.Clear();
             _group.Add(start);
@@ -149,7 +139,7 @@ namespace Runtime.Gameplay
             }
         }
 
-        private bool IsCollidingOutsideGroup(BoardModel.Rope rope)
+        private bool TouchesOutsideGroup(BoardModel.Rope rope)
         {
             var actor = View(rope).Obi;
             foreach (var other in Board.Ropes)
@@ -160,33 +150,32 @@ namespace Runtime.Gameplay
             return false;
         }
 
-        private bool IsIntersectingOutsideGroup(BoardModel.Rope rope)
+        private bool CrossesOutsideGroup(BoardModel.Rope rope)
         {
-            View(rope).GetParticlePositions(_pointsA);
+            View(rope).CopyParticlePositions(_pointsA);
             foreach (var other in Board.Ropes)
             {
                 if (other.Merged || other.Merging || _group.Contains(other)) continue;
-                View(other).GetParticlePositions(_pointsB);
-                if (HasIntersectionInPoint(_pointsA, _pointsB)) return true;
+                View(other).CopyParticlePositions(_pointsB);
+                if (HasCrossing(_pointsA, _pointsB)) return true;
             }
             return false;
         }
 
-        // Same XZ spot (closer than ropesIntersectRadius) at clearly different heights => one rope lies on the other.
-        private bool HasIntersectionInPoint(List<Vector3> a, List<Vector3> b)
+        private bool HasCrossing(List<Vector3> a, List<Vector3> b)
         {
-            float r2 = ropesIntersectRadius * ropesIntersectRadius;
+            float r2 = crossRadius * crossRadius;
             foreach (var p in a)
             foreach (var q in b)
             {
-                if (Mathf.Abs(p.y - q.y) < minYDiffToCheckIntersection) continue;
+                if (Mathf.Abs(p.y - q.y) < crossMinHeightGap) continue;
                 float dx = p.x - q.x, dz = p.z - q.z;
                 if (dx * dx + dz * dz < r2) return true;
             }
             return false;
         }
 
-        private bool ArePinsPlaced(BoardModel.Rope rope) =>
+        private bool PinsSettled(BoardModel.Rope rope) =>
             level.IsPinPlaced(rope.A.Id) && level.IsPinPlaced(rope.B.Id);
 
         private bool AllRopesReady()

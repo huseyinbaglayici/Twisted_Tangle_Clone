@@ -4,8 +4,6 @@ using UnityEngine;
 
 namespace Runtime.Gameplay
 {
-    // The hand only suggests a move: it hides while a pin is held and comes back after the drop
-    // until the level ends.
     public class TutorialController : MonoBehaviour
     {
         [SerializeField] private LevelBuilder level;
@@ -14,11 +12,11 @@ namespace Runtime.Gameplay
         [SerializeField] private float handHeight = 1.2f;
 
         [Header("Hand animation")]
-        [SerializeField] private float moveSourceDuration = 0.25f;
-        [SerializeField] private float moveTargetDuration = 0.75f;
-        [SerializeField] private float downScale = 0.6f;
-        [SerializeField] private float scaleDuration = 0.3f;
-        [SerializeField] private float delay = 0.1f;
+        [SerializeField] private float toPinDuration = 0.25f;
+        [SerializeField] private float toSlotDuration = 0.75f;
+        [SerializeField] private float pressScale = 0.6f;
+        [SerializeField] private float pressDuration = 0.3f;
+        [SerializeField] private float loopPause = 0.1f;
         [SerializeField] private float showAgainDelay = 0.75f;
 
         private BoardModel.Pin _pin;
@@ -85,7 +83,6 @@ namespace Runtime.Gameplay
             if (hand != null) hand.gameObject.SetActive(false);
         }
 
-        // Go to the pin (it may have moved), press, drag to the target slot, release, wait.
         private void PlayCycle()
         {
             if (_pin == null || _pin.Removed)
@@ -96,11 +93,11 @@ namespace Runtime.Gameplay
 
             var up = Vector3.up * handHeight;
             _sequence = DOTween.Sequence().SetTarget(this)
-                .Append(hand.DOMove(PinPosition() + up, moveSourceDuration))
-                .Append(hand.DOScale(_handScale * downScale, scaleDuration))
-                .Append(hand.DOMove(_target + up, moveTargetDuration))
-                .Append(hand.DOScale(_handScale, scaleDuration))
-                .AppendInterval(delay)
+                .Append(hand.DOMove(PinPosition() + up, toPinDuration))
+                .Append(hand.DOScale(_handScale * pressScale, pressDuration))
+                .Append(hand.DOMove(_target + up, toSlotDuration))
+                .Append(hand.DOScale(_handScale, pressDuration))
+                .AppendInterval(loopPause)
                 .OnComplete(PlayCycle);
         }
 

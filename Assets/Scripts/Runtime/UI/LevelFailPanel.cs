@@ -5,7 +5,6 @@ using UnityEngine.UI;
 
 namespace Runtime.UI
 {
-    // "Out of Moves!" popup: try the level again or go back to the menu.
     [RequireComponent(typeof(UiPanelAnimator))]
     public class LevelFailPanel : MonoBehaviour
     {

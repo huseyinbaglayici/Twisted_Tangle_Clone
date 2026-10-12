@@ -7,27 +7,20 @@ using UnityEngine.UIElements;
 
 namespace Editor.Canvas
 {
-    /// <summary>
-    /// Top-down drawing of one level stage, matching the runtime: every cell is a slot, pins sit on cells,
-    /// a rope runs pinA → pinB along its authored path (straight when the path is empty) and ropes
-    /// are drawn in layer order (layer = draw order only).
-    /// </summary>
     public class RopeCanvasElement : VisualElement
     {
-        // --- state pushed by the window ---
         public float CellSize = 44f;
         public StageJson Stage;
         public TutorialJson Tutorial;
         public RopePaletteSO Palette;
         public int SelectedRopeId = -1;
-        public int PendingPinId = -1;                 // rope tool: first pin picked, waiting for the second
-        public HashSet<int> TangledRopeIds;           // ropes touching another rope (runtime rule)
+        public int PendingPinId = -1;
+        public HashSet<int> TangledRopeIds;
         public Color GridStrokeColor = EditorColors.GridDefault;
         public Color RopeOutlineColor = EditorColors.RopeOutlineDark;
 
-        // --- callbacks to the window ---
-        public Action<int, int, int> CellClicked; // cellX, cellY, mouseButton
-        public Action<int, int> CellDragged;      // cellX, cellY (pointer held + moved)
+        public Action<int, int, int> CellClicked;
+        public Action<int, int> CellDragged;
         public Action Released;
 
         private bool _pointerDown;
@@ -59,8 +52,6 @@ namespace Editor.Canvas
             style.height = Mathf.Max(0, Height) * CellSize;
             MarkDirtyRepaint();
         }
-
-        #region Input
 
         private bool TryCell(Vector2 local, out Vector2Int cell)
         {
@@ -104,13 +95,9 @@ namespace Editor.Canvas
             Released?.Invoke();
         }
 
-        #endregion
-
-        #region Rendering
-
         private float RopeWidth => Mathf.Max(5f, CellSize * 0.14f);
         private float PinRadius => CellSize * 0.30f;
-        private const int SplineSamples = 6; // per path segment (13-point authored paths are already dense)
+        private const int SplineSamples = 6;
 
         // Cell space (integer = cell center) → canvas pixels (y up in cell space, down in pixels).
         private Vector2 ToPx(Vector2 cellSpace) =>
@@ -130,7 +117,7 @@ namespace Editor.Canvas
 
         private void DrawSlots(Painter2D p)
         {
-            float r = CellSize * 0.19f; // slot scale 0.38 of a 1-unit cell
+            float r = CellSize * 0.19f;
             p.fillColor = GridStrokeColor;
             for (int x = 0; x < Width; x++)
             for (int y = 0; y < Height; y++)
@@ -158,7 +145,6 @@ namespace Editor.Canvas
             return null;
         }
 
-        // Same shape the runtime builds: authored path (ends snapped onto the pins) or a straight line.
         private List<Vector2> RopePoints(RopeJson rope)
         {
             var a = FindPin(rope.pinA);
@@ -214,7 +200,7 @@ namespace Editor.Canvas
                 foreach (var rope in Stage.ropes)
                     if (rope.pinA == pin.id || rope.pinB == pin.id)
                     {
-                        fill = RopeColor(rope); // runtime: pin takes its first rope's color
+                        fill = RopeColor(rope);
                         break;
                     }
 
@@ -337,7 +323,5 @@ namespace Editor.Canvas
             p.Arc(c, r, Angle.Degrees(0f), Angle.Degrees(360f));
             p.Fill();
         }
-
-        #endregion
     }
 }

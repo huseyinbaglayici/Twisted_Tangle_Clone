@@ -4,7 +4,6 @@ using UnityEngine;
 
 namespace Runtime.Gameplay
 {
-    // Undo stack of committed pin moves.
     public class MoveHistory
     {
         private readonly Stack<(int pin, Vector2Int from, Vector2Int to)> _stack = new();
@@ -13,7 +12,6 @@ namespace Runtime.Gameplay
 
         public void Clear() => _stack.Clear();
 
-        // Drops the newest entry when it belongs to this pin (a move that was taken back automatically).
         public void DiscardLast(int pin)
         {
             if (_stack.Count > 0 && _stack.Peek().pin == pin) _stack.Pop();
@@ -25,7 +23,7 @@ namespace Runtime.Gameplay
             {
                 var m = _stack.Pop();
                 if (!board.Pins.TryGetValue(m.pin, out var pin) || pin.Removed)
-                    continue; // its rope already merged
+                    continue;
                 if (!board.CanControl(pin) || !board.IsCellFree(m.from) || !board.IsWithinPinDistance(pin, m.from))
                 {
                     _stack.Push(m);

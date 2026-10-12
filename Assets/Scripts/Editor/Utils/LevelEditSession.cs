@@ -3,10 +3,6 @@ using UnityEngine;
 
 namespace TwistedTangle.Editor.Utils
 {
-    /// <summary>
-    /// In-memory holder for the level being edited. A ScriptableObject only so Unity's Undo can record
-    /// the nested LevelJson; never saved as an asset (the level itself lives in its JSON file).
-    /// </summary>
     public class LevelEditSession : ScriptableObject
     {
         public LevelJson level;

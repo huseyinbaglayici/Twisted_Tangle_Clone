@@ -4,7 +4,6 @@ using UnityEngine;
 
 namespace Runtime.Boostrap
 {
-    // Entry point of the Boostrap scene: opens the main menu behind the splash.
     public class SceneLoader : MonoBehaviour
     {
         [Inject] private SceneFlowService _sceneFlow;

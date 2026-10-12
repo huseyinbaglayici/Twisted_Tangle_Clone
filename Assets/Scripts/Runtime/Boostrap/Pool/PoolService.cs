@@ -5,8 +5,6 @@ using UnityEngine;
 
 namespace Runtime.Boostrap.Pool
 {
-    // Active-object tracking, DespawnAll, re-parent on despawn, transform/tween reset and a
-    // double-despawn guard.
     public class PoolService<T> where T : Component, IPoolable
     {
         private readonly Queue<T> _inactive = new();

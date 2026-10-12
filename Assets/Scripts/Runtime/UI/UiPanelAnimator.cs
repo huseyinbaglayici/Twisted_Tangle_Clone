@@ -3,8 +3,6 @@ using UnityEngine;
 
 namespace Runtime.UI
 {
-    // Shared show/hide tween: the group fades, the content pops in with a scale (or slides in when slideOffset is set).
-    // Hidden panels are deactivated so they cost nothing and never block raycasts.
     [RequireComponent(typeof(CanvasGroup))]
     public class UiPanelAnimator : MonoBehaviour
     {

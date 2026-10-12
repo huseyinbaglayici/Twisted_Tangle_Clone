@@ -10,12 +10,11 @@ namespace TwistedTangle.Editor.Validation
         public int PinCount;
         public int LockedPinCount;
         public int RopeCount;
-        public int CrossingPairs;   // rope pairs that touch (touching ropes can't merge)
-        public int TangledRopes;    // ropes touching at least one other rope
+        public int CrossingPairs;
+        public int TangledRopes;
         public int FreeCells;
     }
 
-    /// <summary>Outcome of validating a level: blocking errors, advisory warnings, and metrics.</summary>
     public class ValidationReport
     {
         public readonly List<string> Errors = new();
@@ -25,10 +24,6 @@ namespace TwistedTangle.Editor.Validation
         public bool IsValid => Errors.Count == 0;
     }
 
-    /// <summary>
-    /// Catches broken levels in the editor using the same rules the runtime plays by (BoardModel /
-    /// RopeGeometry / RopeTensionRule), so a green level here loads and behaves the same in game.
-    /// </summary>
     public static class LevelValidator
     {
         public static ValidationReport Validate(LevelJson level)
@@ -60,7 +55,6 @@ namespace TwistedTangle.Editor.Validation
                 report.Warnings.Add($"Grid {stage.gridWidth}x{stage.gridHeight} doesn't match map {stage.mapId} " +
                                     $"({StageJson.WidthForMap(stage.mapId)}x{StageJson.HeightForMap(stage.mapId)}).");
 
-            // --- pins ---------------------------------------------------------------------------
             var pinsById = new Dictionary<int, PinJson>();
             var occupied = new HashSet<Vector2Int>();
             foreach (var pin in stage.pins)
@@ -73,7 +67,6 @@ namespace TwistedTangle.Editor.Validation
                     report.Errors.Add($"Two pins share cell {pin.Cell}.");
             }
 
-            // --- ropes --------------------------------------------------------------------------
             var ropeIds = new HashSet<int>();
             var usedPins = new HashSet<int>();
             bool ropesValid = true;
@@ -102,8 +95,8 @@ namespace TwistedTangle.Editor.Validation
                 usedPins.Add(rope.pinB);
 
                 float length = Vector2.Distance(a.Cell, b.Cell);
-                float max = RopeTensionRule.MaxLength(RopeTensionRule.RestLength);
-                float warn = RopeTensionRule.RestLength * (1f + RopeTensionRule.WarnPercentage * RopeTensionRule.MaxTension);
+                float max = TensionLimits.MaxLength(TensionLimits.RestLength);
+                float warn = TensionLimits.RestLength * (1f + TensionLimits.WarnPercentage * TensionLimits.MaxTension);
                 if (length > max)
                     report.Errors.Add($"Rope {rope.id} is too long ({length:0.00} > {max:0.00}) — over max tension.");
                 else if (length > warn)
@@ -117,7 +110,6 @@ namespace TwistedTangle.Editor.Validation
                 if (!usedPins.Contains(pin.id))
                     report.Warnings.Add($"Pin {pin.id} at {pin.Cell} is not used by any rope.");
 
-            // --- tutorial -----------------------------------------------------------------------
             if (level.tutorial != null && level.tutorial.pinId >= 0)
             {
                 if (!pinsById.ContainsKey(level.tutorial.pinId))
@@ -126,7 +118,6 @@ namespace TwistedTangle.Editor.Validation
                     report.Errors.Add($"Tutorial target {level.tutorial.TargetCell} must be an empty cell.");
             }
 
-            // --- metrics (runtime crossing rule) ------------------------------------------------
             var metrics = new LevelMetrics
             {
                 PinCount = stage.pins.Count,
@@ -149,9 +140,6 @@ namespace TwistedTangle.Editor.Validation
             return report;
         }
 
-        /// <summary>
-        /// Ropes of stage 1 whose authored path touches another rope's path (call only on a level without errors).
-        /// </summary>
         public static HashSet<int> TangledRopeIds(LevelJson level, out int crossingPairs)
         {
             var stage = level.stages[0];
@@ -171,7 +159,6 @@ namespace TwistedTangle.Editor.Validation
             return tangled;
         }
 
-        // Authored path in cell space, or a straight line between the pins when there is none.
         private static Vector2[] PathOf(StageJson stage, RopeJson rope)
         {
             var a = stage.pins.Find(p => p.id == rope.pinA).Cell;

@@ -4,7 +4,6 @@ using UnityEngine.UI;
 
 namespace Runtime.UI
 {
-    // Sound / haptics switches plus an optional home button (gameplay only). Tapping the dim background or the X closes it.
     [RequireComponent(typeof(UiPanelAnimator))]
     public class SettingsPopup : MonoBehaviour
     {

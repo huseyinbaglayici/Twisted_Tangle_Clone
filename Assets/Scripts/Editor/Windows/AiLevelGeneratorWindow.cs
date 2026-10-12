@@ -179,8 +179,6 @@ namespace Editor.Windows
             return footer;
         }
 
-        // ── Logic ─────────────────────────────────────────────────────────────
-
         private void LoadReference()
         {
             int id = _refLevelId?.value ?? 0;

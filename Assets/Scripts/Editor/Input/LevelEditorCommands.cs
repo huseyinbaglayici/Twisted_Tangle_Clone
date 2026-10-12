@@ -3,33 +3,25 @@ using UnityEngine;
 
 namespace Editor.Input
 {
-    /// <summary>
-    /// Catalog of Level Creator shortcuts. Pure metadata — LevelCreator maps ids to callbacks.
-    /// </summary>
     public static class LevelEditorCommands
     {
-        // Tools
         public const string ToolPin = "tool.pin";
         public const string ToolRope = "tool.rope";
         public const string ToolLock = "tool.lock";
         public const string ToolErase = "tool.erase";
 
-        // Level IO
         public const string Save = "level.save";
         public const string Load = "level.load";
         public const string Delete = "level.delete";
         public const string NewLevel = "level.generate";
 
-        // Rope authoring (operate on the in-progress or selected rope)
         public const string CancelRope = "rope.cancel";
         public const string RopeToFront = "rope.front";
         public const string RopeToBack = "rope.back";
         public const string RopeDelete = "rope.delete";
 
-        // Validation
         public const string Validate = "validate";
 
-        /// <summary>All bindable actions, in display order (grouped by <see cref="EditorCommand.Category"/>).</summary>
         public static readonly IReadOnlyList<EditorCommand> All = new List<EditorCommand>
         {
             new(ToolPin, "Tools", "Pin tool", new KeyCombo(KeyCode.P)),

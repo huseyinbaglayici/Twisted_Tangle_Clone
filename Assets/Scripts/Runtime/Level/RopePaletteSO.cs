@@ -2,8 +2,6 @@ using UnityEngine;
 
 namespace Runtime.Level
 {
-    // Rope colors indexed by RopeJson.colorIndex. Shared by the runtime (LevelBuilder) and the Level Creator,
-    // so a level looks the same in both. Levels store only an index, never a color.
     [CreateAssetMenu(fileName = "RopePalette", menuName = "TwistedTangle/Rope Palette", order = 2)]
     public class RopePaletteSO : ScriptableObject
     {

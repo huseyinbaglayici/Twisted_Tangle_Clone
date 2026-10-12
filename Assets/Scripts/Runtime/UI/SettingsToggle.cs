@@ -5,7 +5,6 @@ using UnityEngine.UI;
 
 namespace Runtime.UI
 {
-    // On/off switch: the knob slides to the right and the track turns green when on.
     [RequireComponent(typeof(Button))]
     public class SettingsToggle : MonoBehaviour
     {

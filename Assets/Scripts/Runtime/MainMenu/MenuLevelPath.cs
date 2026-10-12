@@ -6,8 +6,7 @@ using UnityEngine;
 
 namespace Runtime.MainMenu
 {
-    // Level path on the menu: the label authored as "1" shows the current level, "2" the next one, and so on.
-    // The current level's ring breathes so the eye lands on it.
+    // The label authored as "1" shows the current level, "2" the next one, and so on.
     public class MenuLevelPath : MonoBehaviour
     {
         [Inject] private SaveService _save;

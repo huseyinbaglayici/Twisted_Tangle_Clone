@@ -5,7 +5,6 @@ using UnityEngine;
 
 namespace Runtime.UI
 {
-    // Writes the player's current level into a label, e.g. the menu play button: "Level 12".
     public class SavedLevelLabel : MonoBehaviour
     {
         [Inject] private SaveService _save;

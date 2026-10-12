@@ -4,8 +4,6 @@ using UnityEngine;
 
 namespace Runtime.UI
 {
-    // Full-screen loading curtain that lives for the whole session. Every scene swap (and a retry) happens
-    // behind it: cover -> swap -> reveal, so the player never sees a board being built or torn down.
     [RequireComponent(typeof(CanvasGroup))]
     public class ScreenFader : MonoBehaviour
     {
@@ -31,7 +29,6 @@ namespace Runtime.UI
 
         private CanvasGroup Group => _group != null ? _group : _group = GetComponent<CanvasGroup>();
 
-        // App start: the curtain is already up when the first scene loads.
         public void SetCovered()
         {
             _tween?.Kill();

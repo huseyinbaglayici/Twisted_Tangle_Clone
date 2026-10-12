@@ -4,16 +4,14 @@ using UnityEngine;
 
 namespace Runtime.Level
 {
-    // Single source of truth: runtime reads these files, the Level Creator edits the very same files.
-    // Field names must match JSON exactly (JsonUtility). Unknown fields (e.g. "unsupportedFeatures") are ignored.
     [Serializable]
     public class LevelJson
     {
         public int levelNumber;
         public string difficulty = "Easy";
-        public int timeLimitSeconds;   // 0 = unlimited
+        public int timeLimitSeconds;
         public List<StageJson> stages = new();
-        public TutorialJson tutorial;  // pinId < 0 when absent
+        public TutorialJson tutorial;
 
         public bool HasTutorial => tutorial != null && tutorial.pinId >= 0 && stages.Count > 0
                                    && stages[0].pins.Exists(p => p.id == tutorial.pinId);
@@ -33,7 +31,6 @@ namespace Runtime.Level
         public List<PinJson> pins = new();
         public List<RopeJson> ropes = new();
 
-        // Map N => (3+N) columns x (5+N) rows.
         public static int WidthForMap(int mapId) => 3 + mapId;
         public static int HeightForMap(int mapId) => 5 + mapId;
     }
@@ -56,18 +53,16 @@ namespace Runtime.Level
         public int pinA;
         public int pinB;
         public int colorIndex;
-        public int layer; // render order only (higher = drawn on top). Does NOT affect win logic.
-        // Authored rope shape (physics-settled, 13 points, cell space + height).
-        // Optional: empty => straight rope. Needed for 1:1 tangles (slack ropes bulge sideways and overlap).
+        public int layer;
         public List<PathPointJson> path = new();
     }
 
     [Serializable]
     public struct PathPointJson
     {
-        public float x; // cell-space column (float)
-        public float y; // cell-space row (float)
-        public float h; // height above board (pins ~0.2)
+        public float x;
+        public float y;
+        public float h;
     }
 
     [Serializable]
@@ -82,7 +77,6 @@ namespace Runtime.Level
 
     public class LevelRepository
     {
-        // Files live under Assets/Resources/Levels/level_001.json ... (TextAsset).
         public const string Folder = "Levels/";
 
         public int Count { get; }
@@ -92,7 +86,6 @@ namespace Runtime.Level
             Count = Resources.LoadAll<TextAsset>(Folder).Length;
         }
 
-        // The tutorial level is never replayed once the player has gone past the last level.
         public const int FirstLoopLevel = 2;
 
         public static string FileName(int levelNumber) => $"level_{levelNumber:000}";

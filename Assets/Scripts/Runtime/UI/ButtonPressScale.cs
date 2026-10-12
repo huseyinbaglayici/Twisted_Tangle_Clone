@@ -5,7 +5,7 @@ using UnityEngine.UI;
 
 namespace Runtime.UI
 {
-    // Squash on press, spring back on release. Scales a child pivot so the button's hit area stays put.
+    // Scales a child pivot so the button's hit area stays put.
     public class ButtonPressScale : MonoBehaviour, IPointerDownHandler, IPointerUpHandler
     {
         [SerializeField] private RectTransform target;

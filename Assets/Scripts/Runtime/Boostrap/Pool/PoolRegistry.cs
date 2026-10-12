@@ -20,7 +20,6 @@ namespace Runtime.Boostrap.Pool
             return (PoolService<T>)_pools[typeof(T)];
         }
 
-        // Call on level unload / retry / next level.
         public void DespawnAll()
         {
             foreach (var despawn in _despawnAll)

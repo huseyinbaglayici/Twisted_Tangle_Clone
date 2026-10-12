@@ -17,8 +17,6 @@ namespace Runtime._Installers
 
         public void InstallBindings(ContainerBuilder builder)
         {
-            // Effects, sounds and the loading curtain outlive the menu / gameplay swaps, so they are created once
-            // with the root container.
             var fader = Spawn(screenFaderPrefab);
             builder.RegisterValue(new SaveService());
             builder.RegisterValue(new SceneFlowService(fader));

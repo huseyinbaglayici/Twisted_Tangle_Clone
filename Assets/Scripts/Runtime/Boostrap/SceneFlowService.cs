@@ -5,9 +5,6 @@ using UnityEngine.SceneManagement;
 
 namespace Runtime.Boostrap
 {
-    // Boostrap stays loaded for the whole session (pools, solver, EventSystem, AudioListener);
-    // MainMenu and Gameplay are swapped on top of it additively, never both left loaded.
-    // Every swap runs behind the screen fader: cover -> swap -> reveal.
     public class SceneFlowService
     {
         private const string MainMenu = "MainMenu";
@@ -21,10 +18,8 @@ namespace Runtime.Boostrap
 
         public bool IsBusy => _busy;
 
-        // Still fully hidden behind the curtain (a menu waits for this before playing its intro).
         public bool IsScreenCovered => _fader.IsCovered;
 
-        // App start: the fader is up as a splash, the menu loads under it.
         public async UniTask Boot()
         {
             if (_busy) return;
@@ -49,7 +44,6 @@ namespace Runtime.Boostrap
             await _fader.Reveal();
         }
 
-        // The menu stays up (under the fader) until the level is built, then it is unloaded.
         public async UniTask LoadGameplay()
         {
             if (_busy) return;
@@ -63,7 +57,6 @@ namespace Runtime.Boostrap
             await _fader.Reveal();
         }
 
-        // Same curtain without a scene change (retry).
         public async UniTask Transition(Action whileCovered)
         {
             if (_busy) return;
@@ -74,7 +67,6 @@ namespace Runtime.Boostrap
             await _fader.Reveal();
         }
 
-        // Called by the gameplay scene once its first level is on screen.
         public void NotifyGameplayReady() => _gameplayReady?.TrySetResult();
 
         private static async UniTask LoadAdditive(string scene)

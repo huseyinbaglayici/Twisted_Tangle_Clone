@@ -11,7 +11,7 @@ GameObject:
   - component: {fileID: 7867804438589197532}
   - component: {fileID: 7678113591698223914}
   m_Layer: 0
-  m_Name: SelectedOutline
+  m_Name: DropRing
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -191,9 +191,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a7892921dbd64bd5b0e3c8f5ff0f52ed, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  defaultScale: 0.38
-  selectedOutline: {fileID: 7678113591698223914}
-  originOutline: {fileID: 3280369437077930333}
+  baseScale: 0.38
+  dropRing: {fileID: 7678113591698223914}
+  originRing: {fileID: 3280369437077930333}
   originPulseScale: 1.1
   originPulseDuration: 0.4
 --- !u!1 &7173205828446208794
@@ -295,7 +295,7 @@ GameObject:
   - component: {fileID: 3928851575013637224}
   - component: {fileID: 3280369437077930333}
   m_Layer: 0
-  m_Name: OriginOutline
+  m_Name: OriginRing
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0

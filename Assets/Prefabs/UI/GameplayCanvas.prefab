@@ -193,7 +193,7 @@ MonoBehaviour:
   alertTarget: {fileID: 678279360152799035}
   timeColor: {r: 1, g: 1, b: 1, a: 1}
   alertColor: {r: 1, g: 0.38, b: 0.32, a: 1}
-  alertTimes: 1e000000140000000a000000
+  warnAtSeconds: 1e000000140000000a000000
   retryButton: {fileID: 4979103597050275743}
   undoButton: {fileID: 6223996595346910182}
   settingsButton: {fileID: 571454690063346583}

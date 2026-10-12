@@ -2,7 +2,6 @@ using ES3KeyManager;
 
 namespace Runtime.Boostrap.Save
 {
-    // Player progress on disk. Keys and defaults live in Resources/ES3KeyRegistry.
     public class SaveService
     {
         private const string LevelKey = "Level";

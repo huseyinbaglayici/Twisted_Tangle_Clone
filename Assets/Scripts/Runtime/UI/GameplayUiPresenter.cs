@@ -7,8 +7,6 @@ using UnityEngine;
 
 namespace Runtime.UI
 {
-    // Connects the gameplay UI views to the level flow: shows level / time left, routes button clicks,
-    // opens the complete / fail panels and stores the settings switches.
     public class GameplayUiPresenter : MonoBehaviour
     {
         [Inject] private SaveService _save;
@@ -66,7 +64,6 @@ namespace Runtime.UI
             timer.SecondsChanged -= hud.SetTime;
         }
 
-        // ---------- level flow ----------
         private void OnLevelStarted(int level)
         {
             _pendingPanel?.Kill();
@@ -93,10 +90,9 @@ namespace Runtime.UI
         private void OnFailRetryClicked()
         {
             PlayClick();
-            flow.Retry(); // the panel closes on LevelStarted, behind the fader
+            flow.Retry();
         }
 
-        // ---------- hud ----------
         private void OnRetryClicked()
         {
             PlayClick();
@@ -128,7 +124,6 @@ namespace Runtime.UI
             flow.ExitToMenu();
         }
 
-        // ---------- settings ----------
         private void OnSoundChanged(bool on)
         {
             _audio.SoundOn = on;

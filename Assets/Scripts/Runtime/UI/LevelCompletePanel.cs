@@ -5,8 +5,6 @@ using UnityEngine.UI;
 
 namespace Runtime.UI
 {
-    // "Level Complete!" card: the blue backdrop fades in, the ribbon title grows out of nothing with light rays
-    // turning behind it, the emoji pops and the Continue button slides up from the bottom.
     [RequireComponent(typeof(CanvasGroup))]
     public class LevelCompletePanel : MonoBehaviour
     {
@@ -23,7 +21,7 @@ namespace Runtime.UI
         [SerializeField] private float emojiDelay = 0.1f;
         [SerializeField] private Ease emojiEase = Ease.OutBack;
         [SerializeField] private float slideDistance = 1200f;
-        [SerializeField] private float raysTurnTime = 8f;   // seconds per full turn
+        [SerializeField] private float raysTurnTime = 8f;
         [SerializeField] private float hideDuration = 0.2f;
 
         private CanvasGroup _group;

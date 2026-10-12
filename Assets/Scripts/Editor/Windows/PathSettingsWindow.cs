@@ -7,14 +7,6 @@ using UnityEngine.UIElements;
 
 namespace TwistedTangle.Editor
 {
-    /// <summary>
-    /// Standalone window for editing every filesystem path the Level Creator uses — the folders levels,
-    /// entities, base types and palettes are written to, plus the editor stylesheet. Each path is a Unity
-    /// <see cref="ObjectField"/>: drag a folder/file in from the Project window, pick one via the object
-    /// picker, or click the assigned asset (or "Reveal") to highlight it in the Project window. It only
-    /// edits <see cref="LevelEditorPaths"/>, so the Level Creator need not be open (reopen it to re-apply
-    /// a changed stylesheet).
-    /// </summary>
     public class PathSettingsWindow : EditorWindow
     {
         private VisualElement _rowsHost;
@@ -83,7 +75,6 @@ namespace TwistedTangle.Editor
 
         private VisualElement BuildRow(LevelEditorPaths.PathDef def)
         {
-            // One bordered section per path so the field, its path text and any warning stay grouped.
             var container = new VisualElement();
             container.AddToClassList(Css.Section);
 
@@ -95,8 +86,6 @@ namespace TwistedTangle.Editor
 
             string current = LevelEditorPaths.Get(def.Id);
 
-            // Folders are DefaultAssets in Unity; the stylesheet is a StyleSheet. The ObjectField then
-            // accepts drag-drop from the Project window, offers a native picker, and pings on click.
             var objType = def.IsFolder ? typeof(DefaultAsset) : typeof(StyleSheet);
             var field = new ObjectField
             {
@@ -135,7 +124,6 @@ namespace TwistedTangle.Editor
 
             container.Add(row);
 
-            // The resolved project path, so designers can read/confirm it at a glance.
             var pathLabel = new Label(current);
             pathLabel.AddToClassList(Css.Metric);
             pathLabel.style.marginLeft = 2;
@@ -152,7 +140,6 @@ namespace TwistedTangle.Editor
             return container;
         }
 
-        /// <summary>Applies a folder/file dropped or picked into the ObjectField (null clears to default).</summary>
         private void OnObjectPicked(LevelEditorPaths.PathDef def, Object picked)
         {
             if (picked == null)
@@ -167,7 +154,7 @@ namespace TwistedTangle.Editor
             {
                 EditorUtility.DisplayDialog("Pick a folder",
                     "This field needs a folder from the Project window.", "OK");
-                Rebuild(); // revert the field to the stored value
+                Rebuild();
                 return;
             }
 
@@ -175,7 +162,6 @@ namespace TwistedTangle.Editor
             Rebuild();
         }
 
-        /// <summary>Selects and pings the asset at <paramref name="projectRelative"/> in the Project window.</summary>
         private static void Reveal(string projectRelative)
         {
             var obj = AssetDatabase.LoadAssetAtPath<Object>(projectRelative);
@@ -190,7 +176,6 @@ namespace TwistedTangle.Editor
             EditorGUIUtility.PingObject(obj);
         }
 
-        /// <summary>Returns a human-readable note about the path, or null when it looks fine.</summary>
         private static string Validate(LevelEditorPaths.PathDef def, string path)
         {
             if (string.IsNullOrEmpty(path)) return "Path is empty.";
@@ -233,15 +218,12 @@ namespace TwistedTangle.Editor
             Rebuild();
         }
 
-        // --- path helpers ---
-
         private static string ToAbsolute(string projectRelative, string projectRoot)
         {
             if (string.IsNullOrEmpty(projectRelative)) return Application.dataPath;
             return Path.Combine(projectRoot, projectRelative).Replace('\\', '/');
         }
 
-        /// <summary>A directory the OS file panel can open from: the path itself, its parent, or Assets.</summary>
         private static string DirOrAssets(string absPath)
         {
             if (string.IsNullOrEmpty(absPath)) return Application.dataPath;
@@ -250,12 +232,11 @@ namespace TwistedTangle.Editor
             return !string.IsNullOrEmpty(parent) && Directory.Exists(parent) ? parent : Application.dataPath;
         }
 
-        /// <summary>Maps an absolute path inside the project back to "Assets/…"; null if it's outside.</summary>
         private static string ToProjectRelative(string absolute)
         {
             if (string.IsNullOrEmpty(absolute)) return null;
             absolute = absolute.Replace('\\', '/');
-            var dataPath = Application.dataPath.Replace('\\', '/'); // ends with "/Assets"
+            var dataPath = Application.dataPath.Replace('\\', '/');
             if (absolute == dataPath) return "Assets";
             if (absolute.StartsWith(dataPath + "/")) return "Assets" + absolute.Substring(dataPath.Length);
             return null;

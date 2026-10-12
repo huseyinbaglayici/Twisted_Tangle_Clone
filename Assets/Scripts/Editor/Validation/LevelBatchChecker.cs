@@ -10,10 +10,6 @@ namespace TwistedTangle.Editor.Validation
         public int ValidationErrors;
     }
 
-    /// <summary>
-    /// Scans every level JSON in the configured Levels folder and reports crossing/validation status in one pass.
-    /// Called by <see cref="AdvancedToolsWindow"/>; not exposed as a standalone menu item.
-    /// </summary>
     public static class LevelBatchChecker
     {
         public static IReadOnlyList<LevelCheckResult> CheckAll()

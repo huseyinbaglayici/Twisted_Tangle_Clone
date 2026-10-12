@@ -4,10 +4,6 @@ using UnityEngine.UIElements;
 
 namespace Editor.Input
 {
-    /// <summary>
-    /// A keyboard shortcut: one main key plus optional Ctrl / Alt / Shift modifiers.
-    /// Plain value type so it serializes cleanly through JsonUtility for EditorPrefs storage.
-    /// </summary>
     [Serializable]
     public struct KeyCombo : IEquatable<KeyCombo>
     {
@@ -28,10 +24,6 @@ namespace Editor.Input
 
         public static KeyCombo None => new KeyCombo(KeyCode.None);
 
-        /// <summary>
-        /// Builds a combo from a key event. Returns <see cref="None"/> for a modifier-only press
-        /// (Ctrl/Alt/Shift on their own can't be bound), so callers can keep waiting for the real key.
-        /// </summary>
         public static KeyCombo FromEvent(KeyDownEvent e)
         {
             var key = e.keyCode;
@@ -40,7 +32,6 @@ namespace Editor.Input
             return new KeyCombo(key, e.ctrlKey || e.commandKey, e.altKey, e.shiftKey);
         }
 
-        /// <summary>True when this combo (key + exact modifier set) is the one in the event.</summary>
         public bool Matches(KeyDownEvent e)
         {
             if (IsEmpty) return false;
@@ -68,7 +59,6 @@ namespace Editor.Input
             return s + KeyLabel(Key);
         }
 
-        /// <summary>Human-friendly names for the keys that don't print nicely via <c>KeyCode.ToString()</c>.</summary>
         private static string KeyLabel(KeyCode k)
         {
             switch (k)

@@ -2,14 +2,12 @@ using UnityEngine;
 
 namespace Runtime.Level
 {
-    // Board grid: spacing 1, XZ plane, centered.
-    // map N => (3+N) columns x (5+N) rows. Cell (c,r) => world (c-(W-1)/2, 0, r-(H-1)/2).
     public readonly struct BoardGrid
     {
         public readonly int Width;
         public readonly int Height;
         public readonly float Spacing;
-        public readonly Vector3 Origin; // board center in world
+        public readonly Vector3 Origin;
 
         public BoardGrid(int width, int height, float spacing = 1f, Vector3 origin = default)
         {

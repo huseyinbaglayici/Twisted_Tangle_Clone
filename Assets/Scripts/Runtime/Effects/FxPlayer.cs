@@ -5,8 +5,7 @@ using UnityEngine;
 
 namespace Runtime.Effects
 {
-    // Single entry point for particle effects. Several prefabs share the FxEntity type, so I keep one
-    // pool per FxType instead of going through the type-keyed PoolRegistry.
+    // Several prefabs share the FxEntity type, so there is one pool per FxType instead of the type-keyed registry.
     public class FxPlayer : MonoBehaviour
     {
         [Serializable]
@@ -47,7 +46,6 @@ namespace Runtime.Effects
             }
         }
 
-        // Tint overrides the start colour of the prefab's tint targets (e.g. merge pop = rope colour).
         public void Play(FxType type, Vector3 position, Color? tint = null)
         {
             if (!_pools.TryGetValue(type, out var pool))
@@ -59,7 +57,6 @@ namespace Runtime.Effects
             pool.Dequeue().Play(position, tint);
         }
 
-        // Call on level unload / retry / next level.
         public void DespawnAll()
         {
             foreach (var pool in _pools.Values)

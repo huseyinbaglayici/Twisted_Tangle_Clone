@@ -4,15 +4,14 @@ using UnityEngine;
 
 namespace Runtime.Gameplay
 {
-    // Which ropes are touching which, from Obi particle contacts.
-    // A contact counts only when the ropes actually touch (distance <= maxContactDistance) and one lies on the other
-    // (|normal . up| >= minContactNormalAbsDot) — ropes merely side by side don't count. Contacts are sampled every
-    // updatePeriod and forgotten after resetPeriod without being seen again.
+    // Rope-on-rope contacts from Obi particle collisions. A contact counts only when the ropes really touch
+    // (distance <= maxContactDistance) and one lies on the other (|normal . up| >= minContactNormalAbsDot), so ropes
+    // merely side by side don't count. Contacts are sampled every sampleInterval and forgotten after contactLifetime.
     public class RopeCollisionTracker : MonoBehaviour
     {
         [SerializeField] private LevelBuilder level;
-        [SerializeField] private float updatePeriod = 0.125f;
-        [SerializeField] private float resetPeriod = 0.2f;
+        [SerializeField] private float sampleInterval = 0.125f;
+        [SerializeField] private float contactLifetime = 0.2f;
         [SerializeField] private float minContactNormalAbsDot = 0.4f;
         [SerializeField] private float maxContactDistance = 0.01f;
 
@@ -59,14 +58,14 @@ namespace Runtime.Gameplay
 
         private void FixedUpdate()
         {
-            if (Time.time - _lastCleanup < updatePeriod) return;
+            if (Time.time - _lastCleanup < sampleInterval) return;
             _lastCleanup = Time.time;
 
             foreach (var kv in _contacts)
             {
                 _expired.Clear();
                 foreach (var other in kv.Value)
-                    if (other.Key == null || Time.time - other.Value > resetPeriod)
+                    if (other.Key == null || Time.time - other.Value > contactLifetime)
                         _expired.Add(other.Key);
                 foreach (var e in _expired) kv.Value.Remove(e);
             }
@@ -74,7 +73,7 @@ namespace Runtime.Gameplay
 
         private void HandleParticleContacts(ObiSolver solver, ObiNativeContactList contacts)
         {
-            if (Time.time - _lastContactSample < updatePeriod) return;
+            if (Time.time - _lastContactSample < sampleInterval) return;
             _lastContactSample = Time.time;
 
             for (int i = 0; i < contacts.count; i++)

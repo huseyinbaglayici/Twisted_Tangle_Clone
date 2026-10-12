@@ -14,10 +14,6 @@ using UnityEngine.UIElements;
 
 namespace Editor.Windows
 {
-    /// <summary>
-    /// Edits the level JSON files the runtime plays (Resources/Levels/level_NNN.json):
-    /// pins on cells (+ locked), ropes pinA → pinB with colorIndex / layer / authored path, optional tutorial.
-    /// </summary>
     public class LevelCreator : EditorWindow
     {
         private enum Tool
@@ -32,14 +28,14 @@ namespace Editor.Windows
         private static readonly List<string> DifficultyChoices = new() { "Easy", "Medium", "Hard" };
 
         private LevelEditSession _session;
-        private int _loadedLevelNumber; // file the current level came from (0 = unsaved)
+        private int _loadedLevelNumber;
 
         private Tool _tool = Tool.Pin;
         private RopePaletteSO _palette;
         private int _colorIndex;
-        private int _pendingPinId = -1;   // rope tool: first pin / tutorial tool: chosen pin
+        private int _pendingPinId = -1;
         private int _selectedRopeId = -1;
-        private int _draggingPinId = -1;  // pin tool: pin being dragged to another cell
+        private int _draggingPinId = -1;
         private readonly Dictionary<int, (Vector2[] path, float length)> _dragBasePaths = new();
 
         private IntegerField _levelNumberField, _mapField, _timeLimitField;
@@ -148,8 +144,6 @@ namespace Editor.Windows
             }
             return null;
         }
-
-        #region UI: static sections
 
         private VisualElement BuildHelpSection()
         {
@@ -413,7 +407,7 @@ namespace Editor.Windows
             handle.RegisterCallback<PointerMoveEvent>(e =>
             {
                 if (!handle.HasPointerCapture(e.pointerId)) return;
-                float delta = startX - e.position.x; // drag left = wider
+                float delta = startX - e.position.x;
                 rightPanel.style.width = Mathf.Clamp(startW + delta, 240f, 700f);
                 e.StopPropagation();
             });
@@ -574,10 +568,6 @@ namespace Editor.Windows
             return panel;
         }
 
-        #endregion
-
-        #region UI: dynamic panels
-
         private void RebuildPalette()
         {
             if (_paletteContainer == null) return;
@@ -675,7 +665,7 @@ namespace Editor.Windows
                 swatch.RegisterCallback<ClickEvent>(e =>
                 {
                     if (_tool != Tool.Rope) return;
-                    e.StopPropagation(); // don't also trigger the row selection click
+                    e.StopPropagation();
                     Undo.RecordObject(_session, "Recolor Rope");
                     captured.colorIndex = _colorIndex;
                     RefreshAll();
@@ -804,10 +794,6 @@ namespace Editor.Windows
                 : "No tutorial on this level.";
         }
 
-        #endregion
-
-        #region Canvas interaction
-
         private PinJson PinAt(Vector2Int cell) => Stage?.pins.FirstOrDefault(p => p.Cell == cell);
         private PinJson PinById(int id) => Stage?.pins.FirstOrDefault(p => p.id == id);
 
@@ -862,10 +848,6 @@ namespace Editor.Windows
             _dragBasePaths.Clear();
             RefreshAll();
         }
-
-        #endregion
-
-        #region Model mutations
 
         private void NewLevel()
         {
@@ -939,7 +921,6 @@ namespace Editor.Windows
             }
         }
 
-        // Moves a pin; attached authored paths are re-fitted with the runtime's RopeShape remap.
         private void MovePin(PinJson pin, Vector2Int cell)
         {
             pin.x = cell.x;
@@ -984,7 +965,7 @@ namespace Editor.Windows
                 return;
             }
 
-            float max = RopeTensionRule.MaxLength(RopeTensionRule.RestLength);
+            float max = TensionLimits.MaxLength(TensionLimits.RestLength);
             if (Vector2.Distance(first.Cell, pin.Cell) > max)
             {
                 ShowNotification(new GUIContent($"Too far — max rope length is {max:0.00} cells."));
@@ -1062,10 +1043,6 @@ namespace Editor.Windows
             Level.tutorial.pinId = -1;
             RefreshAll();
         }
-
-        #endregion
-
-        #region Save / load / delete
 
         private void SetLevel(LevelJson level, int loadedFrom)
         {
@@ -1158,10 +1135,6 @@ namespace Editor.Windows
             }
         }
 
-        #endregion
-
-        #region Refresh helpers
-
         private void SetTool(Tool tool)
         {
             _tool = tool;
@@ -1214,10 +1187,6 @@ namespace Editor.Windows
         }
 
         private HashSet<int> TangledRopes() => LevelValidator.TangledRopeIds(Level, out _);
-
-        #endregion
-
-        #region Keyboard shortcuts
 
         private void BuildCommandTable()
         {
@@ -1283,10 +1252,6 @@ namespace Editor.Windows
             return combo.IsEmpty ? string.Empty : $"Shortcut: {combo}";
         }
 
-        #endregion
-
-        #region Small UI factory
-
         private static VisualElement MakeSection(string header, bool expanded = true)
         {
             var f = new Foldout { text = header, value = expanded };
@@ -1315,8 +1280,6 @@ namespace Editor.Windows
             f.AddToClassList(Css.Num);
             return f;
         }
-
-        #endregion
     }
 
     [InitializeOnLoad]

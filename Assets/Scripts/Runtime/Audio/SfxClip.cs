@@ -3,7 +3,6 @@ using UnityEngine;
 
 namespace Runtime.Audio
 {
-    // One row in the AudioPlayer list: which clip a SfxType plays and how loud / how varied.
     [Serializable]
     public class SfxClip
     {

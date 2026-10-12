@@ -10,8 +10,6 @@ using UnityEngine.UI;
 
 namespace Runtime.MainMenu
 {
-    // Home screen: Play -> gameplay, the gear opens the shared settings popup. The menu pieces pop in once
-    // the loading curtain starts lifting, so the player sees them arrive instead of a static frame.
     public class MainMenuPresenter : MonoBehaviour
     {
         [Inject] private SceneFlowService _sceneFlow;
@@ -72,7 +70,6 @@ namespace Runtime.MainMenu
 
         private void PlayClick() => _audio.Play(SfxType.ButtonClick);
 
-        // ---------- intro ----------
         private async UniTaskVoid PlayIntro()
         {
             var logoPosition = logo.anchoredPosition;

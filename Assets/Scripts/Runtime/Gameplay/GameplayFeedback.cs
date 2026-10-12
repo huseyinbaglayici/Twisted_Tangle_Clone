@@ -6,7 +6,6 @@ using UnityEngine;
 
 namespace Runtime.Gameplay
 {
-    // Particles and sounds for gameplay events. Listens only, never changes game state.
     public class GameplayFeedback : MonoBehaviour
     {
         [Inject] private FxPlayer _fx;
@@ -16,7 +15,7 @@ namespace Runtime.Gameplay
         [SerializeField] private LevelBuilder level;
         [SerializeField] private PinInputController input;
         [SerializeField] private RopeMergeAnimator merge;
-        [SerializeField] private Vector3 confettiOffset = new(0f, 1f, 0f); // from the board center
+        [SerializeField] private Vector3 confettiOffset = new(0f, 1f, 0f);
 
         // Awake, not Start: the flow already starts the first level in its own Start.
         private void Awake()
@@ -39,11 +38,9 @@ namespace Runtime.Gameplay
             input.PinMoveRejected -= OnPinMoveRejected;
             merge.MergeStarted -= OnMergeStarted;
             merge.MergePopped -= OnMergePopped;
-            // The fx pools live on; nothing from this level may keep playing over the menu.
             if (_fx != null) _fx.DespawnAll();
         }
 
-        // Covers first start, retry and next level: leftovers of the previous board are cleared first.
         private void OnLevelStarted(int levelNumber)
         {
             _fx.DespawnAll();
@@ -62,7 +59,6 @@ namespace Runtime.Gameplay
             _audio.Play(SfxType.PinPick);
         }
 
-        // The pin is still sliding in; the effect goes where it will land.
         private void OnPinDropped(PinEntity pin)
         {
             _fx.Play(FxType.PinDrop, level.Grid.CellToWorld(pin.Model.Cell));

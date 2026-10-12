@@ -2,17 +2,12 @@ using UnityEngine;
 
 namespace Editor.Geometry
 {
-    // Logical stand-in for the physical crossing test (Obi contact or particle pair closer than 0.15 on XZ).
-    // Over/under does not matter: a rope lying on top still touches the one below.
-    //
-    // IMPORTANT: ropes are slack and bulge sideways; a straight pinA->pinB model
-    // gets ~31% of rope pairs wrong. Using the authored 13-point path (level json "path") and
-    // "polyline distance < 0.15, ignoring the first/last segment (pin area)" gets ~96% right.
+    // Editor stand-in for the physical crossing test. Ropes are slack and bulge sideways: a straight pin-to-pin
+    // model misjudges ~31% of rope pairs, the authored path with the end segments skipped only ~4%.
     public static class RopeGeometry
     {
-        public const float TouchDistance = 0.15f;   // RopesChannel.ropesIntersectRadius
+        public const float TouchDistance = 0.15f;
 
-        // Polyline vs polyline (board plane). First/last segment skipped: they sit on the pins (shared pins are fine).
         public static bool PathsTouch(Vector2[] p, Vector2[] q, float threshold = TouchDistance)
         {
             int skipP = p.Length > 3 ? 1 : 0, skipQ = q.Length > 3 ? 1 : 0;
@@ -68,8 +63,8 @@ namespace Editor.Geometry
             for (int i = 0; i < n; i++)
             {
                 var d = basePath[i] - a0;
-                float along = Vector2.Dot(d, u0) / l0;      // 0..1 along chord
-                float side = Vector2.Dot(d, v0);            // sideways bulge
+                float along = Vector2.Dot(d, u0) / l0;
+                float side = Vector2.Dot(d, v0);
                 result[i] = a + u1 * (along * l1) + v1 * (side * bulge);
             }
         }
@@ -84,8 +79,8 @@ namespace Editor.Geometry
 
     // Every rope uses the same Obi blueprint: restLength = 2.5 => max pin distance ~4.22, red at ~3.91.
     // Tension = length/restLength - 1; percentage = clamp01(tension / 1.25).
-    // >= 0.45 => rope tinted red, >= 0.55 => drag/tap-move rejected.
-    public static class RopeTensionRule
+    // >= 0.45 => rope tinted red, >= 0.55 => drag rejected.
+    public static class TensionLimits
     {
         public const float RestLength = 2.5f;
         public const float MaxTension = 1.25f;
@@ -99,7 +94,6 @@ namespace Editor.Geometry
             return Mathf.Clamp01(tension / MaxTension);
         }
 
-        // Longest allowed distance between the two pins of a rope before input is rejected.
         public static float MaxLength(float restLength) => restLength * (1f + RejectPercentage * MaxTension);
     }
 }

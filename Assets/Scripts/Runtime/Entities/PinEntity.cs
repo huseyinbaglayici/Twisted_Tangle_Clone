@@ -11,16 +11,16 @@ namespace Runtime.Entities
         private static readonly int ColorId = Shader.PropertyToID("_Color");
 
         [SerializeField] private Renderer pinRenderer;
-        [SerializeField] private Transform ropeConnectPoint; // rope end attachment target (0.2 above the board)
+        [SerializeField] private Transform ropeAnchor;
 
         [Header("Locked (nailed) pin")]
-        [SerializeField] private GameObject lockVisual;       // nail head, shown only on locked pins
+        [SerializeField] private GameObject lockVisual;
         [SerializeField] private Color lockedBodyColor = new(0.415f, 0.415f, 0.415f);
 
         private MaterialPropertyBlock _block;
 
         public BoardModel.Pin Model { get; private set; }
-        public Transform RopeConnectPoint => ropeConnectPoint != null ? ropeConnectPoint : transform;
+        public Transform RopeAnchor => ropeAnchor != null ? ropeAnchor : transform;
 
         private void Awake()
         {
@@ -28,7 +28,6 @@ namespace Runtime.Entities
             _block = new MaterialPropertyBlock();
         }
 
-        // A locked pin loses its rope color: plain metal body plus the nail head on top.
         public void Setup(BoardModel.Pin model, Vector3 world, Color color)
         {
             Model = model;

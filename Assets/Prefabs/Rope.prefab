@@ -189,12 +189,12 @@ MonoBehaviour:
   rope: {fileID: 3857040551760489975}
   ropeRenderer: {fileID: 4739600323736680174}
   cursor: {fileID: 8800660618450821013}
-  startAttachment: {fileID: 3258627449806994153}
-  endAttachment: {fileID: 8794757549826458310}
-  pinEnterParticlesOffsetPercent: 0.15
-  normalCollisionFilterCategory: 1
-  sharedCollisionFilterCategory: 15
-  minTension: 0
-  maxTension: 1.25
-  tensionColorMinPercentage: 0.45
+  attachmentA: {fileID: 3258627449806994153}
+  attachmentB: {fileID: 8794757549826458310}
+  endFilterPercent: 0.15
+  ropeCategory: 1
+  sharedEndCategory: 15
+  tensionFloor: 0
+  tensionCeiling: 1.25
+  redTintFrom: 0.45
   tensionColor: {r: 1, g: 0, b: 0, a: 1}

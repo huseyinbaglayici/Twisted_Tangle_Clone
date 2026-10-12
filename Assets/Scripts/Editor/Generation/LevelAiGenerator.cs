@@ -15,7 +15,6 @@ namespace TwistedTangle.Editor.Generation
         public string ReferenceLevelDescription;
     }
 
-    // Per-difficulty targets, following the level curve (levels 1-4: 2 ropes, 5-10: 3, 11-30: 4-5).
     internal readonly struct DifficultyProfile
     {
         public readonly int RopeMin, RopeMax;
@@ -33,10 +32,6 @@ namespace TwistedTangle.Editor.Generation
         }
     }
 
-    /// <summary>
-    /// Provider-agnostic AI level generation: builds a prompt for any AI chat and parses the JSON answer
-    /// straight into the runtime level format (LevelJson), so an imported level is exactly what the game loads.
-    /// </summary>
     public static class LevelAiGenerator
     {
         private static DifficultyProfile GetProfile(string difficulty) => difficulty switch
@@ -129,8 +124,8 @@ namespace TwistedTangle.Editor.Generation
         private static string Rules(LevelGenerationRequest r, int w, int h)
         {
             var p = GetProfile(r.Difficulty);
-            float maxLen = RopeTensionRule.MaxLength(RopeTensionRule.RestLength);
-            float warnLen = RopeTensionRule.RestLength * (1f + RopeTensionRule.WarnPercentage * RopeTensionRule.MaxTension);
+            float maxLen = TensionLimits.MaxLength(TensionLimits.RestLength);
+            float warnLen = TensionLimits.RestLength * (1f + TensionLimits.WarnPercentage * TensionLimits.MaxTension);
 
             var sb = new StringBuilder();
             sb.AppendLine("You design levels for the rope-untangling puzzle Twisted Tangle.");

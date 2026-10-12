@@ -7,23 +7,14 @@ namespace Runtime.Boostrap.Pool
 {
     public class PoolInstaller : MonoBehaviour, IInstaller
     {
-        #region Entity Types
-
         [SerializeField] private PinEntity pinPrefab;
         [SerializeField] private RopeEntity ropePrefab;
         [SerializeField] private GridCellEntity gridCellPrefab;
-
-        #endregion
-
-        #region Entity Name Constants
 
         private const string PinHolder = "PinHolder";
         private const string RopeHolder = "RopeHolder";
         private const string GridCellHolder = "GridCellHolder";
 
-        #endregion
-
-        // Pool Creation Order --> GridCell - Rope - Pin 
         public void InstallBindings(ContainerBuilder builder)
         {
             var pinParent = CreateParents(PinHolder);
@@ -45,8 +36,6 @@ namespace Runtime.Boostrap.Pool
             DontDestroyOnLoad(holder);
             return holder.transform;
         }
-
-        // this method prewarms & register pool to the registry
 
         private void TryCreateAndRegisterPool<T>(T prefab, Transform parent, PoolRegistry registry, int prewarmValue)
             where T : Component, IPoolable
