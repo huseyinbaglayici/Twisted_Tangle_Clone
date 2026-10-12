@@ -22,7 +22,6 @@ namespace Runtime.UI
 
         [Header("Buttons")]
         [SerializeField] private Button retryButton;
-        [SerializeField] private Button undoButton;
         [SerializeField] private Button settingsButton;
 
         [Header("Intro")]
@@ -32,13 +31,11 @@ namespace Runtime.UI
         private int _shownSeconds = -1;
 
         public event Action RetryClicked;
-        public event Action UndoClicked;
         public event Action SettingsClicked;
 
         private void Awake()
         {
             retryButton.onClick.AddListener(() => RetryClicked?.Invoke());
-            undoButton.onClick.AddListener(() => UndoClicked?.Invoke());
             settingsButton.onClick.AddListener(() => SettingsClicked?.Invoke());
         }
 

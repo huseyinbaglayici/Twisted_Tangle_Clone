@@ -90,11 +90,6 @@ namespace Runtime.Gameplay
             if (Input.GetKeyDown(KeyCode.Escape)) ExitToMenu();
         }
 
-        public void Undo()
-        {
-            if (!_finished) input.Undo();
-        }
-
         private void OnWon()
         {
             if (!Finish()) return;

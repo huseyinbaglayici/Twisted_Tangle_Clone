@@ -33,10 +33,9 @@ namespace Runtime.Gameplay
         [Header("Placement tweens")]
         [SerializeField] private float placeSpeed = 6f;
         [SerializeField] private Ease placeEase = Ease.OutSine;
-        [SerializeField] private float undoSecondsPerUnit = 0.2f;
-        [SerializeField] private Ease undoEase = Ease.InOutQuad;
+        [SerializeField] private float hopSecondsPerUnit = 0.2f;
+        [SerializeField] private Ease hopEase = Ease.InOutQuad;
 
-        private readonly MoveHistory _history = new();
         private BoardModel.Pin _pressed, _dragged;
         private Vector2 _pressScreen;
         private Vector3 _dragTarget;
@@ -59,14 +58,11 @@ namespace Runtime.Gameplay
 
         public void ResetState()
         {
-            _history.Clear();
             _pressed = null;
             _dragged = null;
             SetDropCandidate(null);
             SetOriginCell(null);
         }
-
-        public bool Undo() => _history.TryUndo(Board, this);
 
         private void Update()
         {
@@ -149,7 +145,7 @@ namespace Runtime.Gameplay
             var pin = _dragged;
             var cell = _dropCandidate != null ? _dropCandidate.Cell : (Vector2Int?)null;
             ReleaseDragged();
-            if (cell.HasValue && cell.Value != pin.Cell) MoveTo(pin, cell.Value, record: true, placeSpeed, placeEase, byDistance: false);
+            if (cell.HasValue && cell.Value != pin.Cell) MoveTo(pin, cell.Value);
             else PlaceBack(pin);
         }
 
@@ -234,15 +230,11 @@ namespace Runtime.Gameplay
             if (level.PinViews.TryGetValue(pin.Id, out var view)) PinMoveRejected?.Invoke(view);
         }
 
-        // byDistance: duration = distance * value (undo / revert hop); otherwise value is a speed (slot transfer).
-        private void MoveTo(BoardModel.Pin pin, Vector2Int cell, bool record, float value, Ease ease, bool byDistance)
+        private void MoveTo(BoardModel.Pin pin, Vector2Int cell)
         {
             var from = pin.Cell;
             Board.CommitMove(pin, cell);
-            Fly(pin, level.Grid.CellToWorld(cell), value, ease, byDistance);
-            if (!record) return;
-
-            _history.Push(pin.Id, from, cell);
+            Fly(pin, level.Grid.CellToWorld(cell), placeSpeed, placeEase, byDistance: false);
             var view = level.PinViews[pin.Id];
             PinDropped?.Invoke(view);
             // Targeting the view means a new grab (DOKill) cancels the over-stretch check.
@@ -250,15 +242,12 @@ namespace Runtime.Gameplay
                 .SetTarget(view.transform);
         }
 
-        public void MoveTo(BoardModel.Pin pin, Vector2Int cell, bool record) =>
-            MoveTo(pin, cell, record, undoSecondsPerUnit, undoEase, byDistance: true);
-
         private void RevertIfOverStretched(BoardModel.Pin pin, Vector2Int from, Vector2Int to)
         {
             if (pin.Cell != to || !Board.CanControl(pin) || pin == _dragged || !IsAnyRopeTooTense(pin)) return;
             if (!Board.IsCellFree(from)) return;
-            _history.DiscardLast(pin.Id);
-            MoveTo(pin, from, record: false);
+            Board.CommitMove(pin, from);
+            Fly(pin, level.Grid.CellToWorld(from), hopSecondsPerUnit, hopEase, byDistance: true);
             Reject(pin);
         }
 
@@ -275,6 +264,7 @@ namespace Runtime.Gameplay
             Fly(pin, level.Grid.CellToWorld(pin.Cell), placeSpeed, placeEase, byDistance: false);
         }
 
+        // byDistance: duration = distance * value (revert hop); otherwise value is a speed.
         private void Fly(BoardModel.Pin pin, Vector3 target, float value, Ease ease, bool byDistance)
         {
             var view = level.PinViews[pin.Id].transform;
@@ -282,7 +272,7 @@ namespace Runtime.Gameplay
             float duration = byDistance ? dist * value : dist / Mathf.Max(0.01f, value);
             level.SetPinPlaced(pin.Id, false);
             view.DOKill();
-            // A pin sent from its slot (undo, revert) hops over the ropes at drag height instead of ploughing
+            // A pin sent back from its slot hops over the ropes at drag height instead of ploughing
             // through them; a released drag is already lifted and just slides in.
             Tween tween = byDistance
                 ? view.DOJump(target, liftOffset.y, 1, duration)

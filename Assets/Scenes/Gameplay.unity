@@ -340,8 +340,8 @@ MonoBehaviour:
   revertCheckDelay: 0.2
   placeSpeed: 6
   placeEase: 3
-  undoSecondsPerUnit: 0.2
-  undoEase: 7
+  hopSecondsPerUnit: 0.2
+  hopEase: 7
 --- !u!114 &212080837
 MonoBehaviour:
   m_ObjectHideFlags: 0

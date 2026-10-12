@@ -36,7 +36,6 @@ namespace Runtime.UI
             timer.SecondsChanged += hud.SetTime;
 
             hud.RetryClicked += OnRetryClicked;
-            hud.UndoClicked += OnUndoClicked;
             hud.SettingsClicked += OnSettingsClicked;
             completePanel.ContinueClicked += OnContinueClicked;
             failPanel.RetryClicked += OnFailRetryClicked;
@@ -97,12 +96,6 @@ namespace Runtime.UI
         {
             PlayClick();
             flow.Retry();
-        }
-
-        private void OnUndoClicked()
-        {
-            PlayClick();
-            flow.Undo();
         }
 
         private void OnSettingsClicked()
