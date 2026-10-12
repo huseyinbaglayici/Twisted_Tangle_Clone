@@ -87,6 +87,8 @@ namespace Runtime.Gameplay
                 return;
             }
 
+            FollowDragTarget();
+
             if (Input.GetMouseButtonDown(0))
             {
                 if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject()) return;
@@ -129,11 +131,15 @@ namespace Runtime.Gameplay
                 var pin = _dragged;
                 CancelDrag();
                 Reject(pin);
-                return;
             }
+        }
 
+        // Every rendered frame, not per physics step, so the held pin moves smoothly at any frame rate.
+        private void FollowDragTarget()
+        {
+            if (_dragged == null || !Board.CanControl(_dragged)) return;
             var view = level.PinViews[_dragged.Id].transform;
-            view.position = Vector3.Lerp(view.position, _dragTarget, Mathf.Clamp01(Time.fixedDeltaTime * moveTime));
+            view.position = Vector3.Lerp(view.position, _dragTarget, Mathf.Clamp01(Time.deltaTime * moveTime));
         }
 
         // ---------- drag ----------

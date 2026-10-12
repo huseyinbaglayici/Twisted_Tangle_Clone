@@ -247,6 +247,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6c5fcf6a977aae34fba726a8e43209cb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  targetFrameRate: 144
 --- !u!1 &1667922895
 GameObject:
   m_ObjectHideFlags: 0
@@ -283,7 +284,7 @@ MonoBehaviour:
   synchronization: 2
   parameters:
     mode: 0
-    interpolation: 0
+    interpolation: 1
     gravity: {x: 0, y: -9.81, z: 0}
     ambientWind: {x: 0, y: 0, z: 0}
     foamGravityScale: 1
