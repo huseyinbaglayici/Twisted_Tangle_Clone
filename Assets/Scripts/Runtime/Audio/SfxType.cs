@@ -11,6 +11,7 @@ namespace Runtime.Audio
         LevelStart,
         ScissorsCut,
         FreezeShoot,
-        FreezeHit
+        FreezeHit,
+        Shuffle
     }
 }

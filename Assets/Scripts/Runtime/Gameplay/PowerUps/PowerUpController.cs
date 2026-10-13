@@ -17,6 +17,7 @@ namespace Runtime.Gameplay.PowerUps
         [SerializeField] private LevelTimer timer;
         [SerializeField] private ScissorsPowerUp scissors;
         [SerializeField] private TimeFreezePowerUp timeFreeze;
+        [SerializeField] private ShufflePowerUp shuffle;
         [SerializeField] private int countPerLevel = 3;
 
         private readonly int[] _counts = new int[Enum.GetValues(typeof(PowerUpType)).Length];
@@ -79,6 +80,7 @@ namespace Runtime.Gameplay.PowerUps
             switch (Active)
             {
                 case PowerUpType.TimeFreeze: timeFreeze.Confirm(); break;
+                case PowerUpType.Shuffle: shuffle.Confirm(); break;
             }
         }
 
@@ -102,6 +104,7 @@ namespace Runtime.Gameplay.PowerUps
             {
                 case PowerUpType.Scissors: scissors.Cancel(); break;
                 case PowerUpType.TimeFreeze: timeFreeze.Cancel(); break;
+                case PowerUpType.Shuffle: shuffle.Cancel(); break;
             }
             End();
         }

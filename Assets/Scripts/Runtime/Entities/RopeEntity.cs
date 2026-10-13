@@ -36,6 +36,7 @@ namespace Runtime.Entities
         [SerializeField] private float blinkDuration = 0.25f;
 
         private readonly List<Vector3> _pendingPositions = new();
+        private readonly List<int> _savedFilters = new();
         private Material _material;
         private Transform _startPoint, _endPoint;
         private Color _color;
@@ -164,6 +165,36 @@ namespace Runtime.Entities
             return true;
         }
 
+        // For a moment collide only with category 0 (floor and pins), so other ropes can slip through it.
+        public void IgnoreRopesFor(float delay, float seconds)
+        {
+            DOTween.Sequence().SetTarget(this)
+                .AppendInterval(delay)
+                .AppendCallback(() => SetRopeCollisions(false))
+                .AppendInterval(seconds)
+                .AppendCallback(() => SetRopeCollisions(true));
+        }
+
+        private void SetRopeCollisions(bool on)
+        {
+            if (!rope.isLoaded) return;
+            var filters = rope.solver.filters;
+            if (!on) _savedFilters.Clear();
+            for (int i = 0; i < rope.activeParticleCount; i++)
+            {
+                int s = rope.solverIndices[i];
+                if (on)
+                {
+                    if (i < _savedFilters.Count) filters[s] = _savedFilters[i];
+                }
+                else
+                {
+                    _savedFilters.Add(filters[s]);
+                    filters[s] = (1 << 16) | (filters[s] & 0xFFFF);
+                }
+            }
+        }
+
         private void LateUpdate()
         {
             if (Model == null || !rope.isLoaded) return;
@@ -188,6 +219,7 @@ namespace Runtime.Entities
             _blink = null;
             _blinkAmount = 0f;
             IsCut = false;
+            _savedFilters.Clear();
             rope.stretchingScale = 1f;
             attachmentA.target = null;
             attachmentB.target = null;
