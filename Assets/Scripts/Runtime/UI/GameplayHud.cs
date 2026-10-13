@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using DG.Tweening;
 using TMPro;
 using UnityEngine;
@@ -15,7 +16,7 @@ namespace Runtime.UI
         [SerializeField] private GameObject timeRoot;
         [SerializeField] private TMP_Text timeLabel;
         [SerializeField] private RectTransform alertTarget;
-        [SerializeField] private Color timeColor = Color.white;
+        [SerializeField] private Color timeColor = new(0.11f, 0.18f, 0.42f);
         [SerializeField] private Color alertColor = new(1f, 0.38f, 0.32f);
         [Tooltip("A single pulse when the clock reaches each of these; the last one keeps pulsing every second.")]
         [SerializeField] private int[] warnAtSeconds = { 30, 20, 10 };
@@ -23,6 +24,9 @@ namespace Runtime.UI
         [Header("Buttons")]
         [SerializeField] private Button retryButton;
         [SerializeField] private Button settingsButton;
+
+        [Header("Power-ups")]
+        [SerializeField] private PowerUpButton[] powerUps;
 
         [Header("Intro")]
         [SerializeField] private UiPanelAnimator header;
@@ -32,6 +36,8 @@ namespace Runtime.UI
 
         public event Action RetryClicked;
         public event Action SettingsClicked;
+
+        public IReadOnlyList<PowerUpButton> PowerUps => powerUps;
 
         private void Awake()
         {
@@ -58,7 +64,7 @@ namespace Runtime.UI
 
             bool ticking = _shownSeconds >= 0 && seconds < _shownSeconds;
             _shownSeconds = seconds;
-            timeLabel.text = seconds.ToString();
+            timeLabel.text = $"{seconds / 60:00}:{seconds % 60:00}";
             int last = warnAtSeconds.Length > 0 ? warnAtSeconds[^1] : 0;
             timeLabel.color = seconds <= last ? alertColor : timeColor;
             if (ticking && (seconds <= last || Array.IndexOf(warnAtSeconds, seconds) >= 0)) Pulse();
