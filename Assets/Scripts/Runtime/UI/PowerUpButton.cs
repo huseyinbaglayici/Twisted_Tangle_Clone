@@ -1,4 +1,5 @@
 using System;
+using Runtime.Gameplay.PowerUps;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -7,79 +8,29 @@ namespace Runtime.UI
 {
     public class PowerUpButton : MonoBehaviour
     {
+        [SerializeField] private PowerUpType type;
         [SerializeField] private Button button;
-        [SerializeField] private Image background;
-        [SerializeField] private GameObject icon;
 
-        [Header("Indicators")]
         [SerializeField] private GameObject countBadge;
         [SerializeField] private TMP_Text countLabel;
-        [SerializeField] private GameObject plusBadge;
-
-        [Header("States")]
-        [SerializeField] private GameObject lockedRoot;
-        [SerializeField] private TMP_Text unlockLevelLabel;
         [SerializeField] private GameObject dimOverlay;
         [SerializeField] private GameObject selectedGlow;
-        [SerializeField] private Color lockedBackground = new(0.62f, 0.66f, 0.72f);
 
-        [SerializeField] private int defaultCount = 3;
+        public event Action<PowerUpType> Clicked;
 
-        private Color _normalBackground;
+        public PowerUpType Type => type;
 
-        public event Action Clicked;
+        private void Awake() => button.onClick.AddListener(() => Clicked?.Invoke(type));
 
-        public int Count { get; private set; }
-        public bool Locked { get; private set; }
-        public bool Dimmed { get; private set; }
-        public bool Selected { get; private set; }
-
-        private void Awake()
+        // clickable: can be requested now, or is the one waiting for a target (tap again cancels).
+        // The count badge only shows on a clickable button.
+        public void Set(int count, bool clickable, bool selected)
         {
-            _normalBackground = background.color;
-            button.onClick.AddListener(() => Clicked?.Invoke());
-            Count = defaultCount;
-            Refresh();
-        }
-
-        public void SetCount(int count)
-        {
-            Count = Mathf.Max(0, count);
-            Refresh();
-        }
-
-        public void SetLocked(bool locked, int unlockLevel = 0)
-        {
-            Locked = locked;
-            unlockLevelLabel.text = $"Lv {unlockLevel}";
-            Refresh();
-        }
-
-        // Another power-up is in use, or this one can't be used right now.
-        public void SetDimmed(bool dimmed)
-        {
-            Dimmed = dimmed;
-            Refresh();
-        }
-
-        public void SetSelected(bool selected)
-        {
-            Selected = selected;
-            Refresh();
-        }
-
-        private void Refresh()
-        {
-            bool clickable = !Locked && !Dimmed;
             button.interactable = clickable;
-            background.color = Locked ? lockedBackground : _normalBackground;
-            icon.SetActive(!Locked);
-            lockedRoot.SetActive(Locked);
-            dimOverlay.SetActive(Dimmed && !Locked);
-            selectedGlow.SetActive(Selected && !Locked);
-            countLabel.text = Count.ToString();
-            countBadge.SetActive(clickable && Count > 0);
-            plusBadge.SetActive(clickable && Count == 0);
+            dimOverlay.SetActive(!clickable && !selected);
+            selectedGlow.SetActive(selected);
+            countLabel.text = count.ToString();
+            countBadge.SetActive(clickable && !selected && count > 0);
         }
     }
 }

@@ -5,6 +5,7 @@ namespace Runtime.Effects
         MergePop,
         PinPick,
         PinDrop,
-        LevelWinConfetti
+        LevelWinConfetti,
+        ScissorsCut
     }
 }

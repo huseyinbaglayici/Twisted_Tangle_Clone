@@ -8,6 +8,7 @@ namespace Runtime.Audio
         Deny,
         LevelComplete,
         ButtonClick,
-        LevelStart
+        LevelStart,
+        ScissorsCut
     }
 }

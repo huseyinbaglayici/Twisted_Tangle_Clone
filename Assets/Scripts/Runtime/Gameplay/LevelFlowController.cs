@@ -4,6 +4,7 @@ using Reflex.Attributes;
 using Runtime.Boostrap;
 using Runtime.Boostrap.Save;
 using Runtime.Effects;
+using Runtime.Gameplay.PowerUps;
 using Runtime.Level;
 using UnityEngine;
 
@@ -20,6 +21,7 @@ namespace Runtime.Gameplay
         [SerializeField] private WinChecker winChecker;
         [SerializeField] private TutorialController tutorial;
         [SerializeField] private LevelTimer timer;
+        [SerializeField] private PowerUpController powerUps;
         [Tooltip("0 = saved progress, otherwise always start on this level.")]
         [SerializeField] private int startLevelOverride;
 
@@ -60,6 +62,7 @@ namespace Runtime.Gameplay
             winChecker.Begin();
             timer.Begin(level.timeLimitSeconds);
             tutorial.Begin(level);
+            powerUps.BeginLevel();
             input.Enabled = true;
             LevelStarted?.Invoke(levelNumber);
         }
@@ -112,6 +115,7 @@ namespace Runtime.Gameplay
         private void Lock()
         {
             _finished = true;
+            powerUps.EndLevel();
             input.Enabled = false;
             winChecker.Stop();
             timer.Stop();

@@ -3,6 +3,7 @@ using Reflex.Attributes;
 using Runtime.Audio;
 using Runtime.Boostrap.Save;
 using Runtime.Gameplay;
+using Runtime.Gameplay.PowerUps;
 using UnityEngine;
 
 namespace Runtime.UI
@@ -15,12 +16,14 @@ namespace Runtime.UI
         [Header("Gameplay")]
         [SerializeField] private LevelFlowController flow;
         [SerializeField] private LevelTimer timer;
+        [SerializeField] private PowerUpController powerUps;
 
         [Header("Views")]
         [SerializeField] private GameplayHud hud;
         [SerializeField] private LevelCompletePanel completePanel;
         [SerializeField] private LevelFailPanel failPanel;
         [SerializeField] private SettingsPopup settings;
+        [SerializeField] private PowerUpPopup powerUpPopup;
 
         [Tooltip("Win event -> complete panel. Lets the last merge pop and the confetti play first.")]
         [SerializeField] private float completePanelDelay = 0.7f;
@@ -44,6 +47,10 @@ namespace Runtime.UI
             settings.SoundChanged += OnSoundChanged;
             settings.HapticsChanged += OnHapticsChanged;
             settings.Closed += OnSettingsClosed;
+
+            foreach (var button in hud.PowerUps) button.Clicked += OnPowerUpClicked;
+            powerUpPopup.ActionClicked += OnPowerUpConfirmed;
+            powerUps.Changed += RefreshPowerUps;
         }
 
         private void Start()
@@ -51,7 +58,9 @@ namespace Runtime.UI
             completePanel.Hide(true);
             failPanel.Hide(true);
             settings.Hide(true);
+            powerUpPopup.Hide(true);
             hud.Show();
+            RefreshPowerUps();
         }
 
         private void OnDestroy()
@@ -61,6 +70,7 @@ namespace Runtime.UI
             flow.LevelWon -= OnLevelWon;
             flow.LevelFailed -= OnLevelFailed;
             timer.SecondsChanged -= hud.SetTime;
+            powerUps.Changed -= RefreshPowerUps;
         }
 
         private void OnLevelStarted(int level)
@@ -102,12 +112,12 @@ namespace Runtime.UI
         {
             PlayClick();
             settings.Show(_audio.SoundOn, _save.HapticsOn);
-            timer.Frozen = true;
+            timer.Paused = true;
         }
 
         private void OnSettingsClosed()
         {
-            timer.Frozen = false;
+            timer.Paused = false;
             PlayClick();
         }
 
@@ -115,6 +125,33 @@ namespace Runtime.UI
         {
             PlayClick();
             flow.ExitToMenu();
+        }
+
+        private void OnPowerUpClicked(PowerUpType type)
+        {
+            PlayClick();
+            powerUps.Toggle(type);
+        }
+
+        private void OnPowerUpConfirmed()
+        {
+            PlayClick();
+            powerUps.Confirm();
+        }
+
+        private void RefreshPowerUps()
+        {
+            bool requested = powerUps.State == PowerUpState.Requested;
+            foreach (var button in hud.PowerUps)
+            {
+                var type = button.Type;
+                bool selected = powerUps.IsInUse && powerUps.Active == type;
+                bool clickable = powerUps.CanRequest(type) || (requested && selected);
+                button.Set(powerUps.Count(type), clickable, selected);
+            }
+
+            if (requested && !powerUpPopup.IsVisible) powerUpPopup.Show(powerUps.Active);
+            else if (!requested && powerUpPopup.IsVisible) powerUpPopup.Hide();
         }
 
         private void OnSoundChanged(bool on)

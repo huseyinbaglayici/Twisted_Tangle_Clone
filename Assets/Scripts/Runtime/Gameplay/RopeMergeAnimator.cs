@@ -1,5 +1,6 @@
 using System;
 using DG.Tweening;
+using Runtime.Entities;
 using Runtime.Level;
 using UnityEngine;
 
@@ -22,7 +23,8 @@ namespace Runtime.Gameplay
         public event Action<Vector3, Color> MergePopped;
         public event Action<Vector3> MergeCompleted;
 
-        public void Play(BoardModel.Rope rope)
+        // reelIn: shorten the rope while the pin hops; a cut rope is already in two pieces and skips it.
+        public void Play(BoardModel.Rope rope, bool reelIn = true)
         {
             if (!level.RopeViews.TryGetValue(rope.Id, out var ropeView)) return;
             var moverPin = BoardModel.MergeSource(rope);
@@ -42,8 +44,11 @@ namespace Runtime.Gameplay
             var seq = DOTween.Sequence().SetTarget(ropeView);
             seq.Append(source.DOJump(meet + Vector3.up * landHeight, hopHeight, 1, hopDuration).SetEase(hopEase));
             seq.Join(source.DORotateQuaternion(source.rotation * Quaternion.AngleAxis(flipAngle, Vector3.right), hopDuration));
-            float length = ropeView.RestLength;
-            seq.Join(DOTween.To(() => length, v => { ropeView.ChangeLength(v - length); length = v; }, 0f, hopDuration));
+            if (reelIn)
+            {
+                float length = ropeView.RestLength;
+                seq.Join(DOTween.To(() => length, v => { ropeView.ChangeLength(v - length); length = v; }, 0f, hopDuration));
+            }
             seq.Append(source.DOPunchScale(popScale, popDuration, 1, 1f));
             if (targetGoes) seq.Join(target.DOPunchScale(popScale, popDuration, 1, 1f));
             var pop = meet + Vector3.up * landHeight;
@@ -55,15 +60,39 @@ namespace Runtime.Gameplay
             });
             seq.Append(source.DOScale(0f, shrinkDuration));
             if (targetGoes) seq.Join(target.DOScale(0f, shrinkDuration));
-            seq.OnComplete(() =>
+            seq.OnComplete(() => Complete(rope, ropeView, meet));
+        }
+
+        // Both pins keep other ropes, so nothing travels: the rope pops between them.
+        public void Pop(BoardModel.Rope rope)
+        {
+            if (!level.RopeViews.TryGetValue(rope.Id, out var ropeView)) return;
+            var a = level.PinViews[rope.A.Id].transform.position;
+            var b = level.PinViews[rope.B.Id].transform.position;
+            var pop = (a + b) * 0.5f + Vector3.up * landHeight;
+            var color = ropeView.Color;
+
+            collisions.Ignore(ropeView.Obi);
+            MergeStarted?.Invoke(pop);
+            var seq = DOTween.Sequence().SetTarget(ropeView);
+            seq.AppendInterval(hopDuration);
+            seq.AppendCallback(() =>
             {
-                level.Board.CompleteMerge(rope, out bool removeA, out bool removeB);
-                collisions.Unignore(ropeView.Obi);
-                level.ReleaseRope(rope.Id);
-                if (removeA) level.ReleasePin(rope.A.Id);
-                if (removeB) level.ReleasePin(rope.B.Id);
-                MergeCompleted?.Invoke(meet);
+                ropeView.gameObject.SetActive(false);
+                MergePopped?.Invoke(pop, color);
             });
+            seq.AppendInterval(shrinkDuration);
+            seq.OnComplete(() => Complete(rope, ropeView, pop));
+        }
+
+        private void Complete(BoardModel.Rope rope, RopeEntity ropeView, Vector3 at)
+        {
+            level.Board.CompleteMerge(rope, out bool removeA, out bool removeB);
+            collisions.Unignore(ropeView.Obi);
+            level.ReleaseRope(rope.Id);
+            if (removeA) level.ReleasePin(rope.A.Id);
+            if (removeB) level.ReleasePin(rope.B.Id);
+            MergeCompleted?.Invoke(at);
         }
     }
 }

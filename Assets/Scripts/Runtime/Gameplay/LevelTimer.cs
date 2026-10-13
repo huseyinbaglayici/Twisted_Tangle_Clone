@@ -4,6 +4,8 @@ using UnityEngine;
 namespace Runtime.Gameplay
 {
     // At zero it waits until nothing is held or merging for timeUpGrace, since a last merge can still win.
+    // Paused (a popup is open) stops everything, the freeze countdown too; Held (a power-up in use) and an active
+    // freeze only stop the level clock.
     public class LevelTimer : MonoBehaviour
     {
         [SerializeField] private PinInputController input;
@@ -18,7 +20,11 @@ namespace Runtime.Gameplay
 
         public bool HasLimit { get; private set; }
         public int SecondsLeft { get; private set; }
-        public bool Frozen { get; set; }
+        public bool Paused { get; set; }
+        public bool Held { get; set; }
+        public float FreezeDuration { get; private set; }
+        public float FreezeRemaining { get; private set; }
+        public bool IsFreezeActive => FreezeRemaining > 0f;
 
         public void Begin(int seconds)
         {
@@ -26,6 +32,7 @@ namespace Runtime.Gameplay
             SecondsLeft = Mathf.Max(0, seconds);
             _counting = _checking = _stopped = false;
             _secondTimer = _graceTimer = 0f;
+            FreezeRemaining = 0f;
             SecondsChanged?.Invoke(HasLimit ? SecondsLeft : -1);
         }
 
@@ -33,12 +40,31 @@ namespace Runtime.Gameplay
         {
             _stopped = true;
             _counting = _checking = false;
+            FreezeRemaining = 0f;
+        }
+
+        // Using a power-up counts as the first move.
+        public void StartCountdown()
+        {
+            if (HasLimit && !_stopped && !_checking) _counting = true;
+        }
+
+        public void FreezeFor(float seconds)
+        {
+            FreezeDuration = seconds;
+            FreezeRemaining = seconds;
         }
 
         private void Update()
         {
-            if (!HasLimit || _stopped || Frozen) return;
+            if (!HasLimit || _stopped || Paused) return;
             float dt = Time.deltaTime;
+            if (IsFreezeActive)
+            {
+                FreezeRemaining = Mathf.Max(0f, FreezeRemaining - dt);
+                return;
+            }
+            if (Held) return;
 
             if (!_counting && !_checking && input.IsHoldingPin) _counting = true;
             if (_counting) Countdown(dt);

@@ -40,6 +40,9 @@ namespace Runtime.Gameplay
 
         public bool Succeeded { get; private set; }
 
+        // A power-up is reshaping the board: no natural merge or win until it finishes.
+        public bool MergesBlocked { get; set; }
+
         private BoardModel Board => level.Board;
 
         public void Begin()
@@ -56,7 +59,7 @@ namespace Runtime.Gameplay
 
         private void FixedUpdate()
         {
-            if (!_running || Succeeded || Time.time < _startTime || input.IsHoldingPin || !AllRopesReady()) return;
+            if (!_running || MergesBlocked || Succeeded || Time.time < _startTime || input.IsHoldingPin || !AllRopesReady()) return;
             float dt = Time.fixedDeltaTime;
 
             foreach (var rope in Board.Ropes)
@@ -123,6 +126,16 @@ namespace Runtime.Gameplay
             _states.Remove(rope);
             Board.BeginMerge(rope);
             mergeAnimator.Play(rope);
+        }
+
+        // Cut by a power-up: merges regardless of contacts. With no free end no pin can travel, so the rope just pops.
+        public void ForceMerge(BoardModel.Rope rope)
+        {
+            if (rope.Merged || rope.Merging) return;
+            _states.Remove(rope);
+            Board.BeginMerge(rope);
+            if (BoardModel.HasFreeEnd(rope)) mergeAnimator.Play(rope, reelIn: false);
+            else mergeAnimator.Pop(rope);
         }
 
         private void CollectGroup(BoardModel.Rope start)

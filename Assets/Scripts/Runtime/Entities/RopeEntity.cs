@@ -30,16 +30,24 @@ namespace Runtime.Entities
         [SerializeField] private float redTintFrom = 0.45f;
         [SerializeField] private Color tensionColor = Color.red;
 
+        [Header("Blink (power-up target)")]
+        [SerializeField] private Color blinkColor = Color.white;
+        [SerializeField, Range(0f, 1f)] private float blinkStrength = 0.65f;
+        [SerializeField] private float blinkDuration = 0.25f;
+
         private readonly List<Vector3> _pendingPositions = new();
         private Material _material;
         private Transform _startPoint, _endPoint;
         private Color _color;
         private bool _startShared, _endShared;
+        private Tween _blink;
+        private float _blinkAmount;
 
         public BoardModel.Rope Model { get; private set; }
         public ObiRope Obi => rope;
         public Color Color => _color;
         public bool IsReady => rope.isLoaded && _pendingPositions.Count == 0;
+        public bool IsCut { get; private set; }
 
         // 0 = at rest length, 1 = stretched to twice its rest length.
         public float Tension => rope.isLoaded && rope.restLength > 0.0001f ? rope.CalculateLength() / rope.restLength - 1f : 0f;
@@ -133,11 +141,35 @@ namespace Runtime.Entities
                 result.Add(solver.transform.TransformPoint(solver.positions[rope.solverIndices[i]]));
         }
 
+        public void SetBlink(bool on)
+        {
+            _blink?.Kill();
+            _blink = null;
+            _blinkAmount = 0f;
+            if (on)
+                _blink = DOTween.To(() => _blinkAmount, v => _blinkAmount = v, 1f, blinkDuration)
+                    .SetEase(Ease.Linear).SetLoops(-1, LoopType.Yoyo).SetTarget(this);
+        }
+
+        // Tears the rope at a segment (particle index -> index + 1) and lets both pieces shrink towards their pins.
+        // The first segment is never torn: its first particle sits on the pin.
+        public bool Cut(int segment, float shrink)
+        {
+            if (!rope.isLoaded || IsCut || rope.elements.Count < 2) return false;
+            int i = Mathf.Clamp(segment, 1, rope.elements.Count - 1);
+            if (!rope.Tear(rope.elements[i])) return false;
+            rope.RebuildConstraintsFromElements();
+            rope.stretchingScale = shrink;
+            IsCut = true;
+            return true;
+        }
+
         private void LateUpdate()
         {
             if (Model == null || !rope.isLoaded) return;
             float red = Mathf.InverseLerp(redTintFrom, 1f, TensionRatio);
-            SetColor(Color.Lerp(_color, tensionColor, red));
+            var color = Color.Lerp(_color, tensionColor, red);
+            SetColor(Color.Lerp(color, blinkColor, _blinkAmount * blinkStrength));
         }
 
         private void SetColor(Color c)
@@ -153,6 +185,10 @@ namespace Runtime.Entities
             rope.OnBlueprintLoaded -= OnBlueprintLoaded;
             transform.DOKill();
             DOTween.Kill(this);
+            _blink = null;
+            _blinkAmount = 0f;
+            IsCut = false;
+            rope.stretchingScale = 1f;
             attachmentA.target = null;
             attachmentB.target = null;
             _startPoint = _endPoint = null;

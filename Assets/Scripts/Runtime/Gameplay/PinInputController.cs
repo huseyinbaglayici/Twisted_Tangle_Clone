@@ -47,6 +47,8 @@ namespace Runtime.Gameplay
         public event Action<PinEntity> PinMoveRejected;
 
         public bool Enabled { get; set; } = true;
+        // A power-up is in use; kept apart from Enabled, which the level flow owns.
+        public bool Blocked { get; set; }
         public bool IsHoldingPin => _dragged != null || (_pressed != null && Board.CanControl(_pressed));
 
         private BoardModel Board => level.Board;
@@ -66,7 +68,7 @@ namespace Runtime.Gameplay
 
         private void Update()
         {
-            if (!Enabled)
+            if (!Enabled || Blocked)
             {
                 if (_dragged != null) AbortDrag();
                 _pressed = null;
