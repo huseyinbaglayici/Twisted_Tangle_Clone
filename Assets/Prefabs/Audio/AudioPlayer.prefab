@@ -77,4 +77,12 @@ MonoBehaviour:
     clip: {fileID: 8300000, guid: 461b31434ffbb494897c396dafc8b7f1, type: 3}
     volume: 0.9
     pitchRange: {x: 0.9, y: 1.12}
+  - type: 8
+    clip: {fileID: 8300000, guid: 9bdf03b63b5a39247a8e2484afe3f025, type: 3}
+    volume: 0.6
+    pitchRange: {x: 0.97, y: 1.03}
+  - type: 9
+    clip: {fileID: 8300000, guid: 54336e95891fcbb4b9971626bfaa5536, type: 3}
+    volume: 0.8
+    pitchRange: {x: 0.97, y: 1.03}
   sourceCount: 6

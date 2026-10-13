@@ -16,11 +16,13 @@ namespace Runtime.Gameplay.PowerUps
         [SerializeField] private WinChecker winChecker;
         [SerializeField] private LevelTimer timer;
         [SerializeField] private ScissorsPowerUp scissors;
+        [SerializeField] private TimeFreezePowerUp timeFreeze;
         [SerializeField] private int countPerLevel = 3;
 
         private readonly int[] _counts = new int[Enum.GetValues(typeof(PowerUpType)).Length];
         private bool _levelRunning;
         private bool _boardBusy;
+        private bool _frozen;
 
         public PowerUpType Active { get; private set; }
         public PowerUpState State { get; private set; }
@@ -70,9 +72,14 @@ namespace Runtime.Gameplay.PowerUps
             }
         }
 
+        // The popup's confirm button (the scissors start from a rope tap instead).
         public void Confirm()
         {
             if (State != PowerUpState.Requested) return;
+            switch (Active)
+            {
+                case PowerUpType.TimeFreeze: timeFreeze.Confirm(); break;
+            }
         }
 
         // Called by the power-up once its effect really starts: the count is spent here, not on request.
@@ -94,6 +101,7 @@ namespace Runtime.Gameplay.PowerUps
             switch (Active)
             {
                 case PowerUpType.Scissors: scissors.Cancel(); break;
+                case PowerUpType.TimeFreeze: timeFreeze.Cancel(); break;
             }
             End();
         }
@@ -106,7 +114,9 @@ namespace Runtime.Gameplay.PowerUps
             SetState(PowerUpState.Idle);
         }
 
-        private bool IsUsable(PowerUpType type) => true;
+        // Freezing only makes sense with a clock, and not twice at once.
+        private bool IsUsable(PowerUpType type) =>
+            type != PowerUpType.TimeFreeze || (timer.HasLimit && !timer.IsFreezeActive);
 
         private void SetState(PowerUpState state)
         {
@@ -117,8 +127,10 @@ namespace Runtime.Gameplay.PowerUps
         private void Update()
         {
             bool busy = _sceneFlow.IsBusy || winChecker.Succeeded || IsAnyRopeMerging();
-            if (busy == _boardBusy) return;
+            bool frozen = timer.IsFreezeActive;
+            if (busy == _boardBusy && frozen == _frozen) return;
             _boardBusy = busy;
+            _frozen = frozen;
             Changed?.Invoke();
         }
 

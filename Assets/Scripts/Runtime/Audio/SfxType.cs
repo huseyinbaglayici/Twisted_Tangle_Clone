@@ -9,6 +9,8 @@ namespace Runtime.Audio
         LevelComplete,
         ButtonClick,
         LevelStart,
-        ScissorsCut
+        ScissorsCut,
+        FreezeShoot,
+        FreezeHit
     }
 }
