@@ -58,6 +58,27 @@ namespace TwistedTangle.Editor.Utils
             return result;
         }
 
+        public static RopePaletteSO FindPalette()
+        {
+            foreach (var guid in AssetDatabase.FindAssets($"t:{nameof(RopePaletteSO)}"))
+            {
+                var palette = AssetDatabase.LoadAssetAtPath<RopePaletteSO>(AssetDatabase.GUIDToAssetPath(guid));
+                if (palette != null) return palette;
+            }
+            return null;
+        }
+
+        public static List<LevelJson> LoadAll()
+        {
+            var levels = new List<LevelJson>();
+            foreach (int n in ListLevelNumbers())
+            {
+                var level = Load(n);
+                if (level != null) levels.Add(level);
+            }
+            return levels;
+        }
+
         private static void EnsureFolder(string folder)
         {
             if (AssetDatabase.IsValidFolder(folder)) return;

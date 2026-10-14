@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace Editor.Geometry
@@ -38,6 +39,28 @@ namespace Editor.Geometry
         public static float PathLength(Vector2[] p)
         {
             float l = 0f; for (int i = 0; i < p.Length - 1; i++) l += Vector2.Distance(p[i], p[i + 1]); return l;
+        }
+
+        // Crossings as fractional point indices (segment + t), sorted along p. The half-open sign test counts a
+        // crossing through a shared path point once (grid-aligned ropes hit points exactly); crossings at a pin don't count.
+        public static List<(float onP, float onQ)> Crossings(Vector2[] p, Vector2[] q)
+        {
+            const float pinRadius = 0.05f;
+            var result = new List<(float, float)>();
+            for (int i = 0; i < p.Length - 1; i++)
+            for (int j = 0; j < q.Length - 1; j++)
+            {
+                float d1 = Cross(q[j], q[j + 1], p[i]), d2 = Cross(q[j], q[j + 1], p[i + 1]);
+                float d3 = Cross(p[i], p[i + 1], q[j]), d4 = Cross(p[i], p[i + 1], q[j + 1]);
+                if (d1 > 0f == d2 > 0f || d3 > 0f == d4 > 0f) continue;
+                float t = d1 / (d1 - d2);
+                var x = Vector2.Lerp(p[i], p[i + 1], t);
+                if (Vector2.Distance(x, p[0]) < pinRadius || Vector2.Distance(x, p[^1]) < pinRadius ||
+                    Vector2.Distance(x, q[0]) < pinRadius || Vector2.Distance(x, q[^1]) < pinRadius) continue;
+                result.Add((i + t, j + d3 / (d3 - d4)));
+            }
+            result.Sort((a, b) => a.Item1.CompareTo(b.Item1));
+            return result;
         }
     }
 

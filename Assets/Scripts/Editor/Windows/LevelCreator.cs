@@ -135,15 +135,7 @@ namespace Editor.Windows
             RefreshAll();
         }
 
-        private static RopePaletteSO FindPalette()
-        {
-            foreach (var guid in AssetDatabase.FindAssets($"t:{nameof(RopePaletteSO)}"))
-            {
-                var palette = AssetDatabase.LoadAssetAtPath<RopePaletteSO>(AssetDatabase.GUIDToAssetPath(guid));
-                if (palette != null) return palette;
-            }
-            return null;
-        }
+        private static RopePaletteSO FindPalette() => LevelFileUtility.FindPalette();
 
         private VisualElement BuildHelpSection()
         {
@@ -156,7 +148,7 @@ namespace Editor.Windows
                 "NEW LEVEL\n" +
                 "2. Set Level # and Map (map N = (3+N)×(5+N) grid), click 'New Level'.\n" +
                 "3. Pin tool: click a cell to add a pin, drag a pin to move it, right-click to remove.\n" +
-                "4. Rope tool: pick a color, click two pins. Rope reach is limited by max tension.\n" +
+                "4. Rope tool: pick a color, click two pins. New ropes get a slack path on top; front/back re-stacks over/under. Reach is limited by max tension.\n" +
                 "5. Lock tool: click a pin to lock/unlock it.\n" +
                 "6. Tutorial (optional): 'Pick' → click the pin, then the target cell.\n\n" +
                 "AI (any chat): AI Generate ↗ → copy prompt → paste the JSON answer → Import.\n\n" +
@@ -226,8 +218,8 @@ namespace Editor.Windows
             });
             bar.Add(_difficultyField);
 
-            _timeLimitField = CompactIntField("Time(s)", 0);
-            _timeLimitField.tooltip = "Time limit in seconds (0 = unlimited).";
+            _timeLimitField = CompactIntField("Time(s)", 120);
+            _timeLimitField.tooltip = "Time limit in seconds (must be > 0).";
             _timeLimitField.RegisterValueChangedCallback(e =>
             {
                 if (Level == null || Level.timeLimitSeconds == e.newValue) return;
@@ -750,7 +742,8 @@ namespace Editor.Windows
             AddMetricChip(metricsRow, m.LockedPinCount.ToString(), "locked");
             AddMetricChip(metricsRow, m.RopeCount.ToString(), "ropes");
             AddMetricChip(metricsRow, m.CrossingPairs.ToString(), "crossings", m.CrossingPairs == 0);
-            AddMetricChip(metricsRow, m.TangledRopes.ToString(), "tangled");
+            AddMetricChip(metricsRow, m.Hooks.ToString(), "hooks");
+            AddMetricChip(metricsRow, m.EstimatedMoves.ToString(), "est. moves");
             AddMetricChip(metricsRow, m.FreeCells.ToString(), "free cells");
             AddMetricChip(metricsRow, Level.timeLimitSeconds > 0 ? $"{Level.timeLimitSeconds}s" : "∞", "time");
             _validationContainer.Add(metricsRow);
@@ -981,7 +974,9 @@ namespace Editor.Windows
                 colorIndex = _colorIndex,
                 layer = Stage.ropes.Count == 0 ? 0 : Stage.ropes.Max(r => r.layer) + 1,
             };
+            rope.path = RopePathBuilder.Arc(Stage, rope, 0f);
             Stage.ropes.Add(rope);
+            RopePathBuilder.Restack(Stage, rope, onTop: true);
             _selectedRopeId = rope.id;
             _pendingPinId = -1;
         }
@@ -1004,6 +999,7 @@ namespace Editor.Windows
             if (Stage.ropes.Count <= 1) return;
             Undo.RecordObject(_session, "Rope To Front");
             rope.layer = Stage.ropes.Max(r => r.layer) + 1;
+            RopePathBuilder.Restack(Stage, rope, onTop: true);
         }
 
         private void SendToBack(RopeJson rope)
@@ -1011,6 +1007,7 @@ namespace Editor.Windows
             if (Stage.ropes.Count <= 1) return;
             Undo.RecordObject(_session, "Rope To Back");
             rope.layer = Stage.ropes.Min(r => r.layer) - 1;
+            RopePathBuilder.Restack(Stage, rope, onTop: false);
         }
 
         private void OnTutorialClick(Vector2Int cell, PinJson pin)

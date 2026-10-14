@@ -14,11 +14,13 @@ namespace Editor.Windows
 
         private static readonly List<string> DifficultyChoices = new() { "Easy", "Medium", "Hard" };
 
-        private IntegerField _mapId, _timeLimit, _refLevelId;
-        private DropdownField _difficulty;
-        private Label _refLabel, _statusLabel;
+        private const string AutoExamples = "Auto (2 from difficulty)";
+        private const string NoExamples = "None";
+
+        private IntegerField _mapId, _timeLimit;
+        private DropdownField _difficulty, _example;
+        private Label _profileLabel, _statusLabel;
         private TextField _jsonField;
-        private LevelJson _refLevel;
 
         [MenuItem("TwistedTangle/AI Level Generator")]
         public static void ShowWindow()
@@ -61,22 +63,21 @@ namespace Editor.Windows
             EditorPrefs.SetInt(P("Map"), _mapId?.value ?? 1);
             EditorPrefs.SetInt(P("Time"), _timeLimit?.value ?? 0);
             EditorPrefs.SetString(P("Diff"), _difficulty?.value ?? "Easy");
-            EditorPrefs.SetInt(P("RefId"), _refLevelId?.value ?? 0);
+            EditorPrefs.SetString(P("Example"), _example?.value ?? AutoExamples);
             EditorPrefs.SetString(P("Json"), _jsonField?.value ?? string.Empty);
         }
 
         private void ResetPrefs()
         {
-            foreach (var key in new[] { "Map", "Time", "Diff", "RefId", "Json" })
+            foreach (var key in new[] { "Map", "Time", "Diff", "Example", "Json" })
                 EditorPrefs.DeleteKey(P(key));
 
             _mapId?.SetValueWithoutNotify(1);
             _timeLimit?.SetValueWithoutNotify(0);
             _difficulty?.SetValueWithoutNotify("Easy");
-            _refLevelId?.SetValueWithoutNotify(0);
+            _example?.SetValueWithoutNotify(AutoExamples);
             _jsonField?.SetValueWithoutNotify(string.Empty);
-            _refLevel = null;
-            if (_refLabel != null) _refLabel.text = "No reference — AI generates freely.";
+            UpdateProfileLabel();
             if (_statusLabel != null) _statusLabel.text = " ";
         }
 
@@ -89,7 +90,7 @@ namespace Editor.Windows
             _mapId = CompactInt("Map", EditorPrefs.GetInt(P("Map"), 1));
             _mapId.tooltip = "Map id: grid = (3+N) × (5+N).";
             _timeLimit = CompactInt("Time(s)", EditorPrefs.GetInt(P("Time"), 0));
-            _timeLimit.tooltip = "Time limit in seconds (0 = unlimited).";
+            _timeLimit.tooltip = "Time limit in seconds (0 = median of the shipped levels of this difficulty).";
             row.Add(_mapId);
             row.Add(_timeLimit);
             s.Add(row);
@@ -100,20 +101,26 @@ namespace Editor.Windows
             _difficulty.labelElement.style.minWidth = 0;
             _difficulty.labelElement.style.width = StyleKeyword.Auto;
             _difficulty.style.flexShrink = 0;
+            _difficulty.RegisterValueChangedCallback(_ => UpdateProfileLabel());
             diffRow.Add(_difficulty);
             s.Add(diffRow);
 
-            var refRow = MakeRow();
-            refRow.AddToClassList(Css.RowWrap);
-            _refLevelId = CompactInt("Ref level", EditorPrefs.GetInt(P("RefId"), 0));
-            _refLevelId.tooltip = "Optional: enter a level number and click Load. The AI will mimic its style.";
-            refRow.Add(_refLevelId);
-            refRow.Add(Btn("Load", LoadReference, null));
-            s.Add(refRow);
+            var choices = new List<string> { AutoExamples, NoExamples };
+            foreach (int n in LevelFileUtility.ListLevelNumbers()) choices.Add($"Level {n}");
+            string savedExample = EditorPrefs.GetString(P("Example"), AutoExamples);
+            var exampleRow = MakeRow();
+            _example = new DropdownField("Examples", choices, Mathf.Max(0, choices.IndexOf(savedExample)));
+            _example.tooltip = "Shipped levels added to the prompt as examples of the output format and style.";
+            _example.labelElement.style.minWidth = 0;
+            _example.labelElement.style.width = StyleKeyword.Auto;
+            exampleRow.Add(_example);
+            s.Add(exampleRow);
 
-            _refLabel = new Label("No reference — AI generates freely.");
-            _refLabel.AddToClassList(Css.Hint);
-            s.Add(_refLabel);
+            _profileLabel = new Label();
+            _profileLabel.AddToClassList(Css.Hint);
+            _profileLabel.style.whiteSpace = WhiteSpace.Normal;
+            s.Add(_profileLabel);
+            UpdateProfileLabel();
             return s;
         }
 
@@ -121,7 +128,7 @@ namespace Editor.Windows
         {
             var s = MakeSection("1 · Copy prompt");
             var hint = new Label(
-                "Build a self-contained prompt and copy it to your clipboard. Paste it into any AI chat (Claude, ChatGPT, Gemini …).");
+                "Build a self-contained prompt and copy it to your clipboard. Paste it into any AI chat.");
             hint.AddToClassList(Css.Hint);
             hint.style.whiteSpace = WhiteSpace.Normal;
             s.Add(hint);
@@ -133,7 +140,7 @@ namespace Editor.Windows
         {
             var s = MakeSection("2 · Import JSON");
             var hint = new Label(
-                "Paste the AI's JSON response below, then click Import. The level loads into the Level Creator for review — validate before saving.");
+                "Paste the AI's JSON response below, then click Import. Rope paths are built from pins, bend and over/under; the level opens in the Level Creator — validate, then save.");
             hint.AddToClassList(Css.Hint);
             hint.style.whiteSpace = WhiteSpace.Normal;
             s.Add(hint);
@@ -179,16 +186,21 @@ namespace Editor.Windows
             return footer;
         }
 
-        private void LoadReference()
+        private void UpdateProfileLabel()
         {
-            int id = _refLevelId?.value ?? 0;
-            _refLevel = id > 0 ? LevelFileUtility.Load(id) : null;
-            if (_refLabel == null) return;
-            if (id <= 0) _refLabel.text = "No reference — AI generates freely.";
-            else if (_refLevel?.stages == null || _refLevel.stages.Count == 0) _refLabel.text = $"Level {id} not found.";
-            else
-                _refLabel.text = $"Reference: Level {id}  ·  map {_refLevel.stages[0].mapId}  ·  " +
-                                 $"{_refLevel.stages[0].ropes.Count} rope(s)";
+            if (_profileLabel == null) return;
+            var profile = LevelDataStats.Profile(_difficulty?.value ?? "Easy");
+            _profileLabel.text = profile.Levels.Count > 0 ? profile.Summary : "No shipped levels in this range.";
+        }
+
+        private List<LevelJson> PickExamples(string difficulty)
+        {
+            string choice = _example?.value ?? AutoExamples;
+            if (choice == NoExamples) return new List<LevelJson>();
+            if (choice == AutoExamples)
+                return LevelAiGenerator.PickExamples(difficulty, 2, System.Environment.TickCount);
+            var level = int.TryParse(choice.Replace("Level ", ""), out int n) ? LevelFileUtility.Load(n) : null;
+            return level != null ? new List<LevelJson> { level } : new List<LevelJson>();
         }
 
         private void CopyPrompt()
@@ -222,22 +234,15 @@ namespace Editor.Windows
 
         private LevelGenerationRequest BuildRequest()
         {
-            int paletteCount = 8;
-            foreach (var guid in AssetDatabase.FindAssets($"t:{nameof(RopePaletteSO)}"))
-            {
-                var palette = AssetDatabase.LoadAssetAtPath<RopePaletteSO>(AssetDatabase.GUIDToAssetPath(guid));
-                if (palette == null) continue;
-                paletteCount = palette.Count;
-                break;
-            }
-
+            var palette = LevelFileUtility.FindPalette();
+            string difficulty = _difficulty?.value ?? "Easy";
             return new LevelGenerationRequest
             {
                 MapId = Mathf.Max(1, _mapId?.value ?? 1),
                 TimeLimitSeconds = Mathf.Max(0, _timeLimit?.value ?? 0),
-                Difficulty = _difficulty?.value ?? "Easy",
-                PaletteCount = paletteCount,
-                ReferenceLevelDescription = _refLevel != null ? LevelAiGenerator.DescribeLevel(_refLevel) : null,
+                Difficulty = difficulty,
+                PaletteCount = palette != null && palette.Count > 0 ? palette.Count : 8,
+                Examples = PickExamples(difficulty),
             };
         }
 
