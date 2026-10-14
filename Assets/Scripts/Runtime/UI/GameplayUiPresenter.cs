@@ -24,6 +24,7 @@ namespace Runtime.UI
         [SerializeField] private LevelFailPanel failPanel;
         [SerializeField] private SettingsPopup settings;
         [SerializeField] private PowerUpPopup powerUpPopup;
+        [SerializeField] private DifficultyBanner difficultyBanner;
 
         [Tooltip("Win event -> complete panel. Lets the last merge pop and the confetti play first.")]
         [SerializeField] private float completePanelDelay = 0.7f;
@@ -76,7 +77,8 @@ namespace Runtime.UI
         private void OnLevelStarted(int level)
         {
             _pendingPanel?.Kill();
-            hud.SetLevel(level);
+            hud.SetLevel(level, flow.CurrentDifficulty);
+            difficultyBanner.Play(flow.CurrentDifficulty);
             if (completePanel.IsVisible) completePanel.Hide();
             if (failPanel.IsVisible) failPanel.Hide();
         }

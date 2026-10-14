@@ -29,6 +29,7 @@ namespace Runtime.Gameplay
         private bool _finished;
 
         public int CurrentLevel { get; private set; }
+        public LevelDifficulty CurrentDifficulty { get; private set; }
 
         public event Action<int> LevelStarted;
         public event Action<int> LevelWon;
@@ -58,6 +59,7 @@ namespace Runtime.Gameplay
             CurrentLevel = levelNumber;
             input.ResetState();
             var level = _levels.Load(levelNumber);
+            CurrentDifficulty = level.Difficulty;
             levelBuilder.Build(level);
             winChecker.Begin();
             timer.Begin(level.timeLimitSeconds);

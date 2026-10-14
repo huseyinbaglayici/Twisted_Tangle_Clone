@@ -13,6 +13,8 @@ namespace Runtime.Level
         public List<StageJson> stages = new();
         public TutorialJson tutorial;
 
+        public LevelDifficulty Difficulty => LevelDifficultyParser.Parse(difficulty);
+
         public bool HasTutorial => tutorial != null && tutorial.pinId >= 0 && stages.Count > 0
                                    && stages[0].pins.Exists(p => p.id == tutorial.pinId);
 
@@ -97,6 +99,19 @@ namespace Runtime.Level
             if (asset == null)
                 throw new InvalidOperationException($"Level json not found: {FileName(n)}");
             return LevelJson.FromJson(asset.text);
+        }
+
+        public LevelDifficulty DifficultyOf(int levelNumber)
+        {
+            var asset = Resources.Load<TextAsset>(Folder + FileName(FileNumber(levelNumber)));
+            if (asset == null) return LevelDifficulty.Easy;
+            return LevelDifficultyParser.Parse(JsonUtility.FromJson<DifficultyOnly>(asset.text).difficulty);
+        }
+
+        [Serializable]
+        private class DifficultyOnly
+        {
+            public string difficulty;
         }
 
         // Level numbers keep counting up after the last file. Past the end I replay the levels from

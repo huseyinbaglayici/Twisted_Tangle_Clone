@@ -25,7 +25,7 @@ namespace Editor.Windows
             Tutorial
         }
 
-        private static readonly List<string> DifficultyChoices = new() { "Easy", "Medium", "Hard" };
+        private static readonly List<string> DifficultyChoices = new() { "Easy", "Medium", "Hard", "VeryHard" };
 
         private LevelEditSession _session;
         private int _loadedLevelNumber;
