@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using DG.Tweening;
 using Reflex.Attributes;
 using Runtime.Boostrap.Save;
@@ -21,20 +22,32 @@ namespace Runtime.MainMenu
         private void Start()
         {
             int current = Mathf.Max(1, _save.Level);
-            var levels = new LevelRepository();
+            var tiles = new List<(Transform tile, int level)>();
             foreach (var label in GetComponentsInChildren<TMP_Text>(true))
             {
+                if (label.GetComponentInParent<DifficultyBadge>(true) != null) continue;
                 if (!int.TryParse(label.text, out int authored)) continue;
                 int level = current + authored - 1;
                 label.text = level.ToString();
-
-                var badge = label.transform.parent.GetComponentInChildren<DifficultyBadge>(true);
-                if (badge != null) badge.Set(levels.DifficultyOf(level));
+                tiles.Add((label.transform.parent, level));
             }
+
+            ShowBadges(tiles);
 
             if (focusRing == null) return;
             focusRing.DOScale(1f + focusScale, focusDuration).SetEase(Ease.InOutQuad)
                 .SetLoops(-1, LoopType.Yoyo).SetLink(gameObject);
+        }
+
+        // Runs after every tile is numbered, so a badge problem can never leave authored numbers behind.
+        private void ShowBadges(List<(Transform tile, int level)> tiles)
+        {
+            var levels = new LevelRepository();
+            foreach (var (tile, level) in tiles)
+            {
+                var badge = tile.GetComponentInChildren<DifficultyBadge>(true);
+                if (badge != null) badge.Set(levels.DifficultyOf(level));
+            }
         }
     }
 }
