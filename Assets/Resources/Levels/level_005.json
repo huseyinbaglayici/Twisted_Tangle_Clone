@@ -1,6 +1,6 @@
 {
  "timeLimitSeconds": 300,
- "difficulty": "Easy",
+ "difficulty": "Medium",
  "stages": [
   {
    "mapId": 1,
