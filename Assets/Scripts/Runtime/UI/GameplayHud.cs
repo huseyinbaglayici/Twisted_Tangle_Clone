@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using DG.Tweening;
-using Runtime.Level;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -12,7 +11,6 @@ namespace Runtime.UI
     {
         [Header("Level")]
         [SerializeField] private TMP_Text levelNumberLabel;
-        [SerializeField] private Image levelBadge;
 
         [Header("Time")]
         [SerializeField] private GameObject timeRoot;
@@ -35,7 +33,6 @@ namespace Runtime.UI
         [SerializeField] private UiPanelAnimator footer;
 
         private int _shownSeconds = -1;
-        private Color _levelBadgeColor;
 
         public event Action RetryClicked;
         public event Action SettingsClicked;
@@ -46,7 +43,6 @@ namespace Runtime.UI
         {
             retryButton.onClick.AddListener(() => RetryClicked?.Invoke());
             settingsButton.onClick.AddListener(() => SettingsClicked?.Invoke());
-            _levelBadgeColor = levelBadge.color;
         }
 
         public void Show()
@@ -55,11 +51,7 @@ namespace Runtime.UI
             if (footer != null) footer.Show();
         }
 
-        public void SetLevel(int level, LevelDifficulty difficulty)
-        {
-            levelNumberLabel.text = level.ToString();
-            levelBadge.color = DifficultyStyle.ColorOf(difficulty, _levelBadgeColor);
-        }
+        public void SetLevel(int level) => levelNumberLabel.text = level.ToString();
 
         public void SetTime(int seconds)
         {

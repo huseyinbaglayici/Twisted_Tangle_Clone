@@ -1,5 +1,4 @@
 using DG.Tweening;
-using Runtime.Level;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -14,8 +13,6 @@ namespace Runtime.UI
         [SerializeField] private RectTransform title;
         [SerializeField] private TMP_Text titleLabel;
         [SerializeField] private Image icon;
-        [SerializeField] private Sprite hardIcon;
-        [SerializeField] private Sprite veryHardIcon;
 
         [SerializeField] private float holdDuration = 1.8f;
         [SerializeField] private float hideDuration = 0.5f;
@@ -26,19 +23,19 @@ namespace Runtime.UI
         private float _dimAlpha;
         private Sequence _sequence;
 
-        public void Play(LevelDifficulty difficulty)
+        public void Play(DifficultyStyle.Theme theme)
         {
             Init();
             _sequence?.Kill();
-            if (!difficulty.IsHard())
+            if (theme == null)
             {
                 gameObject.SetActive(false);
                 return;
             }
 
-            ribbon.color = DifficultyStyle.ColorOf(difficulty, ribbon.color);
-            icon.sprite = difficulty == LevelDifficulty.VeryHard ? veryHardIcon : hardIcon;
-            titleLabel.text = DifficultyStyle.NameOf(difficulty) + "\nLEVEL";
+            ribbon.color = theme.ribbon;
+            icon.sprite = theme.icon;
+            titleLabel.text = theme.name + "\nLEVEL";
 
             gameObject.SetActive(true);
             _group.alpha = 1f;

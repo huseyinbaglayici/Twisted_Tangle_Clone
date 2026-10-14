@@ -26,14 +26,19 @@ namespace Runtime.UI
         [SerializeField] private PowerUpPopup powerUpPopup;
         [SerializeField] private DifficultyBanner difficultyBanner;
 
+        [Header("Difficulty")]
+        [SerializeField] private DifficultyStyle difficultyStyle;
+
         [Tooltip("Win event -> complete panel. Lets the last merge pop and the confetti play first.")]
         [SerializeField] private float completePanelDelay = 0.7f;
 
         private Tween _pendingPanel;
+        private DifficultyTint[] _tints;
 
         // Awake, not Start: the flow already starts the first level in its own Start.
         private void Awake()
         {
+            _tints = GetComponentsInChildren<DifficultyTint>(true);
             flow.LevelStarted += OnLevelStarted;
             flow.LevelWon += OnLevelWon;
             flow.LevelFailed += OnLevelFailed;
@@ -77,8 +82,10 @@ namespace Runtime.UI
         private void OnLevelStarted(int level)
         {
             _pendingPanel?.Kill();
-            hud.SetLevel(level, flow.CurrentDifficulty);
-            difficultyBanner.Play(flow.CurrentDifficulty);
+            hud.SetLevel(level);
+            var theme = difficultyStyle.For(flow.CurrentDifficulty);
+            foreach (var tint in _tints) tint.Apply(theme);
+            difficultyBanner.Play(theme);
             if (completePanel.IsVisible) completePanel.Hide();
             if (failPanel.IsVisible) failPanel.Hide();
         }

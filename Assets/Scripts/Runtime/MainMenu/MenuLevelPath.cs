@@ -15,6 +15,7 @@ namespace Runtime.MainMenu
     {
         [Inject] private SaveService _save;
 
+        [SerializeField] private DifficultyStyle difficultyStyle;
         [SerializeField] private RectTransform focusRing;
         [SerializeField] private float focusScale = 0.15f;
         [SerializeField] private float focusDuration = 1f;
@@ -39,14 +40,15 @@ namespace Runtime.MainMenu
                 .SetLoops(-1, LoopType.Yoyo).SetLink(gameObject);
         }
 
-        // Runs after every tile is numbered, so a badge problem can never leave authored numbers behind.
+        // Runs after every tile is numbered, so a missing style or level file can never leave authored numbers behind.
         private void ShowBadges(List<(Transform tile, int level)> tiles)
         {
+            if (difficultyStyle == null) return;
             var levels = new LevelRepository();
             foreach (var (tile, level) in tiles)
             {
                 var badge = tile.GetComponentInChildren<DifficultyBadge>(true);
-                if (badge != null) badge.Set(levels.DifficultyOf(level));
+                if (badge != null) badge.Set(difficultyStyle.For(levels.DifficultyOf(level)));
             }
         }
     }

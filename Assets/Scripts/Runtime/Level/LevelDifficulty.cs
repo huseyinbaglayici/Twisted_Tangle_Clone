@@ -21,7 +21,5 @@ namespace Runtime.Level
                 _ => LevelDifficulty.Easy
             };
         }
-
-        public static bool IsHard(this LevelDifficulty difficulty) => difficulty >= LevelDifficulty.Hard;
     }
 }

@@ -1,0 +1,38 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 28adb98d03970e140b230b633fef7172, type: 3}
+  m_Name: DifficultyStyle
+  m_EditorClassIdentifier: 
+  hard:
+    name: HARD
+    icon: {fileID: 21300000, guid: 28c99b8c9cfd7674fbaf21962d4453f1, type: 3}
+    pattern: {fileID: 21300000, guid: 0213ba463da6e9242943a1682c872ec4, type: 3}
+    label: {fileID: 21300000, guid: 0d4debf4ffa55344b803b11e7731b3c3, type: 3}
+    header: {r: 0.5411765, g: 0.1882353, b: 0.78039217, a: 1}
+    badge: {r: 0.57254905, g: 0.21960784, b: 0.8117647, a: 1}
+    tab: {r: 0.4117647, g: 0.18039216, b: 0.6666667, a: 1}
+    button: {r: 0.57254905, g: 0.40392157, b: 0.9647059, a: 1}
+    bar: {r: 0.4117647, g: 0.18039216, b: 0.6666667, a: 0.4509804}
+    ribbon: {r: 0.49019608, g: 0.19607843, b: 0.8745098, a: 1}
+    backdrop: {r: 0.2901961, g: 0.101960786, b: 0.52156866, a: 0.6313726}
+  veryHard:
+    name: SUPER HARD
+    icon: {fileID: 21300000, guid: 760f08fbf1f3ed44085c0b5ef010a8a8, type: 3}
+    pattern: {fileID: 21300000, guid: 9f879a3a381744847bc8acdf1ae47c73, type: 3}
+    label: {fileID: 21300000, guid: 1033a5ee203838641b1531c88e10a907, type: 3}
+    header: {r: 0.67058825, g: 0.11372549, b: 0.10980392, a: 1}
+    badge: {r: 0.7176471, g: 0.1254902, b: 0.1254902, a: 1}
+    tab: {r: 0.5882353, g: 0.16862746, b: 0.13725491, a: 1}
+    button: {r: 0.7647059, g: 0.38431373, b: 0.38431373, a: 1}
+    bar: {r: 0.5882353, g: 0.16862746, b: 0.13725491, a: 0.4509804}
+    ribbon: {r: 0.78039217, g: 0.1254902, b: 0.06666667, a: 1}
+    backdrop: {r: 0.47843137, g: 0.078431375, b: 0.078431375, a: 0.6313726}

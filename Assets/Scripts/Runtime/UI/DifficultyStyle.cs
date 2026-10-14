@@ -1,21 +1,65 @@
+using System;
 using Runtime.Level;
 using UnityEngine;
 
 namespace Runtime.UI
 {
-    public static class DifficultyStyle
+    public enum DifficultySlot
     {
-        public static readonly Color Hard = new(0.58f, 0.3f, 0.92f);
-        public static readonly Color VeryHard = new(0.9f, 0.2f, 0.24f);
+        Header,
+        Badge,
+        Tab,
+        Button,
+        Bar,
+        Ribbon,
+        Backdrop,
+        Pattern,
+        Icon,
+        Title
+    }
 
-        public static Color ColorOf(LevelDifficulty difficulty, Color normal) => difficulty switch
+    // Per-difficulty look of every tinted UI piece. Easy and Medium have no theme and keep the authored look.
+    [CreateAssetMenu(fileName = "DifficultyStyle", menuName = "TwistedTangle/Difficulty Style", order = 3)]
+    public class DifficultyStyle : ScriptableObject
+    {
+        [Serializable]
+        public class Theme
         {
-            LevelDifficulty.Hard => Hard,
-            LevelDifficulty.VeryHard => VeryHard,
-            _ => normal
-        };
+            public string name;
+            public Sprite icon;
+            public Sprite pattern;
+            public Sprite label;
+            public Color header = Color.white;
+            public Color badge = Color.white;
+            public Color tab = Color.white;
+            public Color button = Color.white;
+            public Color bar = Color.white;
+            public Color ribbon = Color.white;
+            public Color backdrop = Color.white;
 
-        public static string NameOf(LevelDifficulty difficulty) =>
-            difficulty == LevelDifficulty.VeryHard ? "SUPER HARD" : "HARD";
+            public string LevelTitle => name + " LEVEL";
+
+            public Color ColorOf(DifficultySlot slot) => slot switch
+            {
+                DifficultySlot.Header => header,
+                DifficultySlot.Badge => badge,
+                DifficultySlot.Tab => tab,
+                DifficultySlot.Button => button,
+                DifficultySlot.Bar => bar,
+                DifficultySlot.Ribbon => ribbon,
+                DifficultySlot.Backdrop => backdrop,
+                _ => Color.white
+            };
+        }
+
+        [SerializeField] private Theme hard = new();
+        [SerializeField] private Theme veryHard = new();
+
+        public Theme For(LevelDifficulty difficulty) => difficulty switch
+        {
+            LevelDifficulty.Hard => hard,
+            LevelDifficulty.VeryHard => veryHard,
+            _ => null
+        };
     }
 }
