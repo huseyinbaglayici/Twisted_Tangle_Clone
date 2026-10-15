@@ -16,6 +16,7 @@ GameObject:
   - component: {fileID: 3258627449806994153}
   - component: {fileID: 8794757549826458310}
   - component: {fileID: 8180351161673239713}
+  - component: {fileID: 230528121464254591}
   m_Layer: 0
   m_Name: Rope
   m_TagString: Untagged
@@ -198,3 +199,32 @@ MonoBehaviour:
   tensionCeiling: 1.25
   redTintFrom: 0.45
   tensionColor: {r: 1, g: 0, b: 0, a: 1}
+  blinkColor: {r: 1, g: 1, b: 1, a: 1}
+  blinkStrength: 0.65
+  blinkDuration: 0.25
+--- !u!114 &230528121464254591
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1603571905183749201}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c4747da60837c44f9ba4b4a86879bcc8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  material: {fileID: 2100000, guid: c85abfd0b8c70ec40826b966fa175f41, type: 2}
+  renderParameters:
+    layer: 0
+    lightProbeUsage: 1
+    reflectionProbeUsage: 1
+    shadowCastingMode: 0
+    receiveShadows: 1
+    motionVectors: 0
+    renderingLayerMask: 4294967295
+  uvAnchor: 0
+  uvScale: {x: 1, y: 1}
+  normalizeV: 0
+  section: {fileID: 11400000, guid: a0bc36a59515f413e90e10895929c938, type: 2}
+  thicknessScale: 0.85
