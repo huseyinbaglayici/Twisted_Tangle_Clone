@@ -42,7 +42,7 @@ MonoBehaviour:
   m_SupportProbeVolumeScenarioBlending: 0
   m_ProbeVolumeSHBands: 1
   m_MainLightRenderingMode: 1
-  m_MainLightShadowsSupported: 1
+  m_MainLightShadowsSupported: 0
   m_MainLightShadowmapResolution: 1024
   m_AdditionalLightsRenderingMode: 1
   m_AdditionalLightsPerObjectLimit: 2
@@ -62,7 +62,7 @@ MonoBehaviour:
   m_ShadowDepthBias: 1
   m_ShadowNormalBias: 1
   m_AnyShadowsSupported: 1
-  m_SoftShadowsSupported: 1
+  m_SoftShadowsSupported: 0
   m_ConservativeEnclosingSphere: 0
   m_NumIterationsEnclosingSphere: 64
   m_SoftShadowQuality: 2

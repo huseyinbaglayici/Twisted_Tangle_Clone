@@ -10,6 +10,7 @@ namespace Editor.Input
         public const string ToolLock = "tool.lock";
         public const string ToolErase = "tool.erase";
         public const string ToolBlock = "tool.block";
+        public const string ToolFunnel = "tool.funnel";
 
         public const string Save = "level.save";
         public const string Load = "level.load";
@@ -30,6 +31,7 @@ namespace Editor.Input
             new(ToolLock, "Tools", "Lock tool", new KeyCombo(KeyCode.K)),
             new(ToolErase, "Tools", "Erase tool", new KeyCombo(KeyCode.E)),
             new(ToolBlock, "Tools", "Block tool", new KeyCombo(KeyCode.B)),
+            new(ToolFunnel, "Tools", "Funnel tool", new KeyCombo(KeyCode.F)),
 
             new(Save, "Level", "Save level", new KeyCombo(KeyCode.S, ctrl: true)),
             new(Load, "Level", "Load level", new KeyCombo(KeyCode.L, ctrl: true)),

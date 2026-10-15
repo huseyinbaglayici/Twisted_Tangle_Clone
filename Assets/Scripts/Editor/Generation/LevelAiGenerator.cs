@@ -31,6 +31,7 @@ namespace TwistedTangle.Editor.Generation
         public List<AiRopeJson> ropes = new();
         public List<AiCrossingJson> crossings = new();
         public List<Vector2Int> blockedCells = new();
+        public List<Vector2Int> funnelCells = new();
     }
 
     [Serializable]
@@ -99,6 +100,7 @@ namespace TwistedTangle.Editor.Generation
             sb.AppendLine("- A rope may run through more than two pins: write it as one rope per stretch, same colorIndex, " +
                           "each stretch starting on the pin the previous one ended on.");
             sb.AppendLine("- blockedCells are closed holes: no pin starts there and no pin can be dropped there.");
+            sb.AppendLine("- funnelCells hold a post: ropes wrap around it and catch on it; no pin starts or lands there.");
             sb.AppendLine("- A move drags one unlocked pin to an empty cell. Locked pins never move.");
             sb.AppendLine($"- Reach: a dragged pin stays within {reach:0.##} cells of the other pin of each of its ropes; " +
                           $"a drop that stretches a rope past {maxLen:0.##} cells is cancelled (tension).");
@@ -122,7 +124,8 @@ namespace TwistedTangle.Editor.Generation
             sb.AppendLine(" \"pins\":[{\"id\":0,\"x\":0,\"y\":3,\"locked\":false}],");
             sb.AppendLine(" \"ropes\":[{\"id\":0,\"pinA\":0,\"pinB\":1,\"colorIndex\":0,\"layer\":0,\"bend\":0.0}],");
             sb.AppendLine(" \"crossings\":[{\"a\":0,\"b\":1,\"onTop\":[1]}],");
-            sb.AppendLine(" \"blockedCells\":[{\"x\":2,\"y\":2}]}");
+            sb.AppendLine(" \"blockedCells\":[{\"x\":2,\"y\":2}],");
+            sb.AppendLine(" \"funnelCells\":[{\"x\":1,\"y\":4}]}");
             sb.AppendLine("- layer: higher = on top where ropes cross (used when a pair has no crossings entry).");
             sb.AppendLine("- bend: sideways bulge of the rope middle in cells, + = left of pinA→pinB, - = right, 0 = natural slack.");
             sb.AppendLine("- crossings: per rope pair, the rope id on top at each crossing in order along rope a from its pinA. " +
@@ -196,6 +199,7 @@ namespace TwistedTangle.Editor.Generation
                 gridHeight = StageJson.HeightForMap(mapId),
                 pins = ai.pins,
                 blockedCells = ai.blockedCells ?? new List<Vector2Int>(),
+                funnelCells = ai.funnelCells ?? new List<Vector2Int>(),
                 ropes = ai.ropes.Select(r => new RopeJson
                     { id = r.id, pinA = r.pinA, pinB = r.pinB, colorIndex = r.colorIndex, layer = r.layer }).ToList(),
             };
@@ -232,6 +236,7 @@ namespace TwistedTangle.Editor.Generation
                 mapId = stage.mapId,
                 pins = stage.pins,
                 blockedCells = stage.blockedCells,
+                funnelCells = stage.funnelCells,
                 ropes = stage.ropes.Select(r => new AiRopeJson
                 {
                     id = r.id, pinA = r.pinA, pinB = r.pinB, colorIndex = r.colorIndex, layer = r.layer,

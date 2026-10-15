@@ -19,5 +19,6 @@ namespace TwistedTangle.Editor.Utils
 
         public static readonly Color PegShadow      = new(0.06f, 0.06f, 0.06f, 0.88f);
         public static readonly Color PinDefault     = new(0.85f, 0.85f, 0.85f);
+        public static readonly Color Funnel         = new(0.89f, 0.55f, 0f);
     }
 }

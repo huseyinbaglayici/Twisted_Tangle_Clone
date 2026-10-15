@@ -136,10 +136,23 @@ namespace Runtime.UI
             flow.ExitToMenu();
         }
 
+        // The popup explains a power-up the first time only; after that it starts straight away
+        // (the scissors still wait for a rope tap).
         private void OnPowerUpClicked(PowerUpType type)
         {
             PlayClick();
             powerUps.Toggle(type);
+            if (powerUps.State != PowerUpState.Requested) return;
+
+            string key = type.ToString();
+            if (_save.IsTutorialShown(key))
+            {
+                powerUps.Confirm();
+                return;
+            }
+
+            _save.MarkTutorialShown(key);
+            powerUpPopup.Show(type);
         }
 
         private void OnPowerUpConfirmed()
@@ -159,8 +172,7 @@ namespace Runtime.UI
                 button.Set(powerUps.Count(type), clickable, selected);
             }
 
-            if (requested && !powerUpPopup.IsVisible) powerUpPopup.Show(powerUps.Active);
-            else if (!requested && powerUpPopup.IsVisible) powerUpPopup.Hide();
+            if (!requested && powerUpPopup.IsVisible) powerUpPopup.Hide();
         }
 
         private void OnSoundChanged(bool on)

@@ -12,6 +12,8 @@ namespace Runtime.Entities
 
         [SerializeField] private Renderer pinRenderer;
         [SerializeField] private Transform ropeAnchor;
+        [Tooltip("The body texture is mid-grey; this lifts the tinted pin back up to its rope's brightness.")]
+        [SerializeField] private float colorBoost = 1.6f;
 
         [Header("Locked (nailed) pin")]
         [SerializeField] private GameObject lockVisual;
@@ -33,7 +35,7 @@ namespace Runtime.Entities
             Model = model;
             transform.position = world;
             transform.localScale = Vector3.one;
-            SetColor(model.Locked ? lockedBodyColor : color);
+            SetColor((model.Locked ? lockedBodyColor : color) * colorBoost);
             if (lockVisual != null) lockVisual.SetActive(model.Locked);
         }
 

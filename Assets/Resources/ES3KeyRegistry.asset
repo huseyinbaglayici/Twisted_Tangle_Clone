@@ -48,3 +48,24 @@ MonoBehaviour:
     boolDefault: 1
     stringDefault: 
     byteDefault: 0
+  - key: ScissorsTutorialShown
+    type: 2
+    intDefault: 0
+    floatDefault: 0
+    boolDefault: 0
+    stringDefault: 
+    byteDefault: 0
+  - key: TimeFreezeTutorialShown
+    type: 2
+    intDefault: 0
+    floatDefault: 0
+    boolDefault: 0
+    stringDefault: 
+    byteDefault: 0
+  - key: ShuffleTutorialShown
+    type: 2
+    intDefault: 0
+    floatDefault: 0
+    boolDefault: 0
+    stringDefault: 
+    byteDefault: 0

@@ -127,6 +127,17 @@ namespace Editor.Canvas
                 p.Fill();
             }
 
+            if (Stage.funnelCells != null)
+            {
+                p.fillColor = EditorColors.Funnel;
+                foreach (var cell in Stage.funnelCells)
+                {
+                    p.BeginPath();
+                    p.Arc(ToPx(cell), CellSize * 0.24f, Angle.Degrees(0f), Angle.Degrees(360f));
+                    p.Fill();
+                }
+            }
+
             if (Stage.blockedCells != null)
             {
                 float br = CellSize * 0.3f;

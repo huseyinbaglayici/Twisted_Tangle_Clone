@@ -34,6 +34,8 @@ namespace Runtime.Level
         public List<RopeJson> ropes = new();
         // Holes that never take a pin: nothing starts or can be dropped there.
         public List<Vector2Int> blockedCells = new();
+        // Posts the ropes wrap around; a post cell never takes a pin either.
+        public List<Vector2Int> funnelCells = new();
 
         public static int WidthForMap(int mapId) => 3 + mapId;
         public static int HeightForMap(int mapId) => 5 + mapId;

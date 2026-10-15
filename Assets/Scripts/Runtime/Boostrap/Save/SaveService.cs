@@ -7,6 +7,7 @@ namespace Runtime.Boostrap.Save
         private const string LevelKey = "Level";
         private const string SoundOnKey = "SoundOn";
         private const string HapticsOnKey = "HapticsOn";
+        private const string TutorialShownSuffix = "TutorialShown";
 
         public int Level
         {
@@ -25,5 +26,10 @@ namespace Runtime.Boostrap.Save
             get => ES3Keys.LoadBool(HapticsOnKey);
             set => ES3Keys.SaveBool(HapticsOnKey, value);
         }
+
+        // One flag per power-up: its explaining popup shows only the first time it is used.
+        public bool IsTutorialShown(string powerUp) => ES3Keys.LoadBool(powerUp + TutorialShownSuffix);
+
+        public void MarkTutorialShown(string powerUp) => ES3Keys.SaveBool(powerUp + TutorialShownSuffix, true);
     }
 }

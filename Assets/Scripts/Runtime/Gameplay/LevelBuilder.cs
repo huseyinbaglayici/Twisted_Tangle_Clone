@@ -43,7 +43,7 @@ namespace Runtime.Gameplay
             {
                 var c = new Vector2Int(x, y);
                 var cell = cellPool.Dequeue();
-                cell.Setup(c, Grid.CellToWorld(c), Board.IsBlocked(c));
+                cell.Setup(c, Grid.CellToWorld(c), Board.IsBlocked(c), Board.IsFunnel(c));
                 Cells[c] = cell;
             }
 

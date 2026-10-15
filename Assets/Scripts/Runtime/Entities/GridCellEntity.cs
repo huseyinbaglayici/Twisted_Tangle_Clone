@@ -10,6 +10,7 @@ namespace Runtime.Entities
         [SerializeField] private SpriteRenderer dropRing;
         [SerializeField] private SpriteRenderer originRing;
         [SerializeField] private GameObject blockedVisual;
+        [SerializeField] private GameObject funnel;
         [SerializeField] private float originPulseScale = 1.1f;
         [SerializeField] private float originPulseDuration = 0.4f;
 
@@ -22,10 +23,11 @@ namespace Runtime.Entities
             if (originRing != null) _originScale = originRing.transform.localScale;
         }
 
-        public void Setup(Vector2Int cell, Vector3 world, bool blocked)
+        public void Setup(Vector2Int cell, Vector3 world, bool blocked, bool hasFunnel)
         {
             Cell = cell;
             if (blockedVisual != null) blockedVisual.SetActive(blocked);
+            if (funnel != null) funnel.SetActive(hasFunnel);
             transform.position = world;
             transform.localScale = Vector3.one * baseScale;
             SetHighlight(false);

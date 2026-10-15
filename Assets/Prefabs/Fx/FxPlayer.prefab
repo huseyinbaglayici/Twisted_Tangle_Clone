@@ -46,7 +46,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   effects:
   - type: 0
-    prefab: {fileID: 5315978485926710499, guid: 85fcca4196caec54d89634a21490ee52,
+    prefab: {fileID: 7879038641963082610, guid: 482997bd5d687674aae61ac28ce7d461,
       type: 3}
     prewarm: 4
   - type: 1

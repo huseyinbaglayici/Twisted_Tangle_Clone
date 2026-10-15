@@ -23,6 +23,7 @@ namespace Editor.Windows
             Lock,
             Erase,
             Block,
+            Funnel,
             Tutorial
         }
 
@@ -71,6 +72,7 @@ namespace Editor.Windows
             { Tool.Lock, LevelEditorCommands.ToolLock },
             { Tool.Erase, LevelEditorCommands.ToolErase },
             { Tool.Block, LevelEditorCommands.ToolBlock },
+            { Tool.Funnel, LevelEditorCommands.ToolFunnel },
         };
 
         private LevelJson Level => _session != null ? _session.level : null;
@@ -151,7 +153,7 @@ namespace Editor.Windows
                 "2. Set Level # and Map (map N = (3+N)×(5+N) grid), click 'New Level'.\n" +
                 "3. Pin tool: click a cell to add a pin, drag a pin to move it, right-click to remove.\n" +
                 "4. Rope tool: pick a color, click pins one after another to run one rope through several pins (right-click ends it). New ropes get a slack path on top; front/back re-stacks over/under. Reach is limited by max tension.\n" +
-                "5. Lock tool: click a pin to lock/unlock it. Block tool: click an empty cell to close / open it (no pin can land there).\n" +
+                "5. Lock tool: click a pin to lock/unlock it. Block tool: click an empty cell to close / open it (no pin can land there). Funnel tool: click an empty cell to put / remove a post the ropes wrap around.\n" +
                 "6. Tutorial (optional): 'Pick' → click the pin, then the target cell.\n\n" +
                 "AI (any chat): AI Generate ↗ → copy prompt → paste the JSON answer → Import.\n\n" +
                 "CHECK & SAVE\n" +
@@ -430,6 +432,7 @@ namespace Editor.Windows
             AddToolButton(Tool.Lock, "Lock");
             AddToolButton(Tool.Erase, "Erase");
             AddToolButton(Tool.Block, "Block");
+            AddToolButton(Tool.Funnel, "Funnel");
             tools.Add(_toolsContainer);
             scroll.Add(tools);
 
@@ -583,6 +586,9 @@ namespace Editor.Windows
                     break;
                 case Tool.Block:
                     _paletteContainer.Add(new Label("Block: click an empty cell to close / open it. Pins can't be dropped on closed cells."));
+                    break;
+                case Tool.Funnel:
+                    _paletteContainer.Add(new Label("Funnel: click an empty cell to put / remove a post. Ropes wrap around it, pins can't land on it."));
                     break;
                 case Tool.Tutorial:
                     _paletteContainer.Add(new Label(_pendingPinId < 0
@@ -810,7 +816,7 @@ namespace Editor.Windows
                         if (pin != null) RemovePin(pin);
                     }
                     else if (pin != null) BeginPinDrag(pin);
-                    else if (!IsBlocked(cell)) AddPin(cell);
+                    else if (!IsClosed(cell)) AddPin(cell);
                     break;
                 case Tool.Rope:
                     if (button == 1) CancelRope();
@@ -823,7 +829,10 @@ namespace Editor.Windows
                     if (pin != null) RemovePin(pin);
                     break;
                 case Tool.Block:
-                    if (pin == null) ToggleBlocked(cell);
+                    if (pin == null) ToggleCell(Stage.blockedCells, cell, "Toggle Blocked Cell");
+                    break;
+                case Tool.Funnel:
+                    if (pin == null) ToggleCell(Stage.funnelCells, cell, "Toggle Funnel");
                     break;
                 case Tool.Tutorial:
                     OnTutorialClick(cell, pin);
@@ -838,7 +847,7 @@ namespace Editor.Windows
             if (_draggingPinId < 0 || Stage == null) return;
             var cell = new Vector2Int(x, y);
             var pin = PinById(_draggingPinId);
-            if (pin == null || PinAt(cell) != null || IsBlocked(cell)) return;
+            if (pin == null || PinAt(cell) != null || IsClosed(cell)) return;
             MovePin(pin, cell);
             RefreshCanvas();
         }
@@ -904,13 +913,20 @@ namespace Editor.Windows
             if (_pendingPinId == pin.id) _pendingPinId = -1;
         }
 
-        private bool IsBlocked(Vector2Int cell) => Stage?.blockedCells != null && Stage.blockedCells.Contains(cell);
+        // Blocked cells and funnels both keep pins out.
+        private bool IsClosed(Vector2Int cell) =>
+            Stage != null && (Stage.blockedCells.Contains(cell) || Stage.funnelCells.Contains(cell));
 
-        private void ToggleBlocked(Vector2Int cell)
+        // A cell is either blocked or a funnel, never both.
+        private void ToggleCell(List<Vector2Int> cells, Vector2Int cell, string undoName)
         {
-            Undo.RecordObject(_session, "Toggle Blocked Cell");
-            Stage.blockedCells ??= new List<Vector2Int>();
-            if (!Stage.blockedCells.Remove(cell)) Stage.blockedCells.Add(cell);
+            Undo.RecordObject(_session, undoName);
+            if (!cells.Remove(cell))
+            {
+                Stage.blockedCells.Remove(cell);
+                Stage.funnelCells.Remove(cell);
+                cells.Add(cell);
+            }
             if (Level.tutorial != null && Level.tutorial.pinId >= 0 && Level.tutorial.TargetCell == cell) Level.tutorial.pinId = -1;
         }
 
@@ -1044,7 +1060,7 @@ namespace Editor.Windows
                 return;
             }
 
-            if (IsBlocked(cell)) return;
+            if (IsClosed(cell)) return;
             Undo.RecordObject(_session, "Set Tutorial");
             Level.tutorial ??= new TutorialJson();
             Level.tutorial.pinId = _pendingPinId;
@@ -1214,6 +1230,7 @@ namespace Editor.Windows
             _commands[LevelEditorCommands.ToolLock] = () => SetTool(Tool.Lock);
             _commands[LevelEditorCommands.ToolErase] = () => SetTool(Tool.Erase);
             _commands[LevelEditorCommands.ToolBlock] = () => SetTool(Tool.Block);
+            _commands[LevelEditorCommands.ToolFunnel] = () => SetTool(Tool.Funnel);
 
             _commands[LevelEditorCommands.Save] = SaveCurrentLevel;
             _commands[LevelEditorCommands.Load] = () => LoadLevel(_levelNumberField.value);
