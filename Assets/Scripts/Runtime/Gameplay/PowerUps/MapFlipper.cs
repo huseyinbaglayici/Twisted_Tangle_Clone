@@ -223,7 +223,7 @@ namespace Runtime.Gameplay.PowerUps
             done?.Invoke();
         }
 
-        // Pins sit on mirrored cells now; slot views are identical, so each one just snaps back to its own cell.
+        // Pins sit on mirrored cells now; slot views snap back to their own cell and show the mirrored blocked holes.
         private void MirrorBoard()
         {
             int w = level.Grid.Width;
@@ -235,10 +235,11 @@ namespace Runtime.Gameplay.PowerUps
                 pin.transform.SetPositionAndRotation(level.Grid.CellToWorld(model.Cell), Quaternion.identity);
                 level.SetPinPlaced(model.Id, true);
             }
+            level.Board.MirrorBlockedCells();
             foreach (var cell in level.Cells.Values)
             {
                 cell.transform.rotation = Quaternion.identity;
-                cell.Setup(cell.Cell, level.Grid.CellToWorld(cell.Cell));
+                cell.Setup(cell.Cell, level.Grid.CellToWorld(cell.Cell), level.Board.IsBlocked(cell.Cell));
             }
         }
 

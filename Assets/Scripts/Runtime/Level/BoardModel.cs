@@ -40,6 +40,7 @@ namespace Runtime.Level
 
         public readonly Dictionary<int, Pin> Pins = new();
         public readonly List<Rope> Ropes = new();
+        public readonly HashSet<Vector2Int> BlockedCells = new();
         private readonly List<Pin> _groupPins = new();
         public BoardGrid Grid { get; private set; }
 
@@ -47,7 +48,10 @@ namespace Runtime.Level
         {
             Pins.Clear();
             Ropes.Clear();
+            BlockedCells.Clear();
             Grid = grid;
+
+            if (stage.blockedCells != null) BlockedCells.UnionWith(stage.blockedCells);
 
             foreach (var p in stage.pins)
                 Pins[p.id] = new Pin { Id = p.id, Cell = p.Cell, Locked = p.locked };
@@ -63,10 +67,20 @@ namespace Runtime.Level
 
         public bool IsCellFree(Vector2Int cell)
         {
-            if (!Grid.Contains(cell)) return false;
+            if (!Grid.Contains(cell) || BlockedCells.Contains(cell)) return false;
             foreach (var p in Pins.Values)
                 if (!p.Removed && p.Cell == cell) return false;
             return true;
+        }
+
+        public bool IsBlocked(Vector2Int cell) => BlockedCells.Contains(cell);
+
+        // The board flip mirrors every pin across the vertical axis; blocked holes go with it.
+        public void MirrorBlockedCells()
+        {
+            var mirrored = new List<Vector2Int>(BlockedCells);
+            BlockedCells.Clear();
+            foreach (var c in mirrored) BlockedCells.Add(new Vector2Int(Grid.Width - 1 - c.x, c.y));
         }
 
         public bool IsWithinPinDistance(Pin pin, Vector2Int cell)

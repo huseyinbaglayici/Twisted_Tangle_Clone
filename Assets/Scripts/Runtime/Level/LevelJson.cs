@@ -32,6 +32,8 @@ namespace Runtime.Level
         public int gridHeight = 6;
         public List<PinJson> pins = new();
         public List<RopeJson> ropes = new();
+        // Holes that never take a pin: nothing starts or can be dropped there.
+        public List<Vector2Int> blockedCells = new();
 
         public static int WidthForMap(int mapId) => 3 + mapId;
         public static int HeightForMap(int mapId) => 5 + mapId;

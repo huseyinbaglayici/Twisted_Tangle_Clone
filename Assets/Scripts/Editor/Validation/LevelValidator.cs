@@ -74,10 +74,21 @@ namespace TwistedTangle.Editor.Validation
                 report.Warnings.Add($"Grid {stage.gridWidth}x{stage.gridHeight} doesn't match map {stage.mapId} " +
                                     $"({StageJson.WidthForMap(stage.mapId)}x{StageJson.HeightForMap(stage.mapId)}).");
 
+            var blocked = new HashSet<Vector2Int>();
+            foreach (var cell in stage.blockedCells ?? new List<Vector2Int>())
+            {
+                if (!InBounds(cell, stage))
+                    report.Errors.Add($"Blocked cell {cell} is outside the grid.");
+                if (!blocked.Add(cell))
+                    report.Warnings.Add($"Blocked cell {cell} is listed twice.");
+            }
+
             var pinsById = new Dictionary<int, PinJson>();
             var occupied = new HashSet<Vector2Int>();
             foreach (var pin in stage.pins)
             {
+                if (blocked.Contains(pin.Cell))
+                    report.Errors.Add($"Pin {pin.id} sits on blocked cell {pin.Cell}.");
                 if (!pinsById.TryAdd(pin.id, pin))
                     report.Errors.Add($"Duplicate pin id {pin.id}.");
                 if (!InBounds(pin.Cell, stage))
@@ -145,7 +156,8 @@ namespace TwistedTangle.Editor.Validation
             {
                 if (!pinsById.ContainsKey(level.tutorial.pinId))
                     report.Errors.Add($"Tutorial pin {level.tutorial.pinId} doesn't exist.");
-                if (!InBounds(level.tutorial.TargetCell, stage) || occupied.Contains(level.tutorial.TargetCell))
+                if (!InBounds(level.tutorial.TargetCell, stage) || occupied.Contains(level.tutorial.TargetCell) ||
+                    blocked.Contains(level.tutorial.TargetCell))
                     report.Errors.Add($"Tutorial target {level.tutorial.TargetCell} must be an empty cell.");
             }
 
@@ -155,7 +167,7 @@ namespace TwistedTangle.Editor.Validation
                 RopeCount = stage.ropes.Count,
                 SharedPinCount = usedPins.Count(kv => kv.Value > 1),
                 LockedPinCount = stage.pins.Count(p => p.locked),
-                FreeCells = stage.gridWidth * stage.gridHeight - occupied.Count,
+                FreeCells = stage.gridWidth * stage.gridHeight - occupied.Count - blocked.Count,
             };
 
             if (ropesValid && report.Errors.Count == 0)

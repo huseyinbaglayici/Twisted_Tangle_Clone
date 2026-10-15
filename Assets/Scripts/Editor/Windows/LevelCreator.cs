@@ -22,6 +22,7 @@ namespace Editor.Windows
             Rope,
             Lock,
             Erase,
+            Block,
             Tutorial
         }
 
@@ -69,6 +70,7 @@ namespace Editor.Windows
             { Tool.Rope, LevelEditorCommands.ToolRope },
             { Tool.Lock, LevelEditorCommands.ToolLock },
             { Tool.Erase, LevelEditorCommands.ToolErase },
+            { Tool.Block, LevelEditorCommands.ToolBlock },
         };
 
         private LevelJson Level => _session != null ? _session.level : null;
@@ -148,8 +150,8 @@ namespace Editor.Windows
                 "NEW LEVEL\n" +
                 "2. Set Level # and Map (map N = (3+N)×(5+N) grid), click 'New Level'.\n" +
                 "3. Pin tool: click a cell to add a pin, drag a pin to move it, right-click to remove.\n" +
-                "4. Rope tool: pick a color, click two pins. New ropes get a slack path on top; front/back re-stacks over/under. Reach is limited by max tension.\n" +
-                "5. Lock tool: click a pin to lock/unlock it.\n" +
+                "4. Rope tool: pick a color, click pins one after another to run one rope through several pins (right-click ends it). New ropes get a slack path on top; front/back re-stacks over/under. Reach is limited by max tension.\n" +
+                "5. Lock tool: click a pin to lock/unlock it. Block tool: click an empty cell to close / open it (no pin can land there).\n" +
                 "6. Tutorial (optional): 'Pick' → click the pin, then the target cell.\n\n" +
                 "AI (any chat): AI Generate ↗ → copy prompt → paste the JSON answer → Import.\n\n" +
                 "CHECK & SAVE\n" +
@@ -427,6 +429,7 @@ namespace Editor.Windows
             AddToolButton(Tool.Rope, "Rope");
             AddToolButton(Tool.Lock, "Lock");
             AddToolButton(Tool.Erase, "Erase");
+            AddToolButton(Tool.Block, "Block");
             tools.Add(_toolsContainer);
             scroll.Add(tools);
 
@@ -578,6 +581,9 @@ namespace Editor.Windows
                 case Tool.Erase:
                     _paletteContainer.Add(new Label("Erase: click a pin to remove it together with its ropes."));
                     break;
+                case Tool.Block:
+                    _paletteContainer.Add(new Label("Block: click an empty cell to close / open it. Pins can't be dropped on closed cells."));
+                    break;
                 case Tool.Tutorial:
                     _paletteContainer.Add(new Label(_pendingPinId < 0
                         ? "Tutorial: click the pin the hand should drag."
@@ -596,7 +602,7 @@ namespace Editor.Windows
                 return;
             }
 
-            _paletteContainer.Add(new Label("Click two pins to connect them. Color:"));
+            _paletteContainer.Add(new Label("Click pins one after another to run a rope through them (right-click ends it). Color:"));
             var swRow = new VisualElement();
             swRow.AddToClassList(Css.SwatchGrid);
             for (int i = 0; i < _palette.Count; i++)
@@ -804,7 +810,7 @@ namespace Editor.Windows
                         if (pin != null) RemovePin(pin);
                     }
                     else if (pin != null) BeginPinDrag(pin);
-                    else AddPin(cell);
+                    else if (!IsBlocked(cell)) AddPin(cell);
                     break;
                 case Tool.Rope:
                     if (button == 1) CancelRope();
@@ -815,6 +821,9 @@ namespace Editor.Windows
                     break;
                 case Tool.Erase:
                     if (pin != null) RemovePin(pin);
+                    break;
+                case Tool.Block:
+                    if (pin == null) ToggleBlocked(cell);
                     break;
                 case Tool.Tutorial:
                     OnTutorialClick(cell, pin);
@@ -829,7 +838,7 @@ namespace Editor.Windows
             if (_draggingPinId < 0 || Stage == null) return;
             var cell = new Vector2Int(x, y);
             var pin = PinById(_draggingPinId);
-            if (pin == null || PinAt(cell) != null) return;
+            if (pin == null || PinAt(cell) != null || IsBlocked(cell)) return;
             MovePin(pin, cell);
             RefreshCanvas();
         }
@@ -893,6 +902,16 @@ namespace Editor.Windows
             Stage.ropes.RemoveAll(r => r.pinA == pin.id || r.pinB == pin.id);
             if (Level.tutorial != null && Level.tutorial.pinId == pin.id) Level.tutorial.pinId = -1;
             if (_pendingPinId == pin.id) _pendingPinId = -1;
+        }
+
+        private bool IsBlocked(Vector2Int cell) => Stage?.blockedCells != null && Stage.blockedCells.Contains(cell);
+
+        private void ToggleBlocked(Vector2Int cell)
+        {
+            Undo.RecordObject(_session, "Toggle Blocked Cell");
+            Stage.blockedCells ??= new List<Vector2Int>();
+            if (!Stage.blockedCells.Remove(cell)) Stage.blockedCells.Add(cell);
+            if (Level.tutorial != null && Level.tutorial.pinId >= 0 && Level.tutorial.TargetCell == cell) Level.tutorial.pinId = -1;
         }
 
         private void ToggleLock(PinJson pin)
@@ -978,7 +997,8 @@ namespace Editor.Windows
             Stage.ropes.Add(rope);
             RopePathBuilder.Restack(Stage, rope, onTop: true);
             _selectedRopeId = rope.id;
-            _pendingPinId = -1;
+            // The rope keeps going from the pin just clicked: the next click runs it on to another pin.
+            _pendingPinId = pin.id;
         }
 
         private void CancelRope()
@@ -1024,6 +1044,7 @@ namespace Editor.Windows
                 return;
             }
 
+            if (IsBlocked(cell)) return;
             Undo.RecordObject(_session, "Set Tutorial");
             Level.tutorial ??= new TutorialJson();
             Level.tutorial.pinId = _pendingPinId;
@@ -1192,6 +1213,7 @@ namespace Editor.Windows
             _commands[LevelEditorCommands.ToolRope] = () => SetTool(Tool.Rope);
             _commands[LevelEditorCommands.ToolLock] = () => SetTool(Tool.Lock);
             _commands[LevelEditorCommands.ToolErase] = () => SetTool(Tool.Erase);
+            _commands[LevelEditorCommands.ToolBlock] = () => SetTool(Tool.Block);
 
             _commands[LevelEditorCommands.Save] = SaveCurrentLevel;
             _commands[LevelEditorCommands.Load] = () => LoadLevel(_levelNumberField.value);

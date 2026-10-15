@@ -9,6 +9,7 @@ namespace Runtime.Entities
         [SerializeField] private float baseScale = 0.38f;
         [SerializeField] private SpriteRenderer dropRing;
         [SerializeField] private SpriteRenderer originRing;
+        [SerializeField] private GameObject blockedVisual;
         [SerializeField] private float originPulseScale = 1.1f;
         [SerializeField] private float originPulseDuration = 0.4f;
 
@@ -21,9 +22,10 @@ namespace Runtime.Entities
             if (originRing != null) _originScale = originRing.transform.localScale;
         }
 
-        public void Setup(Vector2Int cell, Vector3 world)
+        public void Setup(Vector2Int cell, Vector3 world, bool blocked)
         {
             Cell = cell;
+            if (blockedVisual != null) blockedVisual.SetActive(blocked);
             transform.position = world;
             transform.localScale = Vector3.one * baseScale;
             SetHighlight(false);

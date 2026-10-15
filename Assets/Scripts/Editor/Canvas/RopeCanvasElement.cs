@@ -127,6 +127,25 @@ namespace Editor.Canvas
                 p.Fill();
             }
 
+            if (Stage.blockedCells != null)
+            {
+                float br = CellSize * 0.3f;
+                p.lineWidth = Mathf.Max(2f, CellSize * 0.06f);
+                p.strokeColor = GridStrokeColor;
+                foreach (var cell in Stage.blockedCells)
+                {
+                    var c = ToPx(cell);
+                    var d = new Vector2(br, -br) * 0.7071f;
+                    p.BeginPath();
+                    p.Arc(c, br, Angle.Degrees(0f), Angle.Degrees(360f));
+                    p.Stroke();
+                    p.BeginPath();
+                    p.MoveTo(c - d);
+                    p.LineTo(c + d);
+                    p.Stroke();
+                }
+            }
+
             if (_hoveredCell.x < 0) return;
             p.lineWidth = 2f;
             p.strokeColor = EditorColors.SelectionGlow;

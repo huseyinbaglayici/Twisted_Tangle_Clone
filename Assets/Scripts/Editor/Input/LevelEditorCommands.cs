@@ -9,6 +9,7 @@ namespace Editor.Input
         public const string ToolRope = "tool.rope";
         public const string ToolLock = "tool.lock";
         public const string ToolErase = "tool.erase";
+        public const string ToolBlock = "tool.block";
 
         public const string Save = "level.save";
         public const string Load = "level.load";
@@ -28,6 +29,7 @@ namespace Editor.Input
             new(ToolRope, "Tools", "Rope tool", new KeyCombo(KeyCode.R)),
             new(ToolLock, "Tools", "Lock tool", new KeyCombo(KeyCode.K)),
             new(ToolErase, "Tools", "Erase tool", new KeyCombo(KeyCode.E)),
+            new(ToolBlock, "Tools", "Block tool", new KeyCombo(KeyCode.B)),
 
             new(Save, "Level", "Save level", new KeyCombo(KeyCode.S, ctrl: true)),
             new(Load, "Level", "Load level", new KeyCombo(KeyCode.L, ctrl: true)),
