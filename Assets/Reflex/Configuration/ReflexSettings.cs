@@ -9,7 +9,6 @@ namespace Reflex.Configuration
     internal sealed class ReflexSettings : ScriptableObject
     {
         private static ReflexSettings _instance;
-        private static ResourceRequest _settingsRequest;
 
         public static ReflexSettings Instance
         {
@@ -17,19 +16,15 @@ namespace Reflex.Configuration
             {
                 if (_instance == null)
                 {
-                    _settingsRequest ??= Resources.LoadAsync<ReflexSettings>("ReflexSettings");
-
-                    // This stalls execution until the request fully resolves.
-                    // This *should* be faster than non-async loading when project installers have a lot of references.
-                    _instance = (ReflexSettings)_settingsRequest.asset;
+                    _instance = Resources.Load<ReflexSettings>("ReflexSettings");
                 }
-                
+
                 Assert.IsNotNull(_instance, "ReflexSettings not found in Resources folder.\n" +
                                             "Please create ReflexSettings using right mouse button over Resources folder, Create > Reflex > Settings.");
                 return _instance;
             }
         }
-        
+
         [field: SerializeField] public LogLevel LogLevel { get; private set; }
         [field: SerializeField] public List<ContainerScope> RootScopes { get; private set; }
 
@@ -39,10 +34,12 @@ namespace Reflex.Configuration
             ReflexLogger.UpdateLogLevel(LogLevel);
         }
 
+        // Load synchronously before any scene loads. An async load resolved inside a scene's Awake
+        // integrates the root scope prefabs mid scene load, and instantiating them there crashes the editor.
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         public static void InitializeReflex()
         {
-            _settingsRequest = Resources.LoadAsync<ReflexSettings>("ReflexSettings");
+            _instance = Resources.Load<ReflexSettings>("ReflexSettings");
         }
     }
 }
