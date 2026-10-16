@@ -1,4 +1,6 @@
-# All Screenshots
+# Screenshots & Videos
+
+## Editor Screenshots
 
 <details>
 <summary><b>Level Creator — General</b></summary>
@@ -40,4 +42,26 @@
 <summary><b>Editor Paths</b></summary>
 <br/>
 <img width="600" alt="Editor-Paths" src="Editor-Paths.png" />
+</details>
+
+## Gameplay Videos
+
+Source recordings of the README GIFs, 1080x1920 at 60 fps.
+
+<details>
+<summary><b>Easy — Menu, tutorial, win</b></summary>
+<br/>
+<a href="Videos/Gameplay-Easy.mp4?raw=true">Gameplay-Easy.mp4</a> (8 s)
+</details>
+
+<details>
+<summary><b>Medium — New obstacle intro, scissors</b></summary>
+<br/>
+<a href="Videos/Gameplay-Medium.mp4?raw=true">Gameplay-Medium.mp4</a> (10 s)
+</details>
+
+<details>
+<summary><b>Hard — Hard level, untangle, shuffle</b></summary>
+<br/>
+<a href="Videos/Gameplay-Hard.mp4?raw=true">Gameplay-Hard.mp4</a> (23 s)
 </details>
