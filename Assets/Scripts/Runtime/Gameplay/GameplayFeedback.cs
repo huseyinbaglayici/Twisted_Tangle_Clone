@@ -24,7 +24,6 @@ namespace Runtime.Gameplay
             flow.LevelWon += OnLevelWon;
             input.PinPicked += OnPinPicked;
             input.PinDropped += OnPinDropped;
-            input.PinMoveRejected += OnPinMoveRejected;
             merge.MergeStarted += OnMergeStarted;
             merge.MergePopped += OnMergePopped;
         }
@@ -35,7 +34,6 @@ namespace Runtime.Gameplay
             flow.LevelWon -= OnLevelWon;
             input.PinPicked -= OnPinPicked;
             input.PinDropped -= OnPinDropped;
-            input.PinMoveRejected -= OnPinMoveRejected;
             merge.MergeStarted -= OnMergeStarted;
             merge.MergePopped -= OnMergePopped;
             if (_fx != null) _fx.DespawnAll();
@@ -64,8 +62,6 @@ namespace Runtime.Gameplay
             _fx.Play(FxType.PinDrop, level.Grid.CellToWorld(pin.Model.Cell));
             _audio.Play(SfxType.PinDrop);
         }
-
-        private void OnPinMoveRejected(PinEntity pin) => _audio.Play(SfxType.Deny);
 
         private void OnMergeStarted(Vector3 position) => _audio.Play(SfxType.RopeMerge);
 

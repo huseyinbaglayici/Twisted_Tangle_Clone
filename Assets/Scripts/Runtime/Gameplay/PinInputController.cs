@@ -39,12 +39,11 @@ namespace Runtime.Gameplay
         private BoardModel.Pin _pressed, _dragged;
         private Vector2 _pressScreen;
         private Vector3 _dragTarget;
-        private float _dragTime;
+        private float _pressTime;
         private GridCellEntity _dropCandidate, _originCell;
 
         public event Action<PinEntity> PinPicked;
         public event Action<PinEntity> PinDropped;
-        public event Action<PinEntity> PinMoveRejected;
 
         public bool Enabled { get; set; } = true;
         // A power-up is in use; kept apart from Enabled, which the level flow owns.
@@ -82,6 +81,7 @@ namespace Runtime.Gameplay
                 if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject()) return;
                 _pressScreen = Input.mousePosition;
                 _pressed = PickPin();
+                _pressTime = Time.time;
             }
             else if (Input.GetMouseButton(0))
             {
@@ -113,13 +113,7 @@ namespace Runtime.Gameplay
                 return;
             }
 
-            _dragTime += Time.fixedDeltaTime;
-            if (IsDragOverStretched())
-            {
-                var pin = _dragged;
-                AbortDrag();
-                Reject(pin);
-            }
+            if (IsDragOverStretched()) AbortDrag();
         }
 
         // Per rendered frame, not per physics step, so the held pin moves smoothly at any frame rate.
@@ -133,7 +127,6 @@ namespace Runtime.Gameplay
         private void BeginDrag(BoardModel.Pin pin)
         {
             _dragged = pin;
-            _dragTime = 0f;
             var view = level.PinViews[pin.Id].transform;
             view.DOKill();
             _dragTarget = view.position + liftOffset;
@@ -166,20 +159,28 @@ namespace Runtime.Gameplay
             SetOriginCell(null);
         }
 
+        // Checks the held pin's first rope and every rope touching it. Each limit arms a moment after the press,
+        // so a quick grab of a tight rope still gets a chance.
         private bool IsDragOverStretched()
         {
-            float max = 0f;
-            foreach (var rope in _dragged.Ropes)
-            {
-                if (rope.Merged || !level.RopeViews.TryGetValue(rope.Id, out var view)) continue;
-                max = Mathf.Max(max, view.TensionRatio);
-                foreach (var other in level.RopeViews.Values)
-                    if (other != view && collisions.IsCollidingWith(view.Obi, other.Obi))
-                        max = Mathf.Max(max, other.TensionRatio);
-            }
+            var first = FirstActiveRope(_dragged);
+            if (first == null || !level.RopeViews.TryGetValue(first.Id, out var view)) return false;
 
-            return (_dragTime >= cancelTensionDelay && max >= cancelTension) ||
-                   (_dragTime >= cancelHigherTensionDelay && max >= cancelHigherTension);
+            float max = view.TensionRatio;
+            foreach (var other in level.RopeViews.Values)
+                if (other != view && collisions.IsCollidingWith(view.Obi, other.Obi))
+                    max = Mathf.Max(max, other.TensionRatio);
+
+            float held = Time.time - _pressTime;
+            return (held >= cancelTensionDelay && max >= cancelTension) ||
+                   (held >= cancelHigherTensionDelay && max >= cancelHigherTension);
+        }
+
+        private static BoardModel.Rope FirstActiveRope(BoardModel.Pin pin)
+        {
+            foreach (var rope in pin.Ropes)
+                if (!rope.Merged) return rope;
+            return null;
         }
 
         private Vector3 ClampToPins(BoardModel.Pin pin, Vector3 target)
@@ -227,11 +228,6 @@ namespace Runtime.Gameplay
             if (_originCell != null) _originCell.SetOrigin(true);
         }
 
-        private void Reject(BoardModel.Pin pin)
-        {
-            if (level.PinViews.TryGetValue(pin.Id, out var view)) PinMoveRejected?.Invoke(view);
-        }
-
         private void MoveTo(BoardModel.Pin pin, Vector2Int cell)
         {
             var from = pin.Cell;
@@ -246,19 +242,16 @@ namespace Runtime.Gameplay
 
         private void RevertIfOverStretched(BoardModel.Pin pin, Vector2Int from, Vector2Int to)
         {
-            if (pin.Cell != to || !Board.CanControl(pin) || pin == _dragged || !IsAnyRopeTooTense(pin)) return;
+            if (pin.Cell != to || !Board.CanControl(pin) || pin == _dragged || !IsFirstRopeTooTense(pin)) return;
             if (!Board.IsCellFree(from)) return;
             Board.CommitMove(pin, from);
             Fly(pin, level.Grid.CellToWorld(from), hopSecondsPerUnit, hopEase, byDistance: true);
-            Reject(pin);
         }
 
-        private bool IsAnyRopeTooTense(BoardModel.Pin pin)
+        private bool IsFirstRopeTooTense(BoardModel.Pin pin)
         {
-            foreach (var rope in pin.Ropes)
-                if (!rope.Merged && level.RopeViews.TryGetValue(rope.Id, out var v) && v.TensionRatio >= cancelTension)
-                    return true;
-            return false;
+            var first = FirstActiveRope(pin);
+            return first != null && level.RopeViews.TryGetValue(first.Id, out var v) && v.TensionRatio >= cancelTension;
         }
 
         private void PlaceBack(BoardModel.Pin pin)

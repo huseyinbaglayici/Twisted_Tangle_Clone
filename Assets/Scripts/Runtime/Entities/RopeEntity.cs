@@ -29,6 +29,8 @@ namespace Runtime.Entities
         [SerializeField] private float tensionCeiling = 1.25f;
         [SerializeField] private float redTintFrom = 0.45f;
         [SerializeField] private Color tensionColor = Color.red;
+        [Tooltip("How far towards tensionColor a rope gets at its limit: just a hint of red.")]
+        [SerializeField, Range(0f, 1f)] private float maxTensionTint = 0.3f;
 
         [Header("Blink (power-up target)")]
         [SerializeField] private Color blinkColor = Color.white;
@@ -198,7 +200,7 @@ namespace Runtime.Entities
         private void LateUpdate()
         {
             if (Model == null || !rope.isLoaded) return;
-            float red = Mathf.InverseLerp(redTintFrom, 1f, TensionRatio);
+            float red = Mathf.InverseLerp(redTintFrom, 1f, TensionRatio) * maxTensionTint;
             var color = Color.Lerp(_color, tensionColor, red);
             SetColor(Color.Lerp(color, blinkColor, _blinkAmount * blinkStrength));
         }
