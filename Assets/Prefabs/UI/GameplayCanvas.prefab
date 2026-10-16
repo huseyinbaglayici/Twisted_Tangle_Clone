@@ -4495,9 +4495,12 @@ MonoBehaviour:
   countdownFill: {fileID: 7310629729502525085}
   fadeIn: 0.5
   fadeOut: 0.5
-  snowInterval: 0.3
-  snowDepth: 3
-  snowInset: {x: 0.08, y: 0.06}
+  frame: {fileID: 1212986600854847827}
+  frameStartScale: 1.18
+  frameInDuration: 0.45
+  framePulseScale: 1.025
+  framePulseDuration: 0.9
+  fxDepth: 3
 --- !u!1 &3719720463063982903
 GameObject:
   m_ObjectHideFlags: 0
@@ -8545,7 +8548,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_Material: {fileID: 0}
-  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_Color: {r: 0.72, g: 0.9, b: 1, a: 1}
   m_RaycastTarget: 0
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1

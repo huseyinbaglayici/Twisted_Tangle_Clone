@@ -10,6 +10,7 @@ namespace Runtime.UI
 {
     // Ice missile to the clock, then the ice frame, clock decorations and countdown bar for as long as the timer is
     // frozen. Everything is driven by the timer's remaining freeze, so it pauses with it while a popup is open.
+    // The frame closes in from outside the screen and breathes; nothing flies over the board.
     public class FreezeOverlay : MonoBehaviour
     {
         [Inject] private FxPlayer _fx;
@@ -31,16 +32,19 @@ namespace Runtime.UI
         [SerializeField] private float fadeIn = 0.5f;
         [SerializeField] private float fadeOut = 0.5f;
 
-        [Header("Edge snow")]
-        [SerializeField] private float snowInterval = 0.3f;
-        [Tooltip("Distance in front of the camera the snow bursts spawn at.")]
-        [SerializeField] private float snowDepth = 3f;
-        [Tooltip("How far in from the screen edge (fraction of width / height) the snow spawns.")]
-        [SerializeField] private Vector2 snowInset = new(0.08f, 0.06f);
+        [Header("Frame")]
+        [SerializeField] private RectTransform frame;
+        [SerializeField] private float frameStartScale = 1.18f;
+        [SerializeField] private float frameInDuration = 0.45f;
+        [SerializeField] private float framePulseScale = 1.025f;
+        [SerializeField] private float framePulseDuration = 0.9f;
+
+        [Tooltip("Distance in front of the camera the burst on the clock spawns at.")]
+        [SerializeField] private float fxDepth = 3f;
 
         private Sequence _missileTween;
+        private Sequence _frameTween;
         private float _alpha;
-        private float _snowTimer;
 
         private void Awake()
         {
@@ -60,6 +64,7 @@ namespace Runtime.UI
             freeze.Launched -= OnLaunched;
             freeze.Landed -= OnLanded;
             _missileTween?.Kill();
+            _frameTween?.Kill();
         }
 
         private void OnLaunched()
@@ -82,6 +87,12 @@ namespace Runtime.UI
             _audio.Play(SfxType.FreezeHit);
             clock.DOKill(true);
             clock.DOPunchScale(Vector3.one * 0.2f, 0.35f, 6, 0.5f).SetLink(gameObject);
+
+            _frameTween?.Kill();
+            frame.localScale = Vector3.one * frameStartScale;
+            _frameTween = DOTween.Sequence().SetLink(gameObject)
+                .Append(frame.DOScale(1f, frameInDuration).SetEase(Ease.OutBack))
+                .Append(frame.DOScale(framePulseScale, framePulseDuration).SetEase(Ease.InOutSine).SetLoops(-1, LoopType.Yoyo));
         }
 
         private void Update()
@@ -96,7 +107,6 @@ namespace Runtime.UI
                 else if (remaining < fadeOut) a = DOVirtual.EasedValue(1f, 0f, 1f - remaining / fadeOut, Ease.InQuad);
                 SetAlpha(a);
                 countdownFill.anchorMax = new Vector2(remaining / duration, 1f);
-                if (!timer.Paused) SpawnSnow();
             }
             else if (_alpha > 0f)
             {
@@ -105,31 +115,18 @@ namespace Runtime.UI
             }
         }
 
-        private void SpawnSnow()
-        {
-            _snowTimer -= Time.deltaTime;
-            if (_snowTimer > 0f) return;
-            _snowTimer = snowInterval;
-
-            // A random point on a rect inset from the screen edges.
-            float w = Screen.width, h = Screen.height;
-            float x0 = w * snowInset.x, x1 = w - x0, y0 = h * snowInset.y, y1 = h - y0;
-            Vector2 p = Random.Range(0, 4) switch
-            {
-                0 => new Vector2(x0, Random.Range(y0, y1)),
-                1 => new Vector2(x1, Random.Range(y0, y1)),
-                2 => new Vector2(Random.Range(x0, x1), y0),
-                _ => new Vector2(Random.Range(x0, x1), y1)
-            };
-            _fx.Play(FxType.FreezeSnow, ScreenToWorld(p));
-        }
-
         private Vector3 ScreenToWorld(Vector2 screen) =>
-            cam.ScreenToWorldPoint(new Vector3(screen.x, screen.y, snowDepth));
+            cam.ScreenToWorldPoint(new Vector3(screen.x, screen.y, fxDepth));
 
         private void SetAlpha(float a)
         {
             _alpha = a;
+            if (a <= 0.001f && _frameTween != null)
+            {
+                _frameTween.Kill();
+                _frameTween = null;
+                frame.localScale = Vector3.one;
+            }
             foreach (var group in fadeGroups)
             {
                 group.alpha = a;

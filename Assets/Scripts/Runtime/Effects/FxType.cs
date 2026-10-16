@@ -7,7 +7,6 @@ namespace Runtime.Effects
         PinDrop,
         LevelWinConfetti,
         ScissorsCut,
-        FreezeBurst,
-        FreezeSnow
+        FreezeBurst
     }
 }

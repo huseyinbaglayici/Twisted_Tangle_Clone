@@ -100,7 +100,7 @@ namespace TwistedTangle.Editor.Generation
             sb.AppendLine("- A rope may run through more than two pins: write it as one rope per stretch, same colorIndex, " +
                           "each stretch starting on the pin the previous one ended on.");
             sb.AppendLine("- blockedCells are closed holes: no pin starts there and no pin can be dropped there.");
-            sb.AppendLine("- funnelCells hold a post: ropes wrap around it and catch on it; no pin starts or lands there.");
+            sb.AppendLine("- funnelCells hold a post: ropes wrap around it, and a rope touching a post can't disappear; no pin starts or lands there.");
             sb.AppendLine("- A move drags one unlocked pin to an empty cell. Locked pins never move.");
             sb.AppendLine($"- Reach: a dragged pin stays within {reach:0.##} cells of the other pin of each of its ropes; " +
                           $"a drop that stretches a rope past {maxLen:0.##} cells is cancelled (tension).");
