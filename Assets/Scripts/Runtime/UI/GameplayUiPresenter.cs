@@ -1,9 +1,11 @@
+using System.Collections.Generic;
 using DG.Tweening;
 using Reflex.Attributes;
 using Runtime.Audio;
 using Runtime.Boostrap.Save;
 using Runtime.Gameplay;
 using Runtime.Gameplay.PowerUps;
+using Runtime.Level;
 using UnityEngine;
 
 namespace Runtime.UI
@@ -24,6 +26,7 @@ namespace Runtime.UI
         [SerializeField] private LevelFailPanel failPanel;
         [SerializeField] private SettingsPopup settings;
         [SerializeField] private PowerUpPopup powerUpPopup;
+        [SerializeField] private FeatureIntroPopup featureIntro;
         [SerializeField] private DifficultyBanner difficultyBanner;
 
         [Header("Difficulty")]
@@ -33,6 +36,8 @@ namespace Runtime.UI
         [SerializeField] private float completePanelDelay = 0.7f;
 
         private Tween _pendingPanel;
+        private Tween _pendingIntro;
+        private readonly Queue<LevelFeature> _intros = new();
         private DifficultyTint[] _tints;
 
         // Awake, not Start: the flow already starts the first level in its own Start.
@@ -56,6 +61,7 @@ namespace Runtime.UI
 
             foreach (var button in hud.PowerUps) button.Clicked += OnPowerUpClicked;
             powerUpPopup.ActionClicked += OnPowerUpConfirmed;
+            featureIntro.Closed += OnFeatureIntroClosed;
             powerUps.Changed += RefreshPowerUps;
         }
 
@@ -65,6 +71,7 @@ namespace Runtime.UI
             failPanel.Hide(true);
             settings.Hide(true);
             powerUpPopup.Hide(true);
+            featureIntro.Hide(true);
             hud.Show();
             RefreshPowerUps();
         }
@@ -72,6 +79,7 @@ namespace Runtime.UI
         private void OnDestroy()
         {
             _pendingPanel?.Kill();
+            _pendingIntro?.Kill();
             flow.LevelStarted -= OnLevelStarted;
             flow.LevelWon -= OnLevelWon;
             flow.LevelFailed -= OnLevelFailed;
@@ -88,6 +96,44 @@ namespace Runtime.UI
             difficultyBanner.Play(theme);
             if (completePanel.IsVisible) completePanel.Hide();
             if (failPanel.IsVisible) failPanel.Hide();
+            QueueFeatureIntros(theme != null ? difficultyBanner.Duration : 0f);
+        }
+
+        // Every feature the level brings for the first time gets its intro, one after another, once the difficulty
+        // banner is gone. The clock waits while they are open; a feature counts as seen once its intro is closed.
+        private void QueueFeatureIntros(float delay)
+        {
+            _pendingIntro?.Kill();
+            _intros.Clear();
+            if (featureIntro.IsVisible) featureIntro.Hide(true);
+
+            foreach (var feature in flow.CurrentFeatures)
+                if (featureIntro.Has(feature) && !_save.IsTutorialShown(feature.ToString())) _intros.Enqueue(feature);
+            if (_intros.Count == 0)
+            {
+                timer.Paused = false;
+                return;
+            }
+
+            timer.Paused = true;
+            _pendingIntro = DOVirtual.DelayedCall(delay, ShowNextIntro).SetLink(gameObject);
+        }
+
+        private void ShowNextIntro()
+        {
+            if (_intros.Count == 0)
+            {
+                timer.Paused = false;
+                return;
+            }
+            featureIntro.Show(_intros.Peek());
+        }
+
+        private void OnFeatureIntroClosed()
+        {
+            PlayClick();
+            if (_intros.Count > 0) _save.MarkTutorialShown(_intros.Dequeue().ToString());
+            ShowNextIntro();
         }
 
         private void OnLevelWon(int level)

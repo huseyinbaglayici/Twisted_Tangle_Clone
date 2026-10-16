@@ -29,7 +29,7 @@ MonoBehaviour:
     byteDefault: 5
   - key: Level
     type: 0
-    intDefault: 1
+    intDefault: 25
     floatDefault: 0
     boolDefault: 0
     stringDefault: 
@@ -63,6 +63,34 @@ MonoBehaviour:
     stringDefault: 
     byteDefault: 0
   - key: ShuffleTutorialShown
+    type: 2
+    intDefault: 0
+    floatDefault: 0
+    boolDefault: 0
+    stringDefault: 
+    byteDefault: 0
+  - key: SharedPinTutorialShown
+    type: 2
+    intDefault: 0
+    floatDefault: 0
+    boolDefault: 0
+    stringDefault: 
+    byteDefault: 0
+  - key: FunnelTutorialShown
+    type: 2
+    intDefault: 0
+    floatDefault: 0
+    boolDefault: 0
+    stringDefault: 
+    byteDefault: 0
+  - key: LockedPinTutorialShown
+    type: 2
+    intDefault: 0
+    floatDefault: 0
+    boolDefault: 0
+    stringDefault: 
+    byteDefault: 0
+  - key: BlockedCellTutorialShown
     type: 2
     intDefault: 0
     floatDefault: 0

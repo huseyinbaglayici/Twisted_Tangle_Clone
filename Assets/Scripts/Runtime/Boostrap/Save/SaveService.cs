@@ -27,9 +27,9 @@ namespace Runtime.Boostrap.Save
             set => ES3Keys.SaveBool(HapticsOnKey, value);
         }
 
-        // One flag per power-up: its explaining popup shows only the first time it is used.
-        public bool IsTutorialShown(string powerUp) => ES3Keys.LoadBool(powerUp + TutorialShownSuffix);
+        // One flag per power-up and level feature: its explaining popup shows only the first time.
+        public bool IsTutorialShown(string key) => ES3Keys.LoadBool(key + TutorialShownSuffix);
 
-        public void MarkTutorialShown(string powerUp) => ES3Keys.SaveBool(powerUp + TutorialShownSuffix, true);
+        public void MarkTutorialShown(string key) => ES3Keys.SaveBool(key + TutorialShownSuffix, true);
     }
 }

@@ -23,6 +23,8 @@ namespace Runtime.UI
         private float _dimAlpha;
         private Sequence _sequence;
 
+        public float Duration => holdDuration + hideDuration;
+
         public void Play(DifficultyStyle.Theme theme)
         {
             Init();

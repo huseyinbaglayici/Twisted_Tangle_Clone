@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Cysharp.Threading.Tasks;
 using Reflex.Attributes;
 using Runtime.Boostrap;
@@ -30,6 +31,7 @@ namespace Runtime.Gameplay
 
         public int CurrentLevel { get; private set; }
         public LevelDifficulty CurrentDifficulty { get; private set; }
+        public IReadOnlyList<LevelFeature> CurrentFeatures { get; private set; } = Array.Empty<LevelFeature>();
 
         public event Action<int> LevelStarted;
         public event Action<int> LevelWon;
@@ -60,6 +62,7 @@ namespace Runtime.Gameplay
             input.ResetState();
             var level = _levels.Load(levelNumber);
             CurrentDifficulty = level.Difficulty;
+            CurrentFeatures = LevelFeatures.Of(level);
             levelBuilder.Build(level);
             winChecker.Begin();
             timer.Begin(level.timeLimitSeconds);
